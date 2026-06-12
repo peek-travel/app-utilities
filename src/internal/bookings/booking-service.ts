@@ -147,7 +147,21 @@ export class BookingService {
     this.pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
   }
 
-  /** Returns a single booking by id, or null when not found. */
+  /**
+   * Returns a single booking by id, or null when not found. The `bookingId` is
+   * normalized internally (lowercased, `-` → `_`), so `B-ABC123` and `b_abc123`
+   * resolve to the same booking.
+   *
+   * @example
+   * ```ts
+   * const bookings = peek.getBookingService();
+   * const booking = await bookings.getById("b_abc123", {
+   *   includeGuests: true,
+   *   includePriceBreakdown: true,
+   * });
+   * if (booking) console.log(booking.displayId, booking.outstandingBalanceAmount);
+   * ```
+   */
   async getById(
     bookingId: string,
     options: BookingReadOptions = {},
@@ -307,6 +321,24 @@ export class BookingService {
    * Charges a booking. Validates input, resolves the order + payment source via
    * payments-on-file, then applies the payment. The `idempotencyKey` is passed
    * through to Peek.
+   *
+   * @example
+   * ```ts
+   * const result = await peek.getBookingService().makePayment({
+   *   bookingId: "b_abc123",
+   *   paymentSourceId: "custom/other", // or a "ps_…" source on file
+   *   amount: "25.00",
+   *   currency: "USD",
+   *   idempotencyKey: crypto.randomUUID(),
+   * });
+   * console.log(result.transactionId);
+   * ```
+   *
+   * @throws {Error} when `paymentSourceId` is missing or not a `ps_…` id / one
+   * of `cash/cash`, `custom/other`, `custom/voucher`; when `amount` is not a
+   * valid number; when `currency` is not a 3-letter uppercase code; when
+   * `idempotencyKey` is empty; when `bookingId` does not resolve to a `b_…` id;
+   * when the booking or payment source is not found; or when the charge fails.
    */
   async makePayment(input: MakePaymentInput): Promise<MakePaymentResult> {
     const normalized = normalizeBookingId(input.bookingId);
@@ -453,6 +485,24 @@ export class BookingService {
    * amendOrder. Lists the booking's add-ons first to derive the order id and
    * reuse an existing add-on refid; resolves the add-on's parent item via the
    * product service. Returns the booking's add-ons after the change.
+   *
+   * `quantity` is a **positive-integer string** ("1", "2", …); one add-on
+   * itemOption is created per unit. `addonOptionId` is the add-on's item-option
+   * id (a ticket id on an `ADD_ON_PRODUCT_TYPE` product from
+   * {@link ProductService.getAllProducts}).
+   *
+   * @example
+   * ```ts
+   * const result = await peek.getBookingService().addAddon("b_abc123", {
+   *   addonOptionId: "io_helmet",
+   *   quantity: "2",
+   * });
+   * console.log(result.updatedBookingAddons.addons);
+   * ```
+   *
+   * @throws {Error} when `addonOptionId` is missing, `quantity` is not a
+   * positive-integer string, the add-on is not found on any product, or any of
+   * the underlying quote/order mutations fail.
    */
   async addAddon(
     bookingId: string,
@@ -664,7 +714,27 @@ export class BookingService {
 
   /**
    * Creates a booking via createQuoteV2 → createOrderFromQuote, optionally
-   * marking it paid. IDs must be pre-resolved (no free-text matching).
+   * marking it paid. IDs must be pre-resolved (no free-text matching) — resolve
+   * `activityId` + ticket `resourceOptionId`s from {@link ProductService} and
+   * `availabilityTimeId` from {@link AvailabilityService.getAvailabilityTimes}.
+   *
+   * @example
+   * ```ts
+   * const created = await peek.getBookingService().create({
+   *   activityId: "a_kayak_tour",
+   *   availabilityTimeId: "at_2026_06_20_0900",
+   *   tickets: [{ resourceOptionId: "ro_adult", quantity: 2 }],
+   *   guest: { name: "Sam Rivera", email: "sam@example.com" },
+   *   markAsPaid: true,
+   *   idempotencyKey: crypto.randomUUID(),
+   * });
+   * console.log(created.bookingId, created.displayId, created.balanceFormatted);
+   * ```
+   *
+   * @throws {Error} when `activityId`, `availabilityTimeId`, a ticket
+   * `resourceOptionId`/positive `quantity`, or the guest `name` is missing; when
+   * `markAsPaid` is set without an `idempotencyKey`; or when the quote/order
+   * mutations fail.
    */
   async create(input: CreateBookingInput): Promise<CreatedBooking> {
     validateCreateInput(input);

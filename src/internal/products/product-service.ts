@@ -41,6 +41,15 @@ export class ProductService {
    * Returns every product as a single flat list: activities plus add-ons (the
    * latter tagged with the add-on type). Add-ons are gathered across all
    * cursor-paginated pages.
+   *
+   * @example Split activities from add-ons
+   * ```ts
+   * import { ADD_ON_PRODUCT_TYPE } from "@peek-travel/app-utilities";
+   *
+   * const products = await peek.getProductService().getAllProducts();
+   * const activities = products.filter((p) => p.type !== ADD_ON_PRODUCT_TYPE);
+   * const addons = products.filter((p) => p.type === ADD_ON_PRODUCT_TYPE);
+   * ```
    */
   async getAllProducts(): Promise<Product[]> {
     const [activities, itemOptionNodes] = await Promise.all([

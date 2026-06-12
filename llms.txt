@@ -1,0 +1,77 @@
+# @peek-travel/app-utilities
+
+> Dependency-light TypeScript library wrapping the Peek "backoffice" GraphQL
+> gateway. Callers only touch `PeekAccessService`, the per-resource services it
+> hands out, and clean data-model types — never raw GraphQL. Ships dual ESM+CJS
+> with bundled `.d.ts`. Only runtime dependency: `jsonwebtoken`.
+
+The authoritative, always-in-sync contract is the bundled type declarations
+(`dist/index.d.ts`) — read them via go-to-definition. This file is a map; the
+`.d.ts` and `README.md` (also shipped) have full detail and examples.
+
+## Entry point
+
+Construct one `PeekAccessService` per install, then call `get<Resource>Service()`
+accessors (each memoized, bound to a shared authenticated transport that mints
+and caches a short-lived JWT).
+
+```ts
+import { PeekAccessService } from "@peek-travel/app-utilities";
+
+const peek = new PeekAccessService({
+  installId,   // JWT subject
+  jwtSecret,   // HMAC secret signing the JWT
+  issuer,      // app name (JWT issuer)
+  appId,       // gateway path segment
+  gatewayKey,  // pk-api-key header
+  // optional: baseUrl, tokenTtlSeconds, tokenRefreshLeewaySeconds,
+  // retryDelaysMs, logger, fetch, itemOptionsPageSize
+});
+```
+
+## Resources (accessor → methods)
+
+- `getProductService()` — `getAllProducts()` (flat list of activities + add-ons;
+  add-ons have `type === ADD_ON_PRODUCT_TYPE`)
+- `getAccountUserService()` — `getAll()`, `getById(userId)`
+- `getResourcePoolService()` — `getAll(mode?)`
+- `getTimeslotService()` — `getForDay(productId, date, filter?)`, `getById(id)`,
+  `setAvailability(...)`, `setNotes(...)`, `assignGuide({timeslotIds, guideIds, action})`
+- `getResellerService()` — `getAllChannels(agentsPerChannel?)`
+- `getPromoCodeService()` — `getAll()`, `create(input)`
+- `getDailyNoteService()` — `getToday()`, `update(note)`
+- `getAvailabilityService()` — `getAvailabilityTimes({activityId, date, resourceOptionQuantities})`
+- `getMembershipService()` — `getAll()`, `purchase(input)`
+- `getBookingService()` — `getById(id, opts?)`, `searchByTimeRange(input)`,
+  `searchByTimeslot(id, opts?)`, `getGuests(id)`, `getPaymentsOnFile(id)`,
+  `appendNote(id, note, mode?)`, `setCheckinStatus(id, checkedIn)`, `cancel(id, notes?)`,
+  `makePayment(input)`, `refund(input)`, `createInvoiceLink(id)`,
+  `listAddons(id)`, `addAddon(id, {addonOptionId, quantity})`,
+  `removeAddon(id, {addonOptionId, quantity})`, `create(input)`
+
+## Input conventions (enforced in the service layer; violations throw plain Error)
+
+- Booking ids normalized (lowercased, `-`→`_`): `B-ABC123` == `b_abc123`.
+  Payment/refund need an id resolving to `b_…`.
+- Quantities: positive-integer strings (`"1"`, `"2"`).
+- Currency: 3-letter uppercase ISO (`"USD"`). Amounts: numeric strings (`"25.00"`).
+- Payment source ids: `ps_…` or `cash/cash` | `custom/other` | `custom/voucher`.
+  Payment ids (refunds): `pmt_…`.
+- Idempotency key required on `makePayment`, `refund`, `create({markAsPaid:true})`.
+- `create()` uses pre-resolved ids only (resolve via product + availability
+  services); no free-text matching.
+
+## Errors
+
+- `AdminAccountRequiredError` (HTTP 418), `RateLimitError` (HTTP 429 after
+  retries), `PeekGraphQLError` (`.graphqlErrors` holds the raw array) — all
+  importable; branch with `instanceof`.
+- Plain `Error` for validation/precondition failures thrown before any request.
+
+## Notes for consumers
+
+- Install is from GitHub Packages (private). Add an `.npmrc` mapping the
+  `@peek-travel` scope to `https://npm.pkg.github.com` with a `read:packages`
+  token. See README "Install".
+- Everything not re-exported from the package root is internal — do not import
+  from subpaths; rely on the public barrel.

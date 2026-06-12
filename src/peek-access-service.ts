@@ -62,6 +62,33 @@ export interface PeekAccessServiceConfig {
   itemOptionsPageSize?: number;
 }
 
+/**
+ * Authenticated root entry point to the Peek backoffice GraphQL gateway.
+ *
+ * Construct one instance per install, then call the `get<Resource>Service()`
+ * accessors to reach the resource-specific operations. Each accessor returns a
+ * memoized service bound to the shared, authenticated transport — the access
+ * service mints and caches a short-lived JWT on demand.
+ *
+ * @example Configure once, then call resource services
+ * ```ts
+ * import { PeekAccessService, type Product } from "@peek-travel/app-utilities";
+ *
+ * const peek = new PeekAccessService({
+ *   installId: "install-123",            // JWT subject
+ *   jwtSecret: process.env.PEEK_INTERNAL_SECRET!, // signs the JWT
+ *   issuer: process.env.APP_NAME!,        // JWT issuer
+ *   appId: process.env.PEEK_APP_ID!,      // gateway path segment
+ *   gatewayKey: process.env.PEEK_GATEWAY_KEY!, // pk-api-key header
+ * });
+ *
+ * const products: Product[] = await peek.getProductService().getAllProducts();
+ * const booking = await peek.getBookingService().getById("b_abc123");
+ * ```
+ *
+ * @throws {Error} from the constructor when any required config field
+ * (`installId`, `jwtSecret`, `issuer`, `appId`, `gatewayKey`) is empty.
+ */
 export class PeekAccessService {
   private readonly client: GraphQLClient;
   private readonly productServiceOptions: ProductServiceOptions;

@@ -9,8 +9,8 @@ out, and the clean data models — never raw GraphQL.
 - If anything about a request is unclear or ambiguous, ask for clarification
   before starting any work. Don't guess at intent or proceed on assumptions when
   the goal, scope, or approach is uncertain.
-- Before making any changes, review `ARCHITECTURE.md`.
-- Once you've made all the code changes, update `ARCHITECTURE.md` to reflect
+- Before making any changes, review `docs/internal/ARCHITECTURE.md`.
+- Once you've made all the code changes, update `docs/internal/ARCHITECTURE.md` to reflect
   major changes (new resources, new triads, changed public surface).
 - Ensure test coverage remains above 95% (the Vitest gate enforces this on
   lines/functions/branches/statements).
@@ -19,7 +19,7 @@ out, and the clean data models — never raw GraphQL.
 
 # Architecture conventions
 
-Preserve the structure described in `ARCHITECTURE.md`. The load-bearing rules:
+Preserve the structure described in `docs/internal/ARCHITECTURE.md`. The load-bearing rules:
 
 - **Three-file triad per resource** under `src/internal/<resource>/`:
   - `*-queries.ts` — raw GraphQL strings, matching response interfaces, and
@@ -96,4 +96,4 @@ install-script spawn — use `npm install --ignore-scripts`. If the
 ## Once complete
 - Review the new code for obvious duplication; simplify with helper functions.
 - Run the linter, the type checker, and the unit tests (with coverage).
-- Update `ARCHITECTURE.md` if the public surface, resources, or build changed.
+- Update `docs/internal/ARCHITECTURE.md` if the public surface, resources, or build changed.

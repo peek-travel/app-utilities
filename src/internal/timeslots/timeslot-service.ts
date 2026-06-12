@@ -106,6 +106,15 @@ export class TimeslotService {
    * Assigns or unassigns guides across timeslots. Guides are resolved to
    * resource pools (by pool id, account-user id, or name) before the bulk
    * allocation request is issued.
+   *
+   * @example
+   * ```ts
+   * await peek.getTimeslotService().assignGuide({
+   *   timeslotIds: ["ts_2026_06_20_0900"],
+   *   guideIds: ["Alex Guide"], // pool id, account-user id, or name
+   *   action: "assign",
+   * });
+   * ```
    */
   async assignGuide(assignment: GuideAssignment): Promise<AssignGuideResult> {
     const { timeslotIds, guideIds, action } = assignment;

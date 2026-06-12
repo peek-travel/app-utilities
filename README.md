@@ -84,10 +84,123 @@ add-on pages for you.
 
 ### Errors
 
-- `AdminAccountRequiredError` — gateway returned HTTP 418.
-- `RateLimitError` — HTTP 429 after retries were exhausted.
-- `PeekGraphQLError` — the response contained a GraphQL `errors` array
-  (preserved on `.graphqlErrors`).
+Two kinds of failures surface as exceptions:
+
+**Typed gateway errors** (importable, branch on the class):
+
+- `AdminAccountRequiredError` — gateway returned HTTP 418 (install lacks admin
+  rights). Carries `.statusCode === 418`.
+- `RateLimitError` — HTTP 429 after the configured `retryDelaysMs` backoff was
+  exhausted. Carries `.statusCode === 429`.
+- `PeekGraphQLError` — the response contained a GraphQL `errors` array, preserved
+  on `.graphqlErrors`.
+
+**Plain `Error` validation/precondition failures** thrown by the service layer
+*before* any network call — e.g. an empty config field, a `bookingId` that
+doesn't resolve to a `b_…` id, a non-positive-integer `quantity`, a malformed
+currency, or a "booking not found". Branch on `.message` only as a last resort;
+prefer guarding inputs to the documented formats below.
+
+```ts
+import {
+  PeekAccessService,
+  RateLimitError,
+  AdminAccountRequiredError,
+  PeekGraphQLError,
+} from '@peek-travel/app-utilities';
+
+try {
+  await peek.getBookingService().makePayment({ /* … */ });
+} catch (err) {
+  if (err instanceof RateLimitError) {
+    // back off and retry later
+  } else if (err instanceof AdminAccountRequiredError) {
+    // this install can't perform admin-only operations
+  } else if (err instanceof PeekGraphQLError) {
+    console.error(err.graphqlErrors); // raw gateway errors
+  } else {
+    throw err; // validation / precondition failure
+  }
+}
+```
+
+## Conventions & input formats
+
+These rules are enforced in the service layer (a violation throws a plain
+`Error` before any request):
+
+- **Booking ids** are normalized internally — lowercased with `-` → `_` — so
+  `B-ABC123` and `b_abc123` are equivalent. Payment/refund operations require an
+  id that resolves to the `b_…` form.
+- **Quantities** (add-ons, etc.) are **positive-integer strings**: `"1"`, `"2"`.
+- **Currency** is a 3-letter uppercase ISO code: `"USD"`, `"EUR"`.
+- **Amounts** are numeric strings: `"25.00"`.
+- **Payment source ids** are `ps_…`, or one of `cash/cash`, `custom/other`,
+  `custom/voucher`. **Payment ids** (refunds) are `pmt_…`.
+- **Idempotency keys** are required on `makePayment`, `refund`, and any
+  `create({ markAsPaid: true })`; pass a stable UUID (`crypto.randomUUID()`).
+- **`create()` takes pre-resolved ids only** — no free-text matching. Resolve
+  `activityId` + ticket `resourceOptionId`s from `getProductService()` and
+  `availabilityTimeId` from `getAvailabilityService()`.
+- **Add-on option ids** are ticket ids on products whose `type` is
+  `ADD_ON_PRODUCT_TYPE`.
+
+## Recipes
+
+**Find an activity and its add-ons**
+
+```ts
+import { ADD_ON_PRODUCT_TYPE, type Product } from '@peek-travel/app-utilities';
+
+const products: Product[] = await peek.getProductService().getAllProducts();
+const activities = products.filter((p) => p.type !== ADD_ON_PRODUCT_TYPE);
+const addons = products.filter((p) => p.type === ADD_ON_PRODUCT_TYPE);
+```
+
+**Create a paid booking end-to-end**
+
+```ts
+import { randomUUID } from 'node:crypto';
+
+const products = await peek.getProductService().getAllProducts();
+const activity = products.find((p) => p.name === 'Sunset Kayak Tour')!;
+
+const [slot] = await peek.getAvailabilityService().getAvailabilityTimes({
+  activityId: activity.productId,
+  date: '2026-06-20',
+  resourceOptionQuantities: [{ resourceOptionId: activity.tickets[0]!.id, quantity: 2 }],
+});
+
+const created = await peek.getBookingService().create({
+  activityId: activity.productId,
+  availabilityTimeId: slot.availabilityTimeId,
+  tickets: [{ resourceOptionId: activity.tickets[0]!.id, quantity: 2 }],
+  guest: { name: 'Sam Rivera', email: 'sam@example.com' },
+  markAsPaid: true,
+  idempotencyKey: randomUUID(),
+});
+console.log(created.bookingId, created.balanceFormatted);
+```
+
+**Add an add-on to an existing booking**
+
+```ts
+const { updatedBookingAddons } = await peek
+  .getBookingService()
+  .addAddon('b_abc123', { addonOptionId: 'io_helmet', quantity: '2' });
+```
+
+**Look up a booking with guests and balance**
+
+```ts
+const booking = await peek.getBookingService().getById('b_abc123', {
+  includeGuests: true,
+  includePriceBreakdown: true,
+});
+if (booking) {
+  console.log(booking.displayId, booking.outstandingBalanceDisplay);
+}
+```
 
 The package ships dual ESM + CommonJS builds with bundled type declarations, so
 both `import` and `require` consumers (including the Node 22 / CommonJS Firebase
@@ -141,7 +254,9 @@ systems. The publish workflow runs these automatically — see
 ## Project layout
 
 ```
-src/        source (public API barrel: src/index.ts)
-test/       vitest unit tests
-dist/       build output (generated, git-ignored)
+src/                       source (public API barrel: src/index.ts)
+test/                      vitest unit tests
+dist/                      build output (generated, git-ignored)
+docs/internal/             maintainer docs (ARCHITECTURE.md — not shipped)
+llms.txt                   AI-agent quickstart (shipped in the package)
 ```

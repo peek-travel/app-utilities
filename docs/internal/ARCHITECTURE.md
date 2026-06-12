@@ -154,7 +154,10 @@ internal.
   mapping, pagination, and converters without real network calls.
 - **Publish guard:** `prepublishOnly` runs the build then `publint` and
   `@arethetypeswrong/cli` (`attw`) to verify the `exports` map / type resolution
-  for both module systems. `files: ["dist"]` whitelists only the build output;
+  for both module systems. `files: ["dist", "llms.txt"]` whitelists the build
+  output plus the AI-agent quickstart (`README.md`, `LICENSE`, and
+  `package.json` are always included by npm regardless); this maintainer doc
+  under `docs/internal/` is intentionally **not** shipped.
   `publishConfig.access: "restricted"` marks it a private scoped package.
 - **Distribution:** published to **GitHub Packages** (private registry), not
   public npm. Releases are automated by `.github/workflows/publish.yml`, which
