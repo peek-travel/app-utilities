@@ -1,5 +1,5 @@
 /**
- * @peek-pro/gql-js-mapper
+ * @peek-travel/app-utilities
  *
  * Public entry point. Exposes the high-level access service, the clean data
  * models, the logger interface, and the typed errors. The underlying GraphQL

@@ -1,4 +1,4 @@
-# Architecture — `@peek-pro/gql-js-mapper`
+# Architecture — `@peek-travel/app-utilities`
 
 A small, dependency-light TypeScript library that wraps the Peek "backoffice"
 GraphQL gateway. It hides the raw GraphQL queries, authentication, HTTP
@@ -156,6 +156,14 @@ internal.
   `@arethetypeswrong/cli` (`attw`) to verify the `exports` map / type resolution
   for both module systems. `files: ["dist"]` whitelists only the build output;
   `publishConfig.access: "restricted"` marks it a private scoped package.
+- **Distribution:** published to **GitHub Packages** (private registry), not
+  public npm. Releases are automated by `.github/workflows/publish.yml`, which
+  runs on a `v*.*.*` tag push: typecheck → lint → test (coverage gate) →
+  `npm publish` (publish runs `prepublishOnly` = build + `publint` + `attw`).
+  Consumers add a scoped `.npmrc` (`@peek-travel:registry=https://npm.pkg.github.com`)
+  and a `read:packages` token, then `npm install` / `npm update` normally —
+  including in cloud builds (Firebase Functions). See the README "Releasing" and
+  "Install" sections.
 
 ### Verified current state (this review)
 - `tsc --noEmit` — clean.
@@ -168,27 +176,25 @@ internal.
 
 These are observations, not blockers. Nothing here breaks the build.
 
-1. **No `prepare`/`prepack` script — only `prepublishOnly`.** The package builds
-   `dist/` only on `npm publish`. Installing it directly from a **git URL** (a
-   common pattern for private/internal packages) would yield a package with no
-   `dist/`, since `dist/` is git-ignored. If anyone consumes this from git rather
-   than a published tarball, add a `prepare` script. *(Most likely the intent is
-   registry-only distribution, in which case this is fine.)*
+1. **No `prepare` script — registry distribution only.** `dist/` is built on
+   publish (`prepublishOnly`), not on install, and is git-ignored. Installing
+   this directly from a **git URL** would therefore yield a package with no
+   `dist/`; that path is unsupported. Consumption is via GitHub Packages only.
 
-2. **No registry / `.npmrc` for a scoped restricted package.** `publishConfig`
-   sets `access: "restricted"` but no `registry`, and there is no committed
-   `.npmrc`. Publishing and the README's `npm install @peek-pro/gql-js-mapper`
-   both depend on the consumer's ambient npm auth being configured for the
-   `@peek-pro` scope. Worth documenting where this is meant to be published
-   (public npm private package vs. a private registry).
+2. **Consumers must configure the `@peek-travel` scope.** `publishConfig` sets
+   `registry: https://npm.pkg.github.com`, but each consuming project still needs
+   an `.npmrc` mapping the `@peek-travel` scope to that registry plus a
+   `read:packages` token (a `NPM_TOKEN` env var in cloud builds). Documented in
+   the README "Install" section.
 
-3. **`version` is still `0.0.0`** and `license` is `UNLICENSED`. Expected for a
-   pre-release internal package; just note it must be bumped before any publish
-   (and `0.0.0` cannot be re-published).
+3. **`version` is `0.1.0`** and `license` is `UNLICENSED`. Expected for an
+   internal package; bump the version per release (`npm version` + tag push)
+   so consumers pick changes up via `npm update`.
 
-4. **No CI configuration** (`.github/workflows` etc.). The repo has the full
-   `typecheck` / `lint` / `test` / `check:*` script suite but nothing runs them
-   automatically on push/PR. Recommend wiring these into CI.
+4. **CI runs on release only.** `.github/workflows/publish.yml` runs the full
+   `typecheck` / `lint` / `test` / `check:*` gate on a version-tag push before
+   publishing, but nothing runs them automatically on every push/PR. Consider
+   adding a separate PR-validation workflow.
 
 5. **Transport response-handling order is slightly fragile.** In
    `GraphQLClient.request`, the body is parsed with `response.json()` and the
@@ -198,13 +204,14 @@ These are observations, not blockers. Nothing here breaks the build.
    `"GraphQL request failed with HTTP <status>"` error. Consider checking
    `response.ok` / content-type before parsing, or guarding the `json()` call.
 
-6. **Minimal package metadata.** No `repository`, `author`, `bugs`, `homepage`,
-   or `keywords` fields. Cosmetic, but `repository` in particular is helpful for
-   internal discoverability.
+6. **Minimal package metadata.** `repository` is set (required for GitHub
+   Packages to link the package to its repo); `author`, `bugs`, `homepage`, and
+   `keywords` are still absent. Cosmetic.
 
-7. **Repo directory vs. package name mismatch.** The checkout is
-   `peek-gql-js-mapper` while the package is `@peek-pro/gql-js-mapper`. Harmless,
-   but can be mildly confusing.
+7. **Repo / directory / package name all differ.** The checkout and repo are
+   `peek-gql-js-mapper` while the package is `@peek-travel/app-utilities`.
+   Harmless (GitHub Packages links them via the `repository` field), but can be
+   mildly confusing.
 
 8. **`jsonwebtoken` for HMAC-only signing.** It's the single runtime dependency
    and pulls a fair amount of transitive weight for what is effectively an
