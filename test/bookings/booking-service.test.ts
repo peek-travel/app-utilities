@@ -466,17 +466,72 @@ describe("BookingService.createInvoiceLink", () => {
   });
 });
 
-describe("BookingService.addAddon", () => {
-  const ADDON: Product = {
-    productId: "item-1",
-    name: "Safety Gear",
-    type: "ADD-ON",
-    color: "#FFFFFF",
-    tickets: [{ id: "opt-1", name: "Helmet" }],
-  };
-  const bookingWithOrder = { ...NODE, order: { id: "ord-1" } };
+// ---- Add-on fixtures + helpers -------------------------------------------
 
-  function addonHandler(overrides: Partial<Record<string, unknown>> = {}): Handler {
+const ADDON: Product = {
+  productId: "item-1",
+  name: "Safety Gear",
+  type: "ADD-ON",
+  color: "#FFFFFF",
+  tickets: [{ id: "opt-1", name: "Helmet" }],
+};
+
+const ADDON_MONEY = { amount: "10.00", currency: "USD", formatted: "$10.00" };
+
+/** Builds a sales add-on item option node. */
+function optionNode(overrides: Record<string, unknown> = {}) {
+  return {
+    refid: "or-1",
+    reservationStatus: "CONFIRMED",
+    price: ADDON_MONEY,
+    itemOptionSnapshot: { id: "opt-1", name: "Helmet" },
+    itemSnapshot: { id: "item-1", name: "Safety Gear" },
+    ...overrides,
+  };
+}
+
+/** Builds a sales add-on item node. */
+function itemNode(options: object[], overrides: Record<string, unknown> = {}) {
+  return {
+    id: "it-1",
+    refid: "ir-1",
+    reservationStatus: "CONFIRMED",
+    value: { total: ADDON_MONEY },
+    options,
+    ...overrides,
+  };
+}
+
+/** Builds a sales add-on booking node. */
+function addonBookingNode(items: object[], overrides: Record<string, unknown> = {}) {
+  return {
+    id: "b_1",
+    displayId: "B-1",
+    refid: "bq-1",
+    reservationStatus: "CONFIRMED",
+    order: { id: "ord-1", displayId: "O-1" },
+    items,
+    ...overrides,
+  };
+}
+
+/** Wraps booking nodes into a sales add-ons query response. */
+function salesAddons(nodes: object[]) {
+  return {
+    data: {
+      sales: {
+        pageInfo: { hasNextPage: false, endCursor: null },
+        edges: nodes.map((node) => ({ node })),
+      },
+    },
+  };
+}
+
+describe("BookingService.addAddon", () => {
+  function addonHandler(
+    listResponse: unknown,
+    overrides: Partial<Record<string, unknown>> = {},
+  ): Handler {
     return (query) => {
       if (query.includes("createQuoteFromOrder")) {
         return (
@@ -496,20 +551,30 @@ describe("BookingService.addAddon", () => {
       if (query.includes("amendOrder")) {
         return overrides.amend ?? { data: { amendOrder: { errors: null, order: { id: "ord-1" } } } };
       }
-      return listing([bookingWithOrder]);
+      return listResponse;
     };
   }
 
-  it("runs the three-step flow and builds the add-on quote", async () => {
-    const { service, calls } = makeService(addonHandler(), [ADDON]);
+  it("derives the order id, reuses an existing refid, and returns updated add-ons", async () => {
+    // The add-on is already on the booking (item-1 / refid ir-1), so addAddon
+    // reuses ir-1 instead of minting a new add-on refid.
+    const list = salesAddons([addonBookingNode([itemNode([optionNode()])])]);
+    const { service, calls } = makeService(addonHandler(list), [ADDON]);
 
-    const result = await service.addAddon("B-1", { addonId: "opt-1", quantity: "2" });
-    expect(result).toEqual({
+    const result = await service.addAddon("B-1", { addonOptionId: "opt-1", quantity: "2" });
+
+    expect(result.updatedBookingAddons).toEqual({
       bookingId: "b_1",
-      orderId: "ord_1",
-      quoteId: "q-1",
-      addonId: "opt-1",
-      quantity: 2,
+      displayId: "B-1",
+      orderId: "ord-1",
+      addons: [
+        {
+          addonId: "item-1",
+          addonName: "Safety Gear",
+          total: ADDON_MONEY,
+          addonOptions: [{ addonOptionId: "opt-1", addonOptionName: "Helmet", quantity: 1 }],
+        },
+      ],
     });
 
     expect(calls.find((c) => c.query.includes("createQuoteFromOrder"))!.variables.input).toEqual({
@@ -518,14 +583,17 @@ describe("BookingService.addAddon", () => {
     });
 
     const updateInput = calls.find((c) => c.query.includes("updateQuoteV2"))!.variables.input as {
-      quoteId: string;
       quoteInput: {
-        bookingQuotes: Array<{ refid: string; addons: Array<{ itemId: string; itemOptions: Array<{ itemOptionId: string }> }> }>;
+        bookingQuotes: Array<{
+          refid: string;
+          addons: Array<{ itemId: string; refid: string; itemOptions: Array<{ itemOptionId: string }> }>;
+        }>;
       };
     };
     const bq = updateInput.quoteInput.bookingQuotes[0]!;
     expect(bq.refid).toBe("sq-1");
     expect(bq.addons[0]!.itemId).toBe("item-1");
+    expect(bq.addons[0]!.refid).toBe("ir-1"); // reused existing item refid
     expect(bq.addons[0]!.itemOptions).toHaveLength(2);
     expect(bq.addons[0]!.itemOptions[0]!.itemOptionId).toBe("opt-1");
 
@@ -535,61 +603,279 @@ describe("BookingService.addAddon", () => {
     });
   });
 
-  it("throws when the addon id is missing", async () => {
-    const { service } = makeService(addonHandler(), [ADDON]);
-    await expect(service.addAddon("b_1", { addonId: " ", quantity: "1" })).rejects.toThrow(
-      /addonId is required/,
+  it("mints a fresh add-on refid when the item is not already on the booking", async () => {
+    const list = salesAddons([addonBookingNode([])]);
+    const { service, calls } = makeService(addonHandler(list), [ADDON]);
+
+    await service.addAddon("B-1", { addonOptionId: "opt-1", quantity: "1" });
+
+    const updateInput = calls.find((c) => c.query.includes("updateQuoteV2"))!.variables.input as {
+      quoteInput: { bookingQuotes: Array<{ addons: Array<{ refid: string }> }> };
+    };
+    const refid = updateInput.quoteInput.bookingQuotes[0]!.addons[0]!.refid;
+    expect(refid).not.toBe("ir-1");
+    expect(refid).toHaveLength(36); // uuid
+  });
+
+  it("accepts the deprecated addonId alias", async () => {
+    const list = salesAddons([addonBookingNode([])]);
+    const { service, calls } = makeService(addonHandler(list), [ADDON]);
+
+    await service.addAddon("B-1", { addonId: "opt-1", quantity: "1" });
+    expect(calls.some((c) => c.query.includes("amendOrder"))).toBe(true);
+  });
+
+  it("throws when the addon option id is missing", async () => {
+    const { service } = makeService(addonHandler(salesAddons([addonBookingNode([])])), [ADDON]);
+    await expect(service.addAddon("b_1", { addonOptionId: " ", quantity: "1" })).rejects.toThrow(
+      /addonOptionId is required/,
     );
   });
 
   it.each(["0", "abc", "-1"])("rejects invalid quantity %s", async (quantity) => {
-    const { service } = makeService(addonHandler(), [ADDON]);
-    await expect(service.addAddon("b_1", { addonId: "opt-1", quantity })).rejects.toThrow(
+    const { service } = makeService(addonHandler(salesAddons([addonBookingNode([])])), [ADDON]);
+    await expect(service.addAddon("b_1", { addonOptionId: "opt-1", quantity })).rejects.toThrow(
       /positive integer/,
     );
   });
 
   it("throws when the add-on cannot be matched", async () => {
-    const { service } = makeService(addonHandler(), []);
-    await expect(service.addAddon("b_1", { addonId: "opt-x", quantity: "1" })).rejects.toThrow(
+    const { service } = makeService(addonHandler(salesAddons([addonBookingNode([])])), []);
+    await expect(service.addAddon("b_1", { addonOptionId: "opt-x", quantity: "1" })).rejects.toThrow(
       /Add-on not found/,
     );
   });
 
-  it("throws when the booking has no order", async () => {
-    const { service } = makeService(() => listing([]), [ADDON]);
-    await expect(service.addAddon("b_1", { addonId: "opt-1", quantity: "1" })).rejects.toThrow(
+  it("throws when the booking is not found", async () => {
+    const { service } = makeService(addonHandler(salesAddons([])), [ADDON]);
+    await expect(service.addAddon("b_1", { addonOptionId: "opt-1", quantity: "1" })).rejects.toThrow(
       /Booking not found/,
     );
   });
 
+  it("throws when more than one booking matches", async () => {
+    const list = salesAddons([addonBookingNode([]), addonBookingNode([])]);
+    const { service } = makeService(addonHandler(list), [ADDON]);
+    await expect(service.addAddon("b_1", { addonOptionId: "opt-1", quantity: "1" })).rejects.toThrow(
+      /Expected exactly one booking/,
+    );
+  });
+
   it("throws when the quote cannot be created", async () => {
+    const list = salesAddons([addonBookingNode([])]);
     const { service } = makeService(
-      addonHandler({ createQuote: { data: { createQuoteFromOrder: { errors: null, quote: null } } } }),
+      addonHandler(list, { createQuote: { data: { createQuoteFromOrder: { errors: null, quote: null } } } }),
       [ADDON],
     );
-    await expect(service.addAddon("b_1", { addonId: "opt-1", quantity: "1" })).rejects.toThrow(
+    await expect(service.addAddon("b_1", { addonOptionId: "opt-1", quantity: "1" })).rejects.toThrow(
+      /Failed to create quote from order/,
+    );
+  });
+
+  it("throws when the quote has no sale quote refid", async () => {
+    const list = salesAddons([addonBookingNode([])]);
+    const { service } = makeService(
+      addonHandler(list, {
+        createQuote: { data: { createQuoteFromOrder: { errors: null, quote: { id: "q-1", saleQuotes: [] } } } },
+      }),
+      [ADDON],
+    );
+    await expect(service.addAddon("b_1", { addonOptionId: "opt-1", quantity: "1" })).rejects.toThrow(
       /Failed to create quote from order/,
     );
   });
 
   it("throws when the quote update fails", async () => {
+    const list = salesAddons([addonBookingNode([])]);
     const { service } = makeService(
-      addonHandler({ updateQuote: { data: { updateQuoteV2: { errors: [{ code: "X", detail: "no", value: null }], quote: null } } } }),
+      addonHandler(list, { updateQuote: { data: { updateQuoteV2: { errors: [{ code: "X", detail: "no", value: null }], quote: null } } } }),
       [ADDON],
     );
-    await expect(service.addAddon("b_1", { addonId: "opt-1", quantity: "1" })).rejects.toThrow(
+    await expect(service.addAddon("b_1", { addonOptionId: "opt-1", quantity: "1" })).rejects.toThrow(
       /Failed to update quote with add-on/,
     );
   });
 
   it("throws when the order amend fails", async () => {
+    const list = salesAddons([addonBookingNode([])]);
     const { service } = makeService(
-      addonHandler({ amend: { data: { amendOrder: { errors: null, order: null } } } }),
+      addonHandler(list, { amend: { data: { amendOrder: { errors: null, order: null } } } }),
       [ADDON],
     );
-    await expect(service.addAddon("b_1", { addonId: "opt-1", quantity: "1" })).rejects.toThrow(
+    await expect(service.addAddon("b_1", { addonOptionId: "opt-1", quantity: "1" })).rejects.toThrow(
       /Failed to amend order with add-on/,
+    );
+  });
+});
+
+describe("BookingService.listAddons", () => {
+  function listHandler(nodes: object[]): Handler {
+    return () => salesAddons(nodes);
+  }
+
+  it("groups live options by add-on item with a quantity count", async () => {
+    const nodes = [
+      addonBookingNode([
+        itemNode([optionNode({ refid: "or-1" }), optionNode({ refid: "or-2" })]),
+      ]),
+    ];
+    const { service } = makeService(listHandler(nodes));
+
+    const result = await service.listAddons("B-1");
+    expect(result.bookingId).toBe("b_1");
+    expect(result.orderId).toBe("ord-1");
+    expect(result.addons).toEqual([
+      {
+        addonId: "item-1",
+        addonName: "Safety Gear",
+        total: ADDON_MONEY,
+        addonOptions: [{ addonOptionId: "opt-1", addonOptionName: "Helmet", quantity: 2 }],
+      },
+    ]);
+  });
+
+  it("drops canceled options and omits fully-canceled add-ons", async () => {
+    const nodes = [
+      addonBookingNode([
+        itemNode([optionNode({ refid: "or-1", reservationStatus: "CANCELED" })]),
+      ]),
+    ];
+    const { service } = makeService(listHandler(nodes));
+
+    const result = await service.listAddons("B-1");
+    expect(result.addons).toEqual([]);
+  });
+
+  it("uses the booking-level fallback when there are no items", async () => {
+    const { service } = makeService(listHandler([addonBookingNode([])]));
+    const result = await service.listAddons("B-1");
+    expect(result).toEqual({ bookingId: "b_1", displayId: "B-1", orderId: "ord-1", addons: [] });
+  });
+
+  it("requires a booking id", async () => {
+    const { service } = makeService(listHandler([addonBookingNode([])]));
+    await expect(service.listAddons("  ")).rejects.toThrow(/bookingId is required/);
+  });
+});
+
+describe("BookingService.removeAddon", () => {
+  function removeHandler(
+    nodes: object[],
+    overrides: Partial<Record<string, unknown>> = {},
+  ): Handler {
+    return (query) => {
+      if (query.includes("createQuoteFromOrder")) {
+        return (
+          overrides.createQuote ?? {
+            data: { createQuoteFromOrder: { errors: null, quote: { id: "q-1", saleQuotes: [] } } },
+          }
+        );
+      }
+      if (query.includes("updateQuoteV2")) {
+        return { data: { updateQuoteV2: { errors: null, quote: { id: "q-1" } } } };
+      }
+      if (query.includes("amendOrder")) {
+        return { data: { amendOrder: { errors: null, order: { id: "ord-1" } } } };
+      }
+      return salesAddons(nodes);
+    };
+  }
+
+  it("cancels one confirmed option, leaving the add-on confirmed", async () => {
+    const nodes = [
+      addonBookingNode([
+        itemNode([optionNode({ refid: "or-1" }), optionNode({ refid: "or-2" })]),
+      ]),
+    ];
+    const { service, calls } = makeService(removeHandler(nodes));
+
+    await service.removeAddon("B-1", { addonOptionId: "opt-1", quantity: "1" });
+
+    const updateInput = calls.find((c) => c.query.includes("updateQuoteV2"))!.variables.input as {
+      quoteInput: {
+        bookingQuotes: Array<{
+          refid: string;
+          addons: Array<{ refid: string; reservationStatus?: string; itemOptions: Array<{ refid: string; reservationStatus: string }> }>;
+        }>;
+      };
+    };
+    const bq = updateInput.quoteInput.bookingQuotes[0]!;
+    expect(bq.refid).toBe("bq-1");
+    expect(bq.addons[0]!.refid).toBe("ir-1");
+    expect(bq.addons[0]!.reservationStatus).toBeUndefined(); // or-2 still live
+    expect(bq.addons[0]!.itemOptions).toEqual([{ reservationStatus: "CANCELED", refid: "or-1" }]);
+  });
+
+  it("cancels the whole add-on when every option is removed", async () => {
+    const nodes = [
+      addonBookingNode([
+        itemNode([optionNode({ refid: "or-1" }), optionNode({ refid: "or-2" })]),
+      ]),
+    ];
+    const { service, calls } = makeService(removeHandler(nodes));
+
+    await service.removeAddon("B-1", { addonOptionId: "opt-1", quantity: "2" });
+
+    const updateInput = calls.find((c) => c.query.includes("updateQuoteV2"))!.variables.input as {
+      quoteInput: { bookingQuotes: Array<{ addons: Array<{ reservationStatus?: string }> }> };
+    };
+    expect(updateInput.quoteInput.bookingQuotes[0]!.addons[0]!.reservationStatus).toBe("CANCELED");
+  });
+
+  it("cancels across multiple booking items", async () => {
+    const nodes = [
+      addonBookingNode([
+        itemNode([optionNode({ refid: "or-1" })], { id: "it-1", refid: "ir-1" }),
+        itemNode([optionNode({ refid: "or-2" })], { id: "it-2", refid: "ir-2" }),
+      ]),
+    ];
+    const { service, calls } = makeService(removeHandler(nodes));
+
+    await service.removeAddon("B-1", { addonOptionId: "opt-1", quantity: "2" });
+
+    const updateInput = calls.find((c) => c.query.includes("updateQuoteV2"))!.variables.input as {
+      quoteInput: { bookingQuotes: Array<{ addons: Array<{ refid: string }> }> };
+    };
+    const refids = updateInput.quoteInput.bookingQuotes[0]!.addons.map((a) => a.refid).sort();
+    expect(refids).toEqual(["ir-1", "ir-2"]);
+  });
+
+  it("skips already-canceled options when selecting what to cancel", async () => {
+    const nodes = [
+      addonBookingNode([
+        itemNode([
+          optionNode({ refid: "or-1", reservationStatus: "CANCELED" }),
+          optionNode({ refid: "or-2" }),
+        ]),
+      ]),
+    ];
+    const { service, calls } = makeService(removeHandler(nodes));
+
+    await service.removeAddon("B-1", { addonOptionId: "opt-1", quantity: "1" });
+
+    const updateInput = calls.find((c) => c.query.includes("updateQuoteV2"))!.variables.input as {
+      quoteInput: { bookingQuotes: Array<{ addons: Array<{ itemOptions: Array<{ refid: string }> }> }> };
+    };
+    expect(updateInput.quoteInput.bookingQuotes[0]!.addons[0]!.itemOptions).toEqual([
+      { reservationStatus: "CANCELED", refid: "or-2" },
+    ]);
+  });
+
+  it("throws when no matching confirmed option is found", async () => {
+    const nodes = [addonBookingNode([itemNode([optionNode({ reservationStatus: "CANCELED" })])])];
+    const { service } = makeService(removeHandler(nodes));
+    await expect(service.removeAddon("B-1", { addonOptionId: "opt-1", quantity: "1" })).rejects.toThrow(
+      /No confirmed add-on option/,
+    );
+  });
+
+  it("validates the addon option id and quantity", async () => {
+    const { service } = makeService(removeHandler([addonBookingNode([])]));
+    await expect(service.removeAddon("B-1", { quantity: "1" })).rejects.toThrow(
+      /addonOptionId is required/,
+    );
+    await expect(service.removeAddon("B-1", { addonOptionId: "opt-1", quantity: "x" })).rejects.toThrow(
+      /positive integer/,
     );
   });
 });

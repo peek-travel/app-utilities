@@ -32,7 +32,6 @@ export { MembershipService } from "./internal/memberships/membership-service.js"
 export { BookingService } from "./internal/bookings/booking-service.js";
 export type {
   AddAddonInput,
-  AddAddonResult,
   BookingServiceOptions,
   CancelBookingResult,
 } from "./internal/bookings/booking-service.js";
@@ -101,6 +100,13 @@ export type {
   RefundInput,
   RefundResult,
 } from "./models/booking-payment.js";
+export type {
+  BookingAddon,
+  BookingAddonMoney,
+  BookingAddonOption,
+  BookingAddons,
+  BookingAddonsMutationResult,
+} from "./models/booking-addon.js";
 
 export { noopLogger } from "./logger.js";
 export type { Logger } from "./logger.js";

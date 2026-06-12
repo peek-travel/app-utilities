@@ -26,9 +26,25 @@ import type {
   RefundInput,
   RefundResult,
 } from "../../models/booking-payment.js";
+import type {
+  BookingAddons,
+  BookingAddonsMutationResult,
+} from "../../models/booking-addon.js";
 import { fromBookingNode } from "./booking-converter.js";
 import { fromBookingGuestsResponse } from "./booking-guest-converter.js";
 import { fromPaymentsOnFileResponse } from "./payments-on-file-converter.js";
+import {
+  type AddonItem,
+  parseSaleNode,
+  toBookingAddon,
+} from "./addon-converter.js";
+import {
+  ADDON_OPTION_STATUS_CANCELED,
+  RESERVATION_STATUS_CONFIRMED,
+  SALES_ADDONS_QUERY,
+  buildSalesAddonsVariables,
+  type SalesAddonsResponse,
+} from "./addon-queries.js";
 import {
   AMEND_ORDER_MUTATION,
   APPLY_PAYMENT_TO_ORDER_MUTATION,
@@ -95,22 +111,30 @@ export interface BookingServiceDeps {
   productService: ProductService;
 }
 
-/** Input for adding an add-on to a booking. */
+/** Input for adding or removing an add-on on a booking. */
 export interface AddAddonInput {
   /** The add-on (item option) id. */
-  addonId: string;
+  addonOptionId?: string;
+  /**
+   * @deprecated Use `addonOptionId`. Still accepted for backwards
+   * compatibility; treated as `addonOptionId` when `addonOptionId` is absent.
+   */
+  addonId?: string;
   /** Quantity as a positive integer string. */
   quantity: string;
 }
 
-/** Result of adding an add-on to a booking. */
-export interface AddAddonResult {
-  bookingId: string;
-  orderId: string;
-  quoteId: string;
-  addonId: string;
-  quantity: number;
-}
+const ERROR_ADDON_OPTION_ID_REQUIRED = "addonOptionId is required";
+const ERROR_QUANTITY_INVALID = "quantity must be a positive integer string";
+const ERROR_BOOKING_ID_REQUIRED = "bookingId is required";
+const ERROR_BOOKING_NOT_FOUND = "Booking not found";
+const ERROR_MULTIPLE_BOOKINGS_FOUND =
+  "Expected exactly one booking for the provided bookingId";
+const ERROR_NO_ADDON_OPTION_TO_REMOVE =
+  "No confirmed add-on option matching addonOptionId was found on the booking";
+const ERROR_CREATE_QUOTE_FAILED = "Failed to create quote from order";
+const ERROR_UPDATE_QUOTE_FAILED = "Failed to update quote with add-on";
+const ERROR_AMEND_ORDER_FAILED = "Failed to amend order with add-on";
 
 export class BookingService {
   private readonly pageSize: number;
@@ -407,88 +431,235 @@ export class BookingService {
     return { bookingId: normalized, orderId, invoiceLink: url };
   }
 
+  /** Returns the add-ons on a booking, grouped by add-on item (clean model). */
+  async listAddons(bookingId: string): Promise<BookingAddons> {
+    const { items, displayId, orderId, normalizedBookingId } =
+      await this.fetchBookingSale(bookingId);
+
+    const addons = items
+      .map((item) => toBookingAddon(item))
+      .filter((addon): addon is NonNullable<typeof addon> => addon !== null);
+
+    return {
+      bookingId: items[0]?.bookingId || normalizedBookingId,
+      displayId: items[0]?.displayId || displayId,
+      orderId: items[0]?.orderId || orderId,
+      addons,
+    };
+  }
+
   /**
    * Adds an add-on to a booking via createQuoteFromOrder → updateQuoteV2 →
-   * amendOrder. Resolves the add-on's parent item via the product service.
+   * amendOrder. Lists the booking's add-ons first to derive the order id and
+   * reuse an existing add-on refid; resolves the add-on's parent item via the
+   * product service. Returns the booking's add-ons after the change.
    */
-  async addAddon(bookingId: string, input: AddAddonInput): Promise<AddAddonResult> {
-    const addonId = (input?.addonId || "").trim();
-    if (!addonId) {
-      throw new Error("addonId is required");
+  async addAddon(
+    bookingId: string,
+    input: AddAddonInput,
+  ): Promise<BookingAddonsMutationResult> {
+    const addonOptionId = (input?.addonOptionId || input?.addonId || "").trim();
+    if (!addonOptionId) {
+      throw new Error(ERROR_ADDON_OPTION_ID_REQUIRED);
     }
     const quantity = parseQuantity(input?.quantity);
     if (quantity === null) {
-      throw new Error("quantity must be a positive integer string");
+      throw new Error(ERROR_QUANTITY_INVALID);
     }
 
-    const normalized = normalizeBookingId(bookingId);
-    const parentItemId = await this.resolveParentItemId(addonId);
+    // List the booking's existing add-ons first — this yields the order id (no
+    // separate lookup) and lets us reuse an existing add-on refid instead of
+    // minting a new one. Resolve the add-on's parent item in parallel.
+    const [sale, parentItemId] = await Promise.all([
+      this.fetchBookingSale(bookingId),
+      this.resolveParentItemId(addonOptionId),
+    ]);
 
-    const booking = await this.getById(normalized);
-    if (!booking || !booking.orderId) {
-      throw new Error("Booking not found");
-    }
-    const orderId = normalizeBookingId(booking.orderId);
+    const normalizedOrderId = normalizeBookingId(sale.orderId);
+
+    // Reuse the bookingQuote item refid when this parent item is already on the
+    // booking under a non-canceled add-on; otherwise mint a fresh refid.
+    const existingItemRefid = sale.items
+      .filter(
+        (item) => item.bookingQuoteReservationStatus !== ADDON_OPTION_STATUS_CANCELED,
+      )
+      .flatMap((item) => item.addonItemOptions)
+      .find((opt) => opt.itemId === parentItemId)?.itemRefid;
+    const addonRefid = existingItemRefid || randomUUID();
 
     // Step 1 — create a quote from the order.
-    const createBody: GraphQLBody<CreateQuoteFromOrderResponse> =
+    const { quoteId, saleQuoteRefid } =
+      await this.createQuoteFromOrderOrThrow(normalizedOrderId);
+    if (!saleQuoteRefid) {
+      throw new Error(ERROR_CREATE_QUOTE_FAILED);
+    }
+
+    // Step 2 — add the add-on to the quote (one new itemOption per unit).
+    const itemOptions = Array.from({ length: quantity }, () => ({
+      itemOptionId: addonOptionId,
+      reservationStatus: RESERVATION_STATUS_CONFIRMED,
+      refid: randomUUID(),
+    }));
+    await this.updateQuoteOrThrow(quoteId, {
+      bookingQuotes: [
+        {
+          refid: saleQuoteRefid,
+          addons: [
+            {
+              itemOptions,
+              itemId: parentItemId,
+              reservationStatus: RESERVATION_STATUS_CONFIRMED,
+              refid: addonRefid,
+            },
+          ],
+          reservationStatus: RESERVATION_STATUS_CONFIRMED,
+        },
+      ],
+    });
+
+    // Step 3 — amend the order with the updated quote.
+    await this.amendOrderOrThrow(quoteId, normalizedOrderId);
+
+    return { updatedBookingAddons: await this.listAddons(bookingId) };
+  }
+
+  /**
+   * Removes (cancels) add-on options from a booking. Lists the booking's
+   * add-ons first to get the order id and the existing item/option refids, then
+   * issues the same three mutations as {@link addAddon} but with cancellation
+   * variables. Returns the booking's add-ons after the change.
+   */
+  async removeAddon(
+    bookingId: string,
+    input: AddAddonInput,
+  ): Promise<BookingAddonsMutationResult> {
+    const addonOptionId = (input?.addonOptionId || input?.addonId || "").trim();
+    if (!addonOptionId) {
+      throw new Error(ERROR_ADDON_OPTION_ID_REQUIRED);
+    }
+    const quantity = parseQuantity(input?.quantity);
+    if (quantity === null) {
+      throw new Error(ERROR_QUANTITY_INVALID);
+    }
+
+    const sale = await this.fetchBookingSale(bookingId);
+    const normalizedOrderId = normalizeBookingId(sale.orderId);
+
+    const { bookingQuotes, canceledCount } = buildCancellation(
+      sale.items,
+      addonOptionId,
+      quantity,
+    );
+    if (canceledCount === 0) {
+      throw new Error(ERROR_NO_ADDON_OPTION_TO_REMOVE);
+    }
+
+    // Step 1 — create a quote from the order (only the quote id is needed; the
+    // refids come from the existing booking, not the quote).
+    const { quoteId } = await this.createQuoteFromOrderOrThrow(normalizedOrderId);
+
+    // Step 2 — update the quote, canceling the selected options.
+    await this.updateQuoteOrThrow(quoteId, { bookingQuotes });
+
+    // Step 3 — amend the order.
+    await this.amendOrderOrThrow(quoteId, normalizedOrderId);
+
+    return { updatedBookingAddons: await this.listAddons(bookingId) };
+  }
+
+  /**
+   * Runs the sales add-ons query for a booking, validates that exactly one
+   * booking matched, and parses the node into the internal model.
+   */
+  private async fetchBookingSale(bookingId: string): Promise<{
+    items: AddonItem[];
+    displayId: string;
+    orderId: string;
+    normalizedBookingId: string;
+  }> {
+    const searchString = (bookingId || "").trim();
+    if (!searchString) {
+      throw new Error(ERROR_BOOKING_ID_REQUIRED);
+    }
+
+    const body: GraphQLBody<SalesAddonsResponse> =
+      await this.client.request<SalesAddonsResponse>(
+        SALES_ENDPOINT,
+        SALES_ADDONS_QUERY,
+        buildSalesAddonsVariables(searchString),
+      );
+
+    const edges = body.data?.sales?.edges ?? [];
+    if (edges.length === 0) {
+      throw new Error(ERROR_BOOKING_NOT_FOUND);
+    }
+    if (edges.length > 1) {
+      throw new Error(ERROR_MULTIPLE_BOOKINGS_FOUND);
+    }
+
+    const node = edges[0]!.node;
+    return {
+      items: parseSaleNode(node),
+      displayId: node.displayId || "",
+      orderId: node.order?.id || "",
+      normalizedBookingId: node.id || "",
+    };
+  }
+
+  /**
+   * Runs `createQuoteFromOrder` and validates the response, returning the new
+   * quote id and the first sale quote refid (empty string when absent).
+   */
+  private async createQuoteFromOrderOrThrow(
+    normalizedOrderId: string,
+  ): Promise<{ quoteId: string; saleQuoteRefid: string }> {
+    const body: GraphQLBody<CreateQuoteFromOrderResponse> =
       await this.client.request<CreateQuoteFromOrderResponse>(
         SALES_ENDPOINT,
         CREATE_QUOTE_FROM_ORDER_MUTATION,
-        { input: { orderId, quoteInput: {} } },
+        { input: { orderId: normalizedOrderId, quoteInput: {} } },
       );
-    const created = createBody.data?.createQuoteFromOrder;
+
+    const created = body.data?.createQuoteFromOrder;
     const quote = created?.quote;
-    const saleQuoteRefid = quote?.saleQuotes?.[0]?.refid;
-    if ((created?.errors && created.errors.length > 0) || !quote?.id || !saleQuoteRefid) {
-      throw new Error("Failed to create quote from order");
+    if ((created?.errors && created.errors.length > 0) || !quote?.id) {
+      throw new Error(ERROR_CREATE_QUOTE_FAILED);
     }
-    const quoteId = quote.id;
+    return { quoteId: quote.id, saleQuoteRefid: quote.saleQuotes?.[0]?.refid || "" };
+  }
 
-    // Step 2 — add the add-on to the quote.
-    const itemOptions = Array.from({ length: quantity }, () => ({
-      itemOptionId: addonId,
-      reservationStatus: "CONFIRMED",
-      refid: randomUUID(),
-    }));
-    const updateBody: GraphQLBody<UpdateQuoteV2Response> =
-      await this.client.request<UpdateQuoteV2Response>(SALES_ENDPOINT, UPDATE_QUOTE_V2_MUTATION, {
-        input: {
-          quoteId,
-          quoteInput: {
-            bookingQuotes: [
-              {
-                refid: saleQuoteRefid,
-                addons: [
-                  {
-                    itemOptions,
-                    itemId: parentItemId,
-                    reservationStatus: "CONFIRMED",
-                    refid: randomUUID(),
-                  },
-                ],
-                reservationStatus: "CONFIRMED",
-              },
-            ],
-          },
-        },
-      });
-    const updated = updateBody.data?.updateQuoteV2;
+  /** Runs `updateQuoteV2` with the given quoteInput and validates the response. */
+  private async updateQuoteOrThrow(
+    quoteId: string,
+    quoteInput: Record<string, unknown>,
+  ): Promise<void> {
+    const body: GraphQLBody<UpdateQuoteV2Response> =
+      await this.client.request<UpdateQuoteV2Response>(
+        SALES_ENDPOINT,
+        UPDATE_QUOTE_V2_MUTATION,
+        { input: { quoteId, quoteInput } },
+      );
+    const updated = body.data?.updateQuoteV2;
     if ((updated?.errors && updated.errors.length > 0) || !updated?.quote) {
-      throw new Error("Failed to update quote with add-on");
+      throw new Error(ERROR_UPDATE_QUOTE_FAILED);
     }
+  }
 
-    // Step 3 — amend the order with the updated quote.
-    const amendBody: GraphQLBody<AmendOrderResponse> =
-      await this.client.request<AmendOrderResponse>(SALES_ENDPOINT, AMEND_ORDER_MUTATION, {
-        input: { quoteId, orderId },
-      });
-    const amended = amendBody.data?.amendOrder;
+  /** Runs `amendOrder` and validates the response. */
+  private async amendOrderOrThrow(
+    quoteId: string,
+    normalizedOrderId: string,
+  ): Promise<void> {
+    const body: GraphQLBody<AmendOrderResponse> =
+      await this.client.request<AmendOrderResponse>(
+        SALES_ENDPOINT,
+        AMEND_ORDER_MUTATION,
+        { input: { quoteId, orderId: normalizedOrderId } },
+      );
+    const amended = body.data?.amendOrder;
     if ((amended?.errors && amended.errors.length > 0) || !amended?.order) {
-      throw new Error("Failed to amend order with add-on");
+      throw new Error(ERROR_AMEND_ORDER_FAILED);
     }
-
-    return { bookingId: normalized, orderId, quoteId, addonId, quantity };
   }
 
   /**
@@ -610,15 +781,15 @@ export class BookingService {
   }
 
   /** Finds the parent item id of an add-on by matching its option id. */
-  private async resolveParentItemId(addonId: string): Promise<string> {
+  private async resolveParentItemId(addonOptionId: string): Promise<string> {
     const products = await this.deps.productService.getAllProducts();
     const matched = products.find(
       (product) =>
         product.type === ADD_ON_PRODUCT_TYPE &&
-        product.tickets.some((ticket) => ticket.id === addonId),
+        product.tickets.some((ticket) => ticket.id === addonOptionId),
     );
     if (!matched) {
-      throw new Error("Add-on not found for the provided addonId");
+      throw new Error("Add-on not found for the provided addonOptionId");
     }
     return matched.productId;
   }
@@ -746,4 +917,87 @@ function parseQuantity(value: unknown): number | null {
     return null;
   }
   return num;
+}
+
+/**
+ * Builds the `bookingQuotes` cancellation payload for `updateQuoteV2`. Selects
+ * up to `quantity` options across the booking where the item and the option are
+ * both still `CONFIRMED` and `optionId === addonOptionId`, grouped by booking
+ * item. Each selected option becomes a CANCELED itemOptions entry (by its
+ * `optionRefid`); the parent add-on is marked CANCELED only when every one of
+ * its options ends up canceled.
+ */
+function buildCancellation(
+  items: AddonItem[],
+  addonOptionId: string,
+  quantity: number,
+): { bookingQuotes: Array<Record<string, unknown>>; canceledCount: number } {
+  let budget = quantity;
+  // bookingQuoteRefid -> (itemRefid -> { item, canceledOptionRefids })
+  const byBookingQuote = new Map<
+    string,
+    Map<string, { item: AddonItem; canceledOptionRefids: string[] }>
+  >();
+
+  for (const item of items) {
+    if (budget <= 0) break;
+    for (const opt of item.addonItemOptions) {
+      if (budget <= 0) break;
+      // Only cancel options that are themselves still confirmed — an item can
+      // hold a mix of already-canceled and confirmed options for the same
+      // optionId, and we must skip the canceled ones.
+      if (
+        opt.itemReservationStatus !== RESERVATION_STATUS_CONFIRMED ||
+        opt.optionReservationStatus !== RESERVATION_STATUS_CONFIRMED ||
+        opt.optionId !== addonOptionId
+      ) {
+        continue;
+      }
+
+      let itemMap = byBookingQuote.get(item.bookingQuoteRefid);
+      if (!itemMap) {
+        itemMap = new Map();
+        byBookingQuote.set(item.bookingQuoteRefid, itemMap);
+      }
+      let entry = itemMap.get(opt.itemRefid);
+      if (!entry) {
+        entry = { item, canceledOptionRefids: [] };
+        itemMap.set(opt.itemRefid, entry);
+      }
+      entry.canceledOptionRefids.push(opt.optionRefid);
+      budget -= 1;
+    }
+  }
+
+  const canceledCount = quantity - budget;
+
+  const bookingQuotes = Array.from(byBookingQuote.entries()).map(
+    ([bookingQuoteRefid, itemMap]) => ({
+      refid: bookingQuoteRefid,
+      addons: Array.from(itemMap.entries()).map(
+        ([itemRefid, { item, canceledOptionRefids }]) => {
+          const canceledSet = new Set(canceledOptionRefids);
+          const itemOptions = canceledOptionRefids.map((refid) => ({
+            reservationStatus: ADDON_OPTION_STATUS_CANCELED,
+            refid,
+          }));
+
+          // Mark the add-on canceled only if every option ends up canceled.
+          const allCanceled = item.addonItemOptions.every(
+            (o) =>
+              o.optionReservationStatus === ADDON_OPTION_STATUS_CANCELED ||
+              canceledSet.has(o.optionRefid),
+          );
+
+          const addon: Record<string, unknown> = { itemOptions, refid: itemRefid };
+          if (allCanceled) {
+            addon.reservationStatus = ADDON_OPTION_STATUS_CANCELED;
+          }
+          return addon;
+        },
+      ),
+    }),
+  );
+
+  return { bookingQuotes, canceledCount };
 }

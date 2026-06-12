@@ -94,6 +94,15 @@ Resources: `products`, `account-users`, `resource-pools`, `timeslots`,
 `resellers`, `promo-codes`, `daily-notes`, `availability`, `memberships`,
 `bookings`. Clean data shapes live in `src/models/`.
 
+A resource may split into more than one triad when it carries a distinct
+sub-domain. `bookings` does: alongside `booking-queries`/`booking-converter`,
+the add-on flows live in `addon-queries.ts` (the `sales` add-ons query + raw
+node shapes) and `addon-converter.ts` (raw node → the internal `AddonItem`
+detail model and the clean public `BookingAddon`). The detailed `AddonItem`
+model (refids + reservation statuses) is **internal only** — consumers see just
+the grouped `BookingAddons`; the internal model exists solely so add/remove can
+build their mutation payloads.
+
 Recurring patterns inside services:
 - **Cursor pagination** is handled internally and transparently — e.g.
   `ProductService` gathers every add-on page; `BookingService.fetchPaginated`
@@ -103,9 +112,15 @@ Recurring patterns inside services:
   through the resource-pool + account-user services using the pure
   `matchGuideToResourcePool` matcher (`timeslots/guide-matcher.ts`).
 - **Multi-step mutations** — booking creation (`createQuoteV2` →
-  `createOrderFromQuote`) and add-on insertion (`createQuoteFromOrder` →
+  `createOrderFromQuote`) and both add-on mutations (`createQuoteFromOrder` →
   `updateQuoteV2` → `amendOrder`) are orchestrated as ordered request chains
-  with per-step error checks.
+  with per-step error checks. `addAddon` and `removeAddon` first call
+  `listAddons` (the `sales` add-ons query) to derive the order id from the
+  booking and reuse existing item/option refids — `addAddon` reuses a
+  non-canceled add-on's item refid rather than minting a duplicate, and
+  `removeAddon` cancels options by their existing refids, marking the parent
+  add-on canceled only when all of its options end up canceled. Both finish by
+  re-listing and returning the booking's refreshed add-ons.
 - **Input validation** lives in the service (booking id prefix `b_`/`B-`,
   3-letter currency, positive-integer quantities, allowed payment sources, etc.).
   `normalizeBookingId` lowercases and converts `-` → `_`.
@@ -145,8 +160,8 @@ internal.
 ### Verified current state (this review)
 - `tsc --noEmit` — clean.
 - `eslint .` — clean.
-- `vitest run` — **202 tests across 23 files pass.**
-- Coverage — 99.86% lines / 96.66% branches / 100% functions (above thresholds).
+- `vitest run` — **223 tests across 24 files pass.**
+- Coverage — 99.87% lines / 96.21% branches / 100% functions (above thresholds).
 - `tsup` build — produces ESM, CJS, and both `.d.ts` flavors successfully.
 
 ## Flagged issues & unusual configuration
