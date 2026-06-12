@@ -208,17 +208,12 @@ These are observations, not blockers. Nothing here breaks the build.
    Packages to link the package to its repo); `author`, `bugs`, `homepage`, and
    `keywords` are still absent. Cosmetic.
 
-7. **Repo / directory / package name all differ.** The checkout and repo are
-   `peek-gql-js-mapper` while the package is `@peek-travel/app-utilities`.
-   Harmless (GitHub Packages links them via the `repository` field), but can be
-   mildly confusing.
-
-8. **`jsonwebtoken` for HMAC-only signing.** It's the single runtime dependency
+7. **`jsonwebtoken` for HMAC-only signing.** It's the single runtime dependency
    and pulls a fair amount of transitive weight for what is effectively an
    HMAC-SHA `sign()`. Not a problem, just noting it's the one thing standing
    between this and a zero-runtime-dependency library; Node's built-in `crypto`
    could sign the JWT if footprint ever matters.
 
-9. **No validation that `leewaySeconds < ttlSeconds`.** If a caller sets leeway
+8. **No validation that `leewaySeconds < ttlSeconds`.** If a caller sets leeway
    ≥ TTL, the cached token's `expiresAtMs` would be in the past and a fresh JWT
    would be minted on every request. Low risk (defaults are sane), but unguarded.
