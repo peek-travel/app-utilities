@@ -44,7 +44,7 @@ export class ProductService {
    *
    * @example Split activities from add-ons
    * ```ts
-   * import { ADD_ON_PRODUCT_TYPE } from "@peek-travel/app-utilities";
+   * import { ADD_ON_PRODUCT_TYPE } from "@peektravel/app-utilities";
    *
    * const products = await peek.getProductService().getAllProducts();
    * const activities = products.filter((p) => p.type !== ADD_ON_PRODUCT_TYPE);

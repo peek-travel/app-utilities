@@ -1,4 +1,4 @@
-# Architecture — `@peek-travel/app-utilities`
+# Architecture — `@peektravel/app-utilities`
 
 A small, dependency-light TypeScript library that wraps the Peek "backoffice"
 GraphQL gateway. It hides the raw GraphQL queries, authentication, HTTP

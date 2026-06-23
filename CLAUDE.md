@@ -1,6 +1,6 @@
 # Project Guidelines
 
-`@peek-travel/app-utilities` is a small, dependency-light TypeScript **library**
+`@peektravel/app-utilities` is a small, dependency-light TypeScript **library**
 that wraps the Peek "backoffice" GraphQL gateway. It was extracted from the
 Peek Pro Autopilot connector so the connector can become a thin consumer.
 Callers only ever touch `PeekAccessService`, the per-resource services it hands

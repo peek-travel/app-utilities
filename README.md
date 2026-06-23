@@ -1,4 +1,4 @@
-# @peek-travel/app-utilities
+# @peektravel/app-utilities
 
 GraphQL JS mapping utilities extracted from the Peek Pro Autopilot connector.
 The package owns the GraphQL queries, authentication, transport, and the
@@ -19,8 +19,8 @@ consuming project by adding an `.npmrc` next to its `package.json`:
 Then install (and later update) it like any other dependency:
 
 ```bash
-npm install @peek-travel/app-utilities
-npm update  @peek-travel/app-utilities
+npm install @peektravel/app-utilities
+npm update  @peektravel/app-utilities
 ```
 
 `NPM_TOKEN` must be a GitHub token with the `read:packages` scope. Locally that's
@@ -35,7 +35,7 @@ authenticate and reach the gateway. It mints and caches a short-lived JWT on
 demand and hands out per-resource services that own the resource-specific calls.
 
 ```ts
-import { PeekAccessService, type Product } from '@peek-travel/app-utilities';
+import { PeekAccessService, type Product } from '@peektravel/app-utilities';
 
 const peek = new PeekAccessService({
   installId: 'install-123', // JWT subject
@@ -107,7 +107,7 @@ import {
   RateLimitError,
   AdminAccountRequiredError,
   PeekGraphQLError,
-} from '@peek-travel/app-utilities';
+} from '@peektravel/app-utilities';
 
 try {
   await peek.getBookingService().makePayment({ /* … */ });
@@ -150,7 +150,7 @@ These rules are enforced in the service layer (a violation throws a plain
 **Find an activity and its add-ons**
 
 ```ts
-import { ADD_ON_PRODUCT_TYPE, type Product } from '@peek-travel/app-utilities';
+import { ADD_ON_PRODUCT_TYPE, type Product } from '@peektravel/app-utilities';
 
 const products: Product[] = await peek.getProductService().getAllProducts();
 const activities = products.filter((p) => p.type !== ADD_ON_PRODUCT_TYPE);

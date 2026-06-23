@@ -72,7 +72,7 @@ export interface PeekAccessServiceConfig {
  *
  * @example Configure once, then call resource services
  * ```ts
- * import { PeekAccessService, type Product } from "@peek-travel/app-utilities";
+ * import { PeekAccessService, type Product } from "@peektravel/app-utilities";
  *
  * const peek = new PeekAccessService({
  *   installId: "install-123",            // JWT subject

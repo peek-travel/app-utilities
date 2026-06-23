@@ -1,4 +1,4 @@
-# @peek-travel/app-utilities
+# @peektravel/app-utilities
 
 > Dependency-light TypeScript library wrapping the Peek "backoffice" GraphQL
 > gateway. Callers only touch `PeekAccessService`, the per-resource services it
@@ -16,7 +16,7 @@ accessors (each memoized, bound to a shared authenticated transport that mints
 and caches a short-lived JWT).
 
 ```ts
-import { PeekAccessService } from "@peek-travel/app-utilities";
+import { PeekAccessService } from "@peektravel/app-utilities";
 
 const peek = new PeekAccessService({
   installId,   // JWT subject
