@@ -134,27 +134,111 @@ data-model **types**, the `Logger` interface + `noopLogger`, and the three typed
 error classes. Query strings and raw response interfaces are deliberately kept
 internal.
 
+### 6. UI components — the `./ui` subpath
+`src/ui/`
+
+A second, **browser-only** public surface shipped under a separate subpath
+export (`@peektravel/app-utilities/ui`) so the server library stays DOM-free:
+framework-agnostic **Web Components** (Custom Elements) ported from the Peek
+Odyssey design system, plus the Odyssey design tokens and component CSS.
+
+```
+src/ui/
+  tokens.css            Odyssey design tokens as :root CSS custom properties
+  odyssey.css           component styles (SCSS → token-var-based plain CSS)
+  base.ts               OdyElement base class + classes()/escapeHtml()/define()
+  icons.ts              curated inline-SVG set (iconSvg/registerIcon/hasIcon)
+  overlay.ts            portal()/removePortal()/position() helper for overlays
+  i18n.ts               built-in-string localization (registerTranslation, terms)
+  select-base.ts        shared combobox/listbox base for the dropdown components
+  components/<name>.ts   one custom element per file, self-registering
+  index.ts              barrel: side-effect registers all <ody-*>, re-exports
+```
+
+Load-bearing rules:
+- **Light DOM, no Shadow DOM.** Each element extends `OdyElement` and renders
+  its chrome into its own light DOM via `mount(chrome)`, so the global
+  `odyssey.css` classes style it exactly as the Ember addon does and consumers
+  can override with the same selectors. Consumer child content is preserved
+  across re-renders through a `[data-ody-slot]` placeholder. The first render is
+  deferred one microtask (so parser/`innerHTML` children are attached before the
+  slot is captured); attribute-change re-renders are synchronous.
+- **Localization (`i18n.ts`).** Components' built-in strings (aria-labels,
+  default placeholders, check-in-status labels) go through `OdyElement.term(key)`
+  / `localized(attr, key)`, never hardcoded. The active language is resolved from
+  the nearest `lang` attribute (DOM-driven, Shoelace-style); consumers call
+  `registerTranslation(lang, terms)`; English is the bundled default. Reactivity
+  is wired in `mount()` — each element registers a self-pruning locale callback,
+  and one document-wide `MutationObserver` on `lang` plus `registerTranslation`
+  trigger re-renders. Per-instance attribute overrides (`close-label`, …) win.
+  Weekday/month names stay outside the catalog (they follow `Intl`).
+- **Date display (`datepicker`).** The trigger label, calendar weekday/month
+  names, and day aria-labels are formatted with `Intl.DateTimeFormat` for the
+  resolved `lang` — never the raw ISO string. The `value` attribute and `change`
+  payload stay ISO `yyyy-mm-dd` (range `start/end`); only presentation
+  localizes. `display-format` (`short`/`medium`/`long`/`full`) maps to `Intl`
+  `dateStyle`; a `formatDate` property overrides it. Date *math* still uses
+  local `Date` parts (no `toISOString`).
+- **Registration is a side effect** of importing `./ui` (or an individual
+  component file). `package.json` `"sideEffects"` is therefore an allow-list
+  (`**/ui/**`, `**/*.css`) rather than `false`, so bundlers don't tree-shake the
+  registrations away.
+- **Dependency-free & token-based.** No `ember-power-select`/`-calendar`,
+  `svg-jar`, or bootstrap. Colours/spacing reference the `tokens.css` custom
+  properties; icons are inlined; button variant colours (which live in a
+  bootstrap base layer upstream) are reproduced from Odyssey tokens.
+- **Scope:** ~45 components across display, layout, form-input, interactive,
+  overlay, and data/selection tiers. The data/selection tier — `dropdown-single`,
+  `dropdown-multi` (+ shared `select-base.ts`), `datepicker`, `table` — was
+  **rebuilt from scratch** as lightweight vanilla components (rather than ported
+  from their `ember-power-select` / `ember-power-calendar` originals), following
+  WAI-ARIA APG combobox/listbox and grid/date-picker patterns: rich data crosses
+  the boundary as JS **properties** (`options`, `columns`, `data`,
+  `isDateDisallowed`), scalar config as reflected attributes, output as
+  `CustomEvent`s. The datepicker does all date math from local `Date` parts (no
+  `toISOString`/string parsing — avoids UTC drift) and ships no date library.
+  Still **not** ported: `nested-multi-select`, `location-autocomplete` (Google
+  Maps), `filter-menu`/`filter-menu-single`, `accordion-checkbox`,
+  `datepicker-with-presets` — they'd reintroduce avoided dependencies or compose
+  trivially from shipped parts. Composite/grouped components (tabs, radio/checkbox
+  groups, toggle group, dropdowns) take a JSON `options`/`tabs` attribute and emit
+  `CustomEvent`s.
+- `examples/ui-gallery.html` demonstrates every component; `npm run sample`
+  builds and serves it (`scripts/serve-examples.mjs`, a dependency-free static
+  server) because browsers block ESM imports over `file://`.
+
 ## Build & tooling
 
 - **Bundler:** `tsup` (`tsup.config.ts`) emits a dual **ESM + CJS** build plus
-  bundled `.d.ts`/`.d.cts`, with sourcemaps, tree-shaking, no minify.
+  bundled `.d.ts`/`.d.cts`, with sourcemaps, tree-shaking, no minify. Two
+  entries: the server library (`src/index.ts` → `dist/index.*`) and the UI
+  components (`src/ui/index.ts` → `dist/ui/index.*`). An `onSuccess` step copies
+  `tokens.css` + `odyssey.css` into `dist/ui/`.
 - **Package entry points:** modern `exports` map with separate `import`/`require`
   conditions and their own type declarations; legacy `main` (`./dist/index.cjs`),
-  `module`, and `types` provided as fallbacks. `"sideEffects": false` enables
-  tree-shaking. The dual build is intended to support both `import` and
-  `require` consumers (notably the Node 22 / CommonJS Firebase Functions runtime).
+  `module`, and `types` provided as fallbacks. The UI surface adds `./ui`
+  (dual import/require + types) and the two CSS assets `./ui/odyssey.css` /
+  `./ui/tokens.css`. `"sideEffects"` is an allow-list (`**/ui/**`, `**/*.css`)
+  so custom-element registration survives tree-shaking while the server code
+  stays tree-shakable. The dual build supports both `import` and `require`
+  consumers (notably the Node 22 / CommonJS Firebase Functions runtime).
 - **TypeScript:** `NodeNext` module resolution, `ES2022` target, full `strict`
   plus `noUncheckedIndexedAccess`, `noImplicitOverride`, `noUnusedLocals/Parameters`,
   `verbatimModuleSyntax`, `isolatedModules`. Source imports use explicit `.js`
   extensions (required by NodeNext ESM).
 - **Lint:** ESLint flat config with `@eslint/js` + `typescript-eslint` recommended.
-- **Tests:** Vitest, Node environment. Coverage via `v8` with **95% thresholds**
-  on lines/functions/branches/statements. Tests inject a fake `fetch` (and
-  sometimes a fake `GraphQLClient`) to exercise transport, retries, error
-  mapping, pagination, and converters without real network calls.
+- **Tests:** Vitest, Node environment by default. Coverage via `v8` with **95%
+  thresholds** on lines/functions/branches/statements (covers `src/ui/**` too).
+  Server tests inject a fake `fetch` (and sometimes a fake `GraphQLClient`) to
+  exercise transport, retries, error mapping, pagination, and converters without
+  real network calls. UI tests opt into a DOM via a per-file
+  `// @vitest-environment happy-dom` directive (`happy-dom` is a devDependency).
 - **Publish guard:** `prepublishOnly` runs the build then `publint` and
   `@arethetypeswrong/cli` (`attw`) to verify the `exports` map / type resolution
-  for both module systems. `files: ["dist", "llms.txt"]` whitelists the build
+  for both module systems. `attw` runs with `--profile node16` (subpath exports
+  like `./ui` are invisible to legacy node10 classic resolution, which this
+  Node≥18 package doesn't target) and `--exclude-entrypoints ui/odyssey.css
+  ui/tokens.css` (CSS assets have no type declarations to resolve). `files: ["dist", "llms.txt"]` whitelists the build
   output plus the AI-agent quickstart (`README.md`, `LICENSE`, and
   `package.json` are always included by npm regardless); this maintainer doc
   under `docs/internal/` is intentionally **not** shipped.

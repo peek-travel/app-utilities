@@ -22,19 +22,35 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./ui": {
+      "import": {
+        "types": "./dist/ui/index.d.ts",
+        "default": "./dist/ui/index.js"
+      },
+      "require": {
+        "types": "./dist/ui/index.d.cts",
+        "default": "./dist/ui/index.cjs"
+      }
+    },
+    "./ui/odyssey.css": "./dist/ui/odyssey.css",
+    "./ui/tokens.css": "./dist/ui/tokens.css",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "llms.txt"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "**/ui/**",
+    "**/*.css"
+  ],
   "engines": {
     "node": ">=18"
   },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "sample": "tsup && node scripts/serve-examples.mjs",
     "clean": "rm -rf dist coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -42,7 +58,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "check:exports": "attw --pack .",
+    "check:exports": "attw --pack . --profile node16 --exclude-entrypoints ui/odyssey.css ui/tokens.css",
     "check:publint": "publint",
     "prepublishOnly": "npm run build && npm run check:publint && npm run check:exports"
   },
@@ -59,6 +75,7 @@
     "@types/node": "^22.18.0",
     "@vitest/coverage-v8": "^4.1.8",
     "eslint": "^9.34.0",
+    "happy-dom": "^15.11.7",
     "publint": "^0.3.14",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3",

@@ -207,6 +207,83 @@ both `import` and `require` consumers (including the Node 22 / CommonJS Firebase
 Functions runtime) resolve correctly. Its only runtime dependency is
 `jsonwebtoken`.
 
+## UI components (`/ui`)
+
+The package also ships framework-agnostic **Web Components** ported from the Peek
+Odyssey design system, under a separate browser-only subpath so the server
+library stays DOM-free. They work in any HTML page — no framework required.
+
+```ts
+// Registers every <ody-*> custom element as a side effect.
+import '@peektravel/app-utilities/ui';
+import '@peektravel/app-utilities/ui/tokens.css';
+import '@peektravel/app-utilities/ui/odyssey.css';
+```
+
+```html
+<ody-button variant="primary" left-icon="plus">New booking</ody-button>
+<ody-tag color="success" icon="check">Confirmed</ody-tag>
+<ody-alert variant="warning" heading="Heads up">This can't be undone.</ody-alert>
+<ody-input label="Guest name" placeholder="Jane Doe"></ody-input>
+```
+
+Coverage spans display (button, tag, alert, card, status-dot, message, icon,
+loading-spinner/bar, divider), layout (empty-state, breadcrumb, stat-summary,
+inline-list, list-item, product-indicator, toggle-button, section, two-column,
+collapsible-section), form inputs (input, inline/search/money/percentage input,
+checkbox, radio-button-group, checkbox-group), interactive (accordion,
+collapsible, tabs, copy-button, check-in-status, option, split-button,
+table-header), overlays (modal, popover, tooltip, panel, toast), and data &
+selection (dropdown-single, dropdown-multi, datepicker, table — all vanilla and
+dependency-free, following WAI-ARIA combobox/listbox/grid patterns).
+
+Interactive components reflect state and emit `CustomEvent`s; grouped components
+(tabs, radio/checkbox groups, toggle group) take a JSON `options`/`tabs`
+attribute. Exported classes/types and helpers (`iconSvg`, `registerIcon`,
+`portal`, `position`, `toast`) are available from `@peektravel/app-utilities/ui`
+for subclassing or typing.
+
+**Try the gallery:** `npm run sample` builds the package and serves
+`examples/ui-gallery.html`, which shows every component with its variants.
+
+### Localization
+
+Content you pass in (labels, headings, options, cell data) is already yours to
+localize. The components' **own** built-in strings (aria-labels like "Close" /
+"Clear", the date picker's "Select date" and month-nav labels, the dropdown
+"Search" / "No options", the check-in-status labels) are translatable two ways:
+
+```ts
+import { registerTranslation } from '@peektravel/app-utilities/ui';
+
+registerTranslation('es', {
+  close: 'Cerrar', clear: 'Borrar', search: 'Buscar',
+  checkInReturned: 'Devuelto', /* … */
+});
+```
+
+Each component resolves its language from the nearest `lang` attribute
+(`<html lang="es">` localizes everything; a subtree `lang` overrides it), and
+re-renders automatically when the language or a registered bundle changes.
+English is the built-in default. For a one-off, a per-instance attribute wins:
+`<ody-panel close-label="Cerrar">`, `<ody-datepicker next-month-label="…">`,
+`<ody-check-in-status label="…">`.
+
+The **date picker** displays dates with `Intl.DateTimeFormat` for the resolved
+`lang` — a readable, localized label (e.g. "Jun 15, 2026" / "15 jun 2026")
+rather than the raw ISO string. Its `value` attribute and `change` payload stay
+machine-readable ISO `yyyy-mm-dd` (range as `start/end`). Tune the displayed
+form with `display-format` (`short` | `medium` | `long` | `full`) or take full
+control with the `formatDate` property. Weekday/month names and day labels in
+the calendar are likewise `Intl`-localized, so they aren't in the term catalog.
+
+> A few Odyssey components remain unported: `nested-multi-select`,
+> `location-autocomplete` (Google Maps API), `filter-menu` / `filter-menu-single`,
+> `accordion-checkbox`, and `datepicker-with-presets`. The dropdowns, the single
+> date picker, and the data table were rebuilt here as lightweight,
+> dependency-free vanilla components rather than ported from their
+> third-party-coupled Ember originals.
+
 ## Releasing (GitHub Packages)
 
 Releases are automated. Pushing a `v*.*.*` git tag triggers
@@ -254,8 +331,10 @@ systems. The publish workflow runs these automatically — see
 ## Project layout
 
 ```
-src/                       source (public API barrel: src/index.ts)
-test/                      vitest unit tests
+src/                       server library source (public API barrel: src/index.ts)
+src/ui/                    Web Components + Odyssey CSS (barrel: src/ui/index.ts)
+test/                      vitest unit tests (test/ui/* run under happy-dom)
+examples/ui-gallery.html   component gallery (npm run sample)
 dist/                      build output (generated, git-ignored)
 docs/internal/             maintainer docs (ARCHITECTURE.md — not shipped)
 llms.txt                   AI-agent quickstart (shipped in the package)
