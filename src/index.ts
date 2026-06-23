@@ -36,6 +36,9 @@ export type {
   CancelBookingResult,
 } from "./internal/bookings/booking-service.js";
 
+export { ReviewService } from "./internal/reviews/review-service.js";
+export type { ReviewServiceOptions } from "./internal/reviews/review-service.js";
+
 export { ADD_ON_PRODUCT_TYPE } from "./models/product.js";
 export type { Product, ProductTicket } from "./models/product.js";
 export type { AccountUser, AssignedActivity } from "./models/account-user.js";
@@ -107,6 +110,7 @@ export type {
   BookingAddons,
   BookingAddonsMutationResult,
 } from "./models/booking-addon.js";
+export type { Guide, Review } from "./models/review.js";
 
 export { noopLogger } from "./logger.js";
 export type { Logger } from "./logger.js";
