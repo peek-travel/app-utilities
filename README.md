@@ -7,26 +7,15 @@ high-level `PeekAccessService` and the plain data shapes it returns.
 
 ## Install
 
-This package is published to **GitHub Packages** (a private registry), not the
-public npm registry. Point the `@peek-travel` scope at GitHub Packages once per
-consuming project by adding an `.npmrc` next to its `package.json`:
-
-```ini
-@peek-travel:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${NPM_TOKEN}
-```
-
-Then install (and later update) it like any other dependency:
+This package is published to the **public npm registry**. Install (and later
+update) it like any other dependency — no registry config or auth token needed:
 
 ```bash
 npm install @peektravel/app-utilities
 npm update  @peektravel/app-utilities
 ```
 
-`NPM_TOKEN` must be a GitHub token with the `read:packages` scope. Locally that's
-a personal access token in your environment; in cloud builds (Firebase
-Functions / Google Cloud Build, CI) set it as a build secret/env var. See
-[Releasing](#releasing-github-packages) for how new versions are published.
+See [Releasing](#releasing) for how new versions are published.
 
 ## Usage
 
@@ -207,13 +196,13 @@ both `import` and `require` consumers (including the Node 22 / CommonJS Firebase
 Functions runtime) resolve correctly. Its only runtime dependency is
 `jsonwebtoken`.
 
-## Releasing (GitHub Packages)
+## Releasing
 
 Releases are automated. Pushing a `v*.*.*` git tag triggers
 `.github/workflows/publish.yml`, which typechecks, lints, runs the test suite
-(95% coverage gate), then publishes to GitHub Packages. `npm publish` runs
-`prepublishOnly` first, so the build plus `publint` + `attw` checks gate every
-release.
+(95% coverage gate), then publishes to the public npm registry. `npm publish`
+runs `prepublishOnly` first, so the build plus `publint` + `attw` checks gate
+every release.
 
 To cut a release:
 
@@ -223,13 +212,14 @@ git push --follow-tags     # pushes the commit + tag; the workflow publishes
 ```
 
 The workflow asserts the tag matches the `package.json` version, so the two
-never drift. The repo's built-in `GITHUB_TOKEN` (with `packages: write`) handles
-publish auth — no personal token needed in CI. Consumers then pick the new
-version up with a normal `npm update` (see [Install](#install)).
+never drift. Publish auth uses an `NPM_TOKEN` repository secret (an npm
+automation token with publish rights to the `@peektravel` scope), exposed to
+`npm publish` as `NODE_AUTH_TOKEN`. Consumers then pick the new version up with
+a normal `npm update` (see [Install](#install)).
 
-> One-time setup: the package scope `@peek-travel` must match the GitHub org
-> that owns the package, and the repo needs the GitHub Actions permission to
-> write packages (granted by the `packages: write` permission in the workflow).
+> One-time setup: add an `NPM_TOKEN` secret to the repository (Settings →
+> Secrets and variables → Actions). Generate it on npmjs.com as an **Automation**
+> token so it bypasses 2FA in CI.
 
 ## Development
 

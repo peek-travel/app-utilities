@@ -1,9 +1,12 @@
-name: Publish to GitHub Packages
+name: Publish to npm
 
-# Publishes the package to GitHub Packages when a version tag (e.g. v0.1.0) is
-# pushed. Cut a release by bumping the version and pushing the matching tag:
+# Publishes the package to the public npm registry when a version tag (e.g.
+# v0.1.0) is pushed. Cut a release by bumping the version and pushing the tag:
 #   npm version patch     # edits package.json + creates the git tag
 #   git push --follow-tags
+#
+# Requires an NPM_TOKEN repository secret: an npm Automation access token with
+# publish rights to the @peektravel scope.
 on:
   push:
     tags:
@@ -11,7 +14,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   publish:
@@ -22,8 +24,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          registry-url: https://npm.pkg.github.com
-          scope: '@peek-travel'
+          registry-url: https://registry.npmjs.org
+          scope: '@peektravel'
 
       - name: Install dependencies
         run: npm ci
@@ -50,4 +52,4 @@ jobs:
       - name: Publish
         run: npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
