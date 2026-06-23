@@ -92,7 +92,7 @@ Each resource follows the same **three-file triad**:
 
 Resources: `products`, `account-users`, `resource-pools`, `timeslots`,
 `resellers`, `promo-codes`, `daily-notes`, `availability`, `memberships`,
-`bookings`. Clean data shapes live in `src/models/`.
+`bookings`, `reviews`. Clean data shapes live in `src/models/`.
 
 A resource may split into more than one triad when it carries a distinct
 sub-domain. `bookings` does: alongside `booking-queries`/`booking-converter`,
@@ -107,6 +107,32 @@ Recurring patterns inside services:
 - **Cursor pagination** is handled internally and transparently — e.g.
   `ProductService` gathers every add-on page; `BookingService.fetchPaginated`
   walks `pageInfo.hasNextPage`/`endCursor`. Callers get a single flat array.
+- **Date-window pagination + re-anchored offset cache** — `ReviewService.getReviews`
+  fronts a `reviews` connection that has **no server-side date filter** and
+  returns newest-first (descending `reviewedAt`) with only per-edge `cursor`s
+  (no `pageInfo`). It walks backwards in time, collecting reviews whose review
+  date is within `[startDate, endDate]` (inclusive; `startDate` is the older
+  bound) and stopping as soon as it pages past `startDate` or hits a short final
+  page. Input is validated in the service: non-empty `productId`, `YYYY-MM-DD`
+  dates, `startDate <= endDate`, and a 31-day max window.
+
+  The gateway cursor is the base64 of `range:<start>..<end>,<offset>` where
+  `<offset>` is an **absolute index that is not stable across queries** — adding
+  reviews shifts every offset. `reviews/review-cursor.ts` is a small pure module
+  that encodes/decodes that format (the only place `Buffer` base64 is used). The
+  in-memory per-activity cache therefore stores **decoded offsets plus a
+  `headId`** (the topmost review id when recorded): `activityId → { headId,
+  Map<oldestPageDate, offset> }`. On a cached call (`useCache`, default true)
+  the service always pulls from the top, re-finds `headId` to learn how far
+  offsets have shifted, re-anchors every cached offset by that shift, resets
+  `headId`, and then jumps — via a cursor rebuilt with `encodeCursor` — to the
+  cached page just newer than `endDate`. Within a single call the live cursors
+  are stable, so normal next-page pagination uses them; only the cross-call
+  cache uses offsets. Every call refreshes the cache (fresh boundaries plus the
+  re-anchored prior ones); when the head can't be re-found the stale offsets are
+  dropped. The cache lives on the memoized service instance, so it persists
+  across calls within a process. This is the one resource whose triad carries a
+  fourth helper file (`review-cursor.ts`) alongside queries/converter/service.
 - **Composition** — `BookingService.addAddon` resolves an add-on's parent item
   through `ProductService`; `TimeslotService.assignGuide` resolves guides
   through the resource-pool + account-user services using the pure
@@ -158,21 +184,23 @@ internal.
   output plus the AI-agent quickstart (`README.md`, `LICENSE`, and
   `package.json` are always included by npm regardless); this maintainer doc
   under `docs/internal/` is intentionally **not** shipped.
-  `publishConfig.access: "public"` publishes it as a public scoped package.
-- **Distribution:** published to the **public npm registry**. Releases are
-  automated by `.github/workflows/publish.yml`, which runs on a `v*.*.*` tag
-  push: typecheck → lint → test (coverage gate) → `npm publish` (publish runs
-  `prepublishOnly` = build + `publint` + `attw`). Consumers `npm install` /
-  `npm update` normally with no registry config or auth token — including in
-  cloud builds (Firebase Functions). See the README "Releasing" and "Install"
-  sections.
+  `publishConfig.access: "restricted"` marks it a private scoped package.
+- **Distribution:** published to **GitHub Packages** (private registry), not
+  public npm. Releases are automated by `.github/workflows/publish.yml`, which
+  runs on a `v*.*.*` tag push: typecheck → lint → test (coverage gate) →
+  `npm publish` (publish runs `prepublishOnly` = build + `publint` + `attw`).
+  Consumers add a scoped `.npmrc` (`@peek-travel:registry=https://npm.pkg.github.com`)
+  and a `read:packages` token, then `npm install` / `npm update` normally —
+  including in cloud builds (Firebase Functions). See the README "Releasing" and
+  "Install" sections.
 
 ### Verified current state (this review)
 - `tsc --noEmit` — clean.
 - `eslint .` — clean.
-- `vitest run` — **223 tests across 24 files pass.**
-- Coverage — 99.87% lines / 96.21% branches / 100% functions (above thresholds).
+- `vitest run` — **247 tests across 28 files pass.**
+- Coverage — 99.89% lines / 96.11% branches / 100% functions (above thresholds).
 - `tsup` build — produces ESM, CJS, and both `.d.ts` flavors successfully.
+- `attw --pack` / `publint` — no problems.
 
 ## Flagged issues & unusual configuration
 
@@ -181,14 +209,17 @@ These are observations, not blockers. Nothing here breaks the build.
 1. **No `prepare` script — registry distribution only.** `dist/` is built on
    publish (`prepublishOnly`), not on install, and is git-ignored. Installing
    this directly from a **git URL** would therefore yield a package with no
-   `dist/`; that path is unsupported. Consumption is via the npm registry only.
+   `dist/`; that path is unsupported. Consumption is via GitHub Packages only.
 
-2. **No consumer configuration needed.** The package is on the public npm
-   registry under the `@peektravel` scope, so consuming projects just
-   `npm install @peektravel/app-utilities` — no `.npmrc` or auth token.
+2. **Consumers must configure the `@peek-travel` scope.** `publishConfig` sets
+   `registry: https://npm.pkg.github.com`, but each consuming project still needs
+   an `.npmrc` mapping the `@peek-travel` scope to that registry plus a
+   `read:packages` token (a `NPM_TOKEN` env var in cloud builds). Documented in
+   the README "Install" section.
 
-3. **`license` is `MIT`.** Bump the `version` per release (`npm version` + tag
-   push) so consumers pick changes up via `npm update`.
+3. **`version` is `0.1.0`** and `license` is `UNLICENSED`. Expected for an
+   internal package; bump the version per release (`npm version` + tag push)
+   so consumers pick changes up via `npm update`.
 
 4. **CI runs on release only.** `.github/workflows/publish.yml` runs the full
    `typecheck` / `lint` / `test` / `check:*` gate on a version-tag push before
