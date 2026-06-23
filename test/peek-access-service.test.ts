@@ -8,6 +8,7 @@ import { DailyNoteService } from "../src/internal/daily-notes/daily-note-service
 import { MembershipService } from "../src/internal/memberships/membership-service.js";
 import { PromoCodeService } from "../src/internal/promo-codes/promo-code-service.js";
 import { ResellerService } from "../src/internal/resellers/reseller-service.js";
+import { ReviewService } from "../src/internal/reviews/review-service.js";
 import { ResourcePoolService } from "../src/internal/resource-pools/resource-pool-service.js";
 import { TimeslotService } from "../src/internal/timeslots/timeslot-service.js";
 import type { Logger } from "../src/logger.js";
@@ -155,6 +156,15 @@ describe("PeekAccessService.getProductService", () => {
     const bookingService = service.getBookingService();
     expect(bookingService).toBeInstanceOf(BookingService);
     expect(service.getBookingService()).toBe(bookingService);
+  });
+
+  it("returns a ReviewService and memoizes the instance", () => {
+    const { fetchFn } = makeEmptyFetch();
+    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+
+    const reviewService = service.getReviewService();
+    expect(reviewService).toBeInstanceOf(ReviewService);
+    expect(service.getReviewService()).toBe(reviewService);
   });
 
   it("wires the default endpoint, global fetch, and a minted bearer token", async () => {

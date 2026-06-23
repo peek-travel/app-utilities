@@ -15,6 +15,7 @@ import { GraphQLClient } from "./internal/graphql-client.js";
 import { MembershipService } from "./internal/memberships/membership-service.js";
 import { ResellerService } from "./internal/resellers/reseller-service.js";
 import { ResourcePoolService } from "./internal/resource-pools/resource-pool-service.js";
+import { ReviewService } from "./internal/reviews/review-service.js";
 import { TimeslotService } from "./internal/timeslots/timeslot-service.js";
 import {
   ProductService,
@@ -102,6 +103,7 @@ export class PeekAccessService {
   private availabilityService?: AvailabilityService;
   private membershipService?: MembershipService;
   private bookingService?: BookingService;
+  private reviewService?: ReviewService;
 
   constructor(config: PeekAccessServiceConfig) {
     requireNonEmpty(config.installId, "installId");
@@ -252,6 +254,18 @@ export class PeekAccessService {
       });
     }
     return this.bookingService;
+  }
+
+  /**
+   * Returns the {@link ReviewService} for this install, bound to the shared
+   * authenticated transport. The instance is created lazily and reused; it
+   * keeps an in-memory cursor cache to speed up repeated review lookups.
+   */
+  getReviewService(): ReviewService {
+    if (!this.reviewService) {
+      this.reviewService = new ReviewService(this.client);
+    }
+    return this.reviewService;
   }
 }
 
