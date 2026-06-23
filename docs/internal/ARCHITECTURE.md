@@ -158,15 +158,14 @@ internal.
   output plus the AI-agent quickstart (`README.md`, `LICENSE`, and
   `package.json` are always included by npm regardless); this maintainer doc
   under `docs/internal/` is intentionally **not** shipped.
-  `publishConfig.access: "restricted"` marks it a private scoped package.
-- **Distribution:** published to **GitHub Packages** (private registry), not
-  public npm. Releases are automated by `.github/workflows/publish.yml`, which
-  runs on a `v*.*.*` tag push: typecheck → lint → test (coverage gate) →
-  `npm publish` (publish runs `prepublishOnly` = build + `publint` + `attw`).
-  Consumers add a scoped `.npmrc` (`@peek-travel:registry=https://npm.pkg.github.com`)
-  and a `read:packages` token, then `npm install` / `npm update` normally —
-  including in cloud builds (Firebase Functions). See the README "Releasing" and
-  "Install" sections.
+  `publishConfig.access: "public"` publishes it as a public scoped package.
+- **Distribution:** published to the **public npm registry**. Releases are
+  automated by `.github/workflows/publish.yml`, which runs on a `v*.*.*` tag
+  push: typecheck → lint → test (coverage gate) → `npm publish` (publish runs
+  `prepublishOnly` = build + `publint` + `attw`). Consumers `npm install` /
+  `npm update` normally with no registry config or auth token — including in
+  cloud builds (Firebase Functions). See the README "Releasing" and "Install"
+  sections.
 
 ### Verified current state (this review)
 - `tsc --noEmit` — clean.
@@ -182,17 +181,14 @@ These are observations, not blockers. Nothing here breaks the build.
 1. **No `prepare` script — registry distribution only.** `dist/` is built on
    publish (`prepublishOnly`), not on install, and is git-ignored. Installing
    this directly from a **git URL** would therefore yield a package with no
-   `dist/`; that path is unsupported. Consumption is via GitHub Packages only.
+   `dist/`; that path is unsupported. Consumption is via the npm registry only.
 
-2. **Consumers must configure the `@peek-travel` scope.** `publishConfig` sets
-   `registry: https://npm.pkg.github.com`, but each consuming project still needs
-   an `.npmrc` mapping the `@peek-travel` scope to that registry plus a
-   `read:packages` token (a `NPM_TOKEN` env var in cloud builds). Documented in
-   the README "Install" section.
+2. **No consumer configuration needed.** The package is on the public npm
+   registry under the `@peektravel` scope, so consuming projects just
+   `npm install @peektravel/app-utilities` — no `.npmrc` or auth token.
 
-3. **`version` is `0.1.0`** and `license` is `UNLICENSED`. Expected for an
-   internal package; bump the version per release (`npm version` + tag push)
-   so consumers pick changes up via `npm update`.
+3. **`license` is `MIT`.** Bump the `version` per release (`npm version` + tag
+   push) so consumers pick changes up via `npm update`.
 
 4. **CI runs on release only.** `.github/workflows/publish.yml` runs the full
    `typecheck` / `lint` / `test` / `check:*` gate on a version-tag push before
