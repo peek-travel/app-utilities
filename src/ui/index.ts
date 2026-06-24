@@ -67,10 +67,26 @@ import './components/dropdown-single.js';
 import './components/dropdown-multi.js';
 import './components/datepicker.js';
 import './components/table.js';
+// Brand icon element
+import './brand-icons.js';
 
 // ---- Base + helpers --------------------------------------------------------
 export { OdyElement, escapeHtml, classes, define } from './base.js';
-export { iconSvg, registerIcon, hasIcon } from './icons.js';
+export {
+  iconSvg,
+  renderIconSvg,
+  registerIcon,
+  hasIcon,
+  iconNames,
+  type OdyIconData,
+} from './icons.js';
+export {
+  OdyBrandIcon,
+  brandIconSvg,
+  hasBrandIcon,
+  brandIconNames,
+  type OdyBrandIconSize,
+} from './brand-icons.js';
 export { registerTranslation, type OdyTerms, type OdyTermKey } from './i18n.js';
 export { portal, removePortal, position, type OdyPlacement, type OdyPosition } from './overlay.js';
 
