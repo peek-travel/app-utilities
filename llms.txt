@@ -68,9 +68,54 @@ const peek = new PeekAccessService({
   importable; branch with `instanceof`.
 - Plain `Error` for validation/precondition failures thrown before any request.
 
+## UI components (`@peektravel/app-utilities/ui`)
+
+Browser-only, framework-agnostic Web Components (Custom Elements, light DOM,
+dependency-free) ported from the Peek Odyssey design system. The server library
+above stays DOM-free. **Full guide: `docs/ui.md` (shipped). Authoritative
+per-component contract: `dist/ui/index.d.ts` (TSDoc) — read via go-to-definition.**
+
+Setup — importing the entry registers every `<ody-*>` element as a side effect:
+
+```ts
+import "@peektravel/app-utilities/ui";
+import "@peektravel/app-utilities/ui/tokens.css";
+import "@peektravel/app-utilities/ui/odyssey.css";
+```
+
+Conventions: scalar config = HTML **attributes**; rich data = JS **properties**
+(`el.columns`/`el.data`, `el.formatDate`, `el.isDateDisallowed`; composites also
+accept JSON-string attrs like `options='[…]'` / `tabs='[…]'`); output = bubbling
+**`CustomEvent`s** (read `event.detail`); content = light-DOM children.
+
+Tags by tier (see `docs/ui.md` for attributes/events/examples per component):
+- display: `ody-button`, `ody-tag`, `ody-alert`, `ody-card`, `ody-divider`,
+  `ody-status-dot`, `ody-message`, `ody-icon`, `ody-loading-spinner`, `ody-loading-bar`
+- layout: `ody-empty-state`, `ody-breadcrumb`(+`-item`), `ody-stat-summary`(+`ody-stat`),
+  `ody-inline-list`(+`-item`), `ody-list-item`, `ody-product-indicator`,
+  `ody-toggle-button`, `ody-section-rows`/`-columns`(+items), `ody-two-column`(+parts),
+  `ody-collapsible-section`
+- form: `ody-input`, `ody-inline-input`, `ody-search-input`, `ody-money-input`,
+  `ody-percentage-input`, `ody-checkbox`, `ody-radio-button-group`, `ody-checkbox-group`
+- interactive: `ody-accordion`, `ody-collapsible`, `ody-tabs`, `ody-copy-button`,
+  `ody-check-in-status`, `ody-option`, `ody-split-button`, `ody-table-header`
+- overlays: `ody-modal`, `ody-popover`, `ody-tooltip`, `ody-panel`,
+  `ody-toast-host` (+ the `toast()` function)
+- data/selection: `ody-dropdown-single`, `ody-dropdown-multi`, `ody-datepicker`, `ody-table`
+
+Icons: themeable `<ody-icon name>` (inherits `currentColor`; discover via
+`iconNames()`, extend via `registerIcon()`) and fixed-colour `<ody-brand-icon name>`
+(`brandIconNames()`). Localization: `registerTranslation(lang, terms)` + DOM `lang`
+(`<html lang>`/nearest ancestor), per-instance overrides like `close-label`. The
+datepicker `value`/`change` stay ISO `yyyy-mm-dd`; display is `Intl`-localized
+(`display-format` / `formatDate`). Not ported (use native/compose):
+`nested-multi-select`, `location-autocomplete`, `filter-menu`(`-single`),
+`accordion-checkbox`, `datepicker-with-presets`.
+
 ## Notes for consumers
 
 - Install from the public npm registry: `npm install @peektravel/app-utilities`.
   No registry config or auth token needed. See README "Install".
-- Everything not re-exported from the package root is internal — do not import
-  from subpaths; rely on the public barrel.
+- Public entry points: the package root `.` (server library) and `./ui`
+  (+ `./ui/tokens.css`, `./ui/odyssey.css`). Everything else is internal — rely
+  on those barrels, don't deep-import internal modules.
