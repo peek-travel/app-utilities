@@ -107,32 +107,22 @@ Recurring patterns inside services:
 - **Cursor pagination** is handled internally and transparently — e.g.
   `ProductService` gathers every add-on page; `BookingService.fetchPaginated`
   walks `pageInfo.hasNextPage`/`endCursor`. Callers get a single flat array.
-- **Date-window pagination + re-anchored offset cache** — `ReviewService.getReviews`
-  fronts a `reviews` connection that has **no server-side date filter** and
-  returns newest-first (descending `reviewedAt`) with only per-edge `cursor`s
-  (no `pageInfo`). It walks backwards in time, collecting reviews whose review
-  date is within `[startDate, endDate]` (inclusive; `startDate` is the older
-  bound) and stopping as soon as it pages past `startDate` or hits a short final
-  page. Input is validated in the service: non-empty `productId`, `YYYY-MM-DD`
-  dates, `startDate <= endDate`, and a 31-day max window.
+- **Offset/count review reads** — `ReviewService.getReviews(productId,
+  reviewCount?, reviewOffset?)` fronts a `reviews` connection that returns
+  newest-first (descending `reviewedAt`) with only per-edge `cursor`s (no
+  `pageInfo`). It fetches a **single page** of up to `reviewCount` reviews
+  (default 50, validated 1–50), skipping the first `reviewOffset` newest reviews
+  (default 0, validated non-negative integer). No pagination loop, no cache, no
+  date filtering — callers slice the newest-first list by count and offset.
 
   The gateway cursor is the base64 of `range:<start>..<end>,<offset>` where
-  `<offset>` is an **absolute index that is not stable across queries** — adding
-  reviews shifts every offset. `reviews/review-cursor.ts` is a small pure module
-  that encodes/decodes that format (the only place `Buffer` base64 is used). The
-  in-memory per-activity cache therefore stores **decoded offsets plus a
-  `headId`** (the topmost review id when recorded): `activityId → { headId,
-  Map<oldestPageDate, offset> }`. On a cached call (`useCache`, default true)
-  the service always pulls from the top, re-finds `headId` to learn how far
-  offsets have shifted, re-anchors every cached offset by that shift, resets
-  `headId`, and then jumps — via a cursor rebuilt with `encodeCursor` — to the
-  cached page just newer than `endDate`. Within a single call the live cursors
-  are stable, so normal next-page pagination uses them; only the cross-call
-  cache uses offsets. Every call refreshes the cache (fresh boundaries plus the
-  re-anchored prior ones); when the head can't be re-found the stale offsets are
-  dropped. The cache lives on the memoized service instance, so it persists
-  across calls within a process. This is the one resource whose triad carries a
-  fourth helper file (`review-cursor.ts`) alongside queries/converter/service.
+  `<offset>` is the absolute index of the object in the result set.
+  `reviews/review-cursor.ts` is a small pure module that encodes/decodes that
+  format (the only place `Buffer` base64 is used). Because the cursor resumes
+  *after* a given offset, a non-zero `reviewOffset` is sent as `encodeCursor(
+  reviewOffset - 1, reviewCount)`; an offset of 0 sends no cursor. This is the
+  one resource whose triad carries a fourth helper file (`review-cursor.ts`)
+  alongside queries/converter/service.
 - **Composition** — `BookingService.addAddon` resolves an add-on's parent item
   through `ProductService`; `TimeslotService.assignGuide` resolves guides
   through the resource-pool + account-user services using the pure

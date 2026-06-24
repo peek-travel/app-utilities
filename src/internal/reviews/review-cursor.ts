@@ -2,10 +2,9 @@
  * Encode/decode for the Peek reviews connection cursor. Internal.
  *
  * A cursor is the base64 of `range:<start>..<end>,<offset>` where `<offset>` is
- * the **absolute index** of the object in the current result set. Offsets are
- * NOT stable across queries: when new reviews are added at the top, every
- * offset shifts. The cursor cache therefore stores decoded offsets (re-anchored
- * to a head review on each use) rather than raw cursor strings.
+ * the **absolute index** of the object in the current result set. {@link
+ * encodeCursor} mints the `after` cursor used to skip a fixed number of the
+ * newest reviews.
  */
 const CURSOR_REGEX = /^range:(\d+)\.\.(\d+),(\d+)$/;
 

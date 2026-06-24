@@ -258,8 +258,7 @@ export class PeekAccessService {
 
   /**
    * Returns the {@link ReviewService} for this install, bound to the shared
-   * authenticated transport. The instance is created lazily and reused; it
-   * keeps an in-memory cursor cache to speed up repeated review lookups.
+   * authenticated transport. The instance is created lazily and reused.
    */
   getReviewService(): ReviewService {
     if (!this.reviewService) {
