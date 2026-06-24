@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Odyssey Web Components — gallery</title>
+
+    <!-- Odyssey design tokens + component styles (built into dist/ui). -->
+    <link rel="stylesheet" href="/dist/ui/tokens.css" />
+    <link rel="stylesheet" href="/dist/ui/odyssey.css" />
+
+    <!-- Registers every <ody-*> custom element as a side effect. -->
+    <script type="module" src="/dist/ui/index.js"></script>
+
+    <style>
+      body {
+        font-family: var(--ody-font-family);
+        color: var(--color-neutral-400);
+        background: var(--color-neutral-50);
+        margin: 0;
+        padding: 32px clamp(16px, 5vw, 64px);
+      }
+      h1 { font-size: 28px; margin: 0 0 4px; }
+      .subtitle { color: var(--color-neutral-300); margin: 0 0 32px; }
+      section {
+        background: var(--color-neutral-0);
+        border: 1px solid var(--color-neutral-200);
+        border-radius: 8px;
+        padding: 20px 24px;
+        margin-bottom: 20px;
+      }
+      section > h2 { font-size: 18px; margin: 0 0 16px; color: var(--color-neutral-350); }
+      .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
+      .stack { display: flex; flex-direction: column; gap: 12px; max-width: 520px; }
+      .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+      .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; }
+      .icon-cell { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 0; padding: 12px 4px; border: 1px solid var(--color-neutral-200); border-radius: 8px; }
+      .icon-cell figcaption { font-size: 11px; color: var(--color-neutral-300); text-align: center; word-break: break-word; }
+    </style>
+  </head>
+  <body>
+    <h1>Odyssey Web Components</h1>
+    <p class="subtitle">
+      Framework-agnostic components from <code>@peektravel/app-utilities/ui</code>.
+      Drop the two stylesheets and the module script into any page.
+    </p>
+
+    <section>
+      <h2>Buttons</h2>
+      <div class="row">
+        <ody-button variant="primary">Primary</ody-button>
+        <ody-button variant="secondary">Secondary</ody-button>
+        <ody-button variant="ghost">Ghost</ody-button>
+        <ody-button variant="tertiary">Tertiary</ody-button>
+        <ody-button variant="danger">Danger</ody-button>
+      </div>
+      <div class="row">
+        <ody-button appearance="success">Success</ody-button>
+        <ody-button appearance="grey">Grey</ody-button>
+        <ody-button left-icon="plus">With left icon</ody-button>
+        <ody-button right-icon="chevron-down">With right icon</ody-button>
+        <ody-button icon-only left-icon="search" aria-label="Search"></ody-button>
+      </div>
+      <div class="row">
+        <ody-button size="small">Small</ody-button>
+        <ody-button loading>Loading</ody-button>
+        <ody-button disabled>Disabled</ody-button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Tags</h2>
+      <div class="swatches">
+        <ody-tag>Default</ody-tag>
+        <ody-tag color="info">Info</ody-tag>
+        <ody-tag color="success" icon="check">Success</ody-tag>
+        <ody-tag color="warning">Warning</ody-tag>
+        <ody-tag color="danger">Danger</ody-tag>
+        <ody-tag color="purple" count="4">Purple</ody-tag>
+      </div>
+      <div class="swatches" style="margin-top: 12px">
+        <ody-tag variant="secondary" color="info">Info</ody-tag>
+        <ody-tag variant="secondary" color="success" size="small" icon="check">Small</ody-tag>
+        <ody-tag variant="secondary" color="teal">Teal</ody-tag>
+        <ody-tag variant="secondary" color="rose">Rose</ody-tag>
+      </div>
+    </section>
+
+    <section>
+      <h2>Alerts</h2>
+      <div class="stack">
+        <ody-alert variant="info" heading="Heads up">Here is some additional context.</ody-alert>
+        <ody-alert variant="success" heading="Saved">Your changes were saved successfully.</ody-alert>
+        <ody-alert variant="warning" heading="Careful">This action cannot be undone.</ody-alert>
+        <ody-alert variant="danger" heading="Something went wrong">Please try again later.</ody-alert>
+      </div>
+    </section>
+
+    <section>
+      <h2>Cards</h2>
+      <div class="stack">
+        <ody-card bar-color="var(--color-interaction-300)">
+          <strong>Sunset Kayak Tour</strong><br />
+          A guided two-hour paddle along the coast.
+        </ody-card>
+        <ody-card bar-color="var(--color-success-300)" clickable>
+          <strong>Clickable card</strong><br />
+          Hover to see the pointer affordance.
+        </ody-card>
+      </div>
+    </section>
+
+    <section>
+      <h2>Status, messages &amp; icons</h2>
+      <div class="row">
+        <ody-status-dot color="green">Confirmed</ody-status-dot>
+        <ody-status-dot color="blue">Pending</ody-status-dot>
+        <ody-status-dot color="orange">On hold</ody-status-dot>
+      </div>
+      <div class="row">
+        <ody-message icon="info">Inline informational message.</ody-message>
+      </div>
+      <div class="row">
+        <ody-icon name="check" size="medium"></ody-icon>
+        <ody-icon name="close" size="medium"></ody-icon>
+        <ody-icon name="search" size="medium"></ody-icon>
+        <ody-icon name="warning" size="medium"></ody-icon>
+        <ody-icon name="copy" size="medium"></ody-icon>
+      </div>
+    </section>
+
+    <section>
+      <h2>Loading</h2>
+      <div class="row">
+        <ody-loading-spinner size="small"></ody-loading-spinner>
+        <ody-loading-spinner>Loading…</ody-loading-spinner>
+        <ody-loading-spinner size="large"></ody-loading-spinner>
+      </div>
+      <div class="stack">
+        <ody-loading-bar value="35" label="Uploading photos"></ody-loading-bar>
+        <ody-loading-bar value="80" color="var(--color-success-300)" label="Almost done"></ody-loading-bar>
+      </div>
+    </section>
+
+    <section>
+      <h2>Divider</h2>
+      <div>Above</div>
+      <ody-divider></ody-divider>
+      <div>Below</div>
+    </section>
+
+    <section>
+      <h2>Empty state</h2>
+      <ody-empty-state variant="no-results" label="No results found" caption="Try a different search term."></ody-empty-state>
+      <ody-empty-state icon="search" label="Start searching" caption="Enter a query above."></ody-empty-state>
+    </section>
+
+    <section>
+      <h2>Breadcrumb</h2>
+      <ody-breadcrumb>
+        <ody-breadcrumb-item><a href="#">Home</a></ody-breadcrumb-item>
+        <ody-breadcrumb-item><a href="#">Bookings</a></ody-breadcrumb-item>
+        <ody-breadcrumb-item current>Details</ody-breadcrumb-item>
+      </ody-breadcrumb>
+    </section>
+
+    <section>
+      <h2>Stat summary</h2>
+      <ody-stat-summary>
+        <ody-stat label="Revenue" value="$12,400" sub="last 30 days"></ody-stat>
+        <ody-stat label="Bookings" value="312" tone="success"></ody-stat>
+        <ody-stat label="Cancellations" value="8" tone="warning"></ody-stat>
+      </ody-stat-summary>
+    </section>
+
+    <section>
+      <h2>Inline list</h2>
+      <ody-inline-list>
+        <ody-inline-list-item>2 hours</ody-inline-list-item>
+        <ody-inline-list-item>Max 12 guests</ody-inline-list-item>
+        <ody-inline-list-item>English</ody-inline-list-item>
+      </ody-inline-list>
+      <ody-inline-list separator="bullet" gap="8" style="margin-top:12px">
+        <ody-inline-list-item>Draft</ody-inline-list-item>
+        <ody-inline-list-item>Updated 3d ago</ody-inline-list-item>
+      </ody-inline-list>
+    </section>
+
+    <section>
+      <h2>List item</h2>
+      <div class="stack">
+        <ody-list-item item-id="1" active-item-id="1"><strong>Sunset Kayak Tour</strong><div>Today, 5:00 PM</div></ody-list-item>
+        <ody-list-item item-id="2" active-item-id="1"><strong>Morning Hike</strong><div>Tomorrow, 8:00 AM</div></ody-list-item>
+      </div>
+    </section>
+
+    <section>
+      <h2>Product indicator</h2>
+      <div class="stack">
+        <ody-product-indicator name="Sunset Kayak Tour" detail="2 hours · Max 12" bar-color="var(--color-turquoise-300)"></ody-product-indicator>
+        <ody-product-indicator name="Premium Add-on" detail="Wetsuit rental" bar-color="var(--color-purple-300)" size="small"></ody-product-indicator>
+      </div>
+    </section>
+
+    <section>
+      <h2>Toggle button</h2>
+      <ody-toggle-button selected="week"
+        options='[{"value":"day","label":"Day"},{"value":"week","label":"Week"},{"value":"month","label":"Month"}]'></ody-toggle-button>
+    </section>
+
+    <section>
+      <h2>Section — rows</h2>
+      <ody-section-rows gap-size="16">
+        <ody-section-row-item title="General" description="Basic details" description-icon="info">Row body content</ody-section-row-item>
+        <ody-section-row-item title="Advanced" no-divider>More content</ody-section-row-item>
+      </ody-section-rows>
+    </section>
+
+    <section>
+      <h2>Collapsible section</h2>
+      <ody-collapsible-section header-text="Booking details" secondary-header-text="(3 items)" icon="info">
+        <ody-collapsible-collapsed>Tap to expand the full booking breakdown.</ody-collapsible-collapsed>
+        <ody-collapsible-content><p>Full content revealed when expanded.</p></ody-collapsible-content>
+      </ody-collapsible-section>
+    </section>
+
+    <section>
+      <h2>Form inputs</h2>
+      <div class="stack">
+        <ody-input label="Full name" placeholder="Jane Doe" value="Jane"></ody-input>
+        <ody-input label="Email" warning="Check this address" value="a@b.co" size="small"></ody-input>
+        <ody-search-input placeholder="Search bookings" info-message="Type to filter"></ody-search-input>
+        <ody-money-input label="Price" currency="USD" value="49.99" max-amount="1000"></ody-money-input>
+        <ody-percentage-input label="Discount" value="15"></ody-percentage-input>
+        <ody-checkbox label="I agree to the terms"></ody-checkbox>
+        <ody-checkbox label="Indeterminate" indeterminate size="base"></ody-checkbox>
+        <ody-radio-button-group value="standard"
+          options='[{"label":"Standard","value":"standard"},{"label":"Express","value":"express"}]'></ody-radio-button-group>
+        <ody-checkbox-group select-all-label="Select all add-ons" value="lunch"
+          options='[{"label":"Lunch","value":"lunch"},{"label":"Gear","value":"gear"},{"label":"Photos","value":"photos"}]'></ody-checkbox-group>
+      </div>
+    </section>
+
+    <section>
+      <h2>Accordion &amp; collapsible</h2>
+      <ody-accordion title="Booking details" open><p>Expanded body content goes here.</p></ody-accordion>
+      <ody-collapsible label="Show more"><p>Collapsible inline content.</p></ody-collapsible>
+    </section>
+
+    <section>
+      <h2>Tabs</h2>
+      <ody-tabs active="overview"
+        tabs='[{"id":"overview","label":"Overview"},{"id":"guests","label":"Guests"},{"id":"notes","label":"Notes","disabled":true}]'></ody-tabs>
+    </section>
+
+    <section>
+      <h2>Copy button &amp; check-in status</h2>
+      <div class="row">
+        <ody-copy-button value="BOOK-12345" label="Copy ID"></ody-copy-button>
+        <ody-check-in-status status="RETURNED" optional-text="Returned at 4:32pm"></ody-check-in-status>
+        <ody-check-in-status status="OVERDUE"></ody-check-in-status>
+      </div>
+    </section>
+
+    <section>
+      <h2>Split button &amp; table header</h2>
+      <div class="row">
+        <ody-split-button text="Save" variant="primary">
+          <ody-option>Save and close</ody-option>
+          <ody-option>Save as draft</ody-option>
+        </ody-split-button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <ody-table-header column-name="Guest name" column-id="name" rounded-left></ody-table-header>
+        <ody-table-header column-name="Date" column-id="date" direction="ASC"></ody-table-header>
+        <ody-table-header column-name="Status" static rounded-right></ody-table-header>
+      </div>
+    </section>
+
+    <section>
+      <h2>Overlays</h2>
+      <div class="row">
+        <ody-button id="g-modal-open">Open modal</ody-button>
+        <ody-button id="g-panel-open" variant="secondary">Open panel</ody-button>
+        <ody-popover placement="bottom">
+          <ody-button data-ody-popover-trigger variant="secondary">Popover menu</ody-button>
+          <div style="padding:8px 16px">Item one<br />Item two</div>
+        </ody-popover>
+        <ody-tooltip text="Helpful hint" placement="top">
+          <ody-button variant="ghost">Hover me</ody-button>
+        </ody-tooltip>
+        <ody-button id="g-toast" variant="ghost">Show toast</ody-button>
+      </div>
+      <ody-modal id="g-modal" heading="Confirm action"><p>Are you sure you want to continue?</p></ody-modal>
+      <ody-panel id="g-panel" heading="Details"><p>Side panel body content.</p></ody-panel>
+    </section>
+
+    <section>
+      <h2>Dropdowns</h2>
+      <div class="stack">
+        <ody-dropdown-single label="Fruit" placeholder="Pick a fruit" searchable
+          options='[{"value":"apple","label":"Apple"},{"value":"banana","label":"Banana"},{"value":"cherry","label":"Cherry","disabled":true}]'></ody-dropdown-single>
+        <ody-dropdown-multi label="Toppings" placeholder="Choose toppings" searchable value="cheese"
+          options='[{"value":"cheese","label":"Cheese"},{"value":"olives","label":"Olives"},{"value":"basil","label":"Basil"}]'></ody-dropdown-multi>
+      </div>
+    </section>
+
+    <section>
+      <h2>Date picker</h2>
+      <p class="subtitle" style="margin:0 0 12px">
+        Display is localized via <code>Intl</code> (try <code>display-format</code> / a
+        <code>lang</code> ancestor); the <code>value</code> stays ISO <code>yyyy-mm-dd</code>.
+      </p>
+      <div class="row">
+        <ody-datepicker value="2026-06-15" placeholder="Select date"></ody-datepicker>
+        <ody-datepicker value="2026-06-15" display-format="full"></ody-datepicker>
+        <span lang="es"><ody-datepicker value="2026-06-15"></ody-datepicker></span>
+        <ody-datepicker range value="2026-06-10/2026-07-04" min="2026-04-01" max="2026-09-30"
+          presets='[{"label":"This month","value":"2026-06-01/2026-06-30"},{"label":"Summer","value":"2026-06-21/2026-09-22"}]'></ody-datepicker>
+      </div>
+    </section>
+
+    <section>
+      <h2>Table</h2>
+      <ody-table id="demo-table" selectable sortable sticky-header></ody-table>
+      <script type="module">
+        const t = document.getElementById('demo-table');
+        t.columns = [
+          { key: 'name', label: 'Name', sortable: true },
+          { key: 'age', label: 'Age', sortable: true, align: 'right' },
+          { key: 'city', label: 'City', align: 'center' },
+        ];
+        t.data = [
+          { name: 'Charlie', age: 30, city: 'New York' },
+          { name: 'Alice', age: 42, city: 'Los Angeles' },
+          { name: 'Bob', age: 25, city: 'San Francisco' },
+        ];
+      </script>
+    </section>
+
+    <section>
+      <h2>Icon library — themeable (currentColor)</h2>
+      <p class="subtitle" style="margin:0 0 12px">
+        Inherit <code>currentColor</code> — shown here tinted with the interaction colour
+        via <code>&lt;ody-icon&gt;</code>. Register more with <code>registerIcon()</code>.
+      </p>
+      <div id="icon-grid" class="icon-grid" style="color: var(--color-interaction-300)"></div>
+    </section>
+
+    <section>
+      <h2>Brand icons — fixed colour</h2>
+      <p class="subtitle" style="margin:0 0 12px">
+        Keep their baked-in Odyssey colours (logos, illustrations, status art) via
+        <code>&lt;ody-brand-icon&gt;</code> — unaffected by <code>color</code>.
+      </p>
+      <div id="brand-icon-grid" class="icon-grid"></div>
+    </section>
+
+    <script type="module">
+      import { iconNames, brandIconNames } from '/dist/ui/index.js';
+      const fill = (id, names, tag) => {
+        document.getElementById(id).innerHTML = names
+          .map((n) => `<figure class="icon-cell"><${tag} name="${n}" size="medium"></${tag}><figcaption>${n}</figcaption></figure>`)
+          .join('');
+      };
+      fill('icon-grid', iconNames(), 'ody-icon');
+      fill('brand-icon-grid', brandIconNames(), 'ody-brand-icon');
+    </script>
+
+    <script type="module">
+      import { toast } from '/dist/ui/index.js';
+      document.getElementById('g-modal-open').addEventListener('click', () => document.getElementById('g-modal').open());
+      document.getElementById('g-panel-open').addEventListener('click', () => document.getElementById('g-panel').open());
+      document.getElementById('g-toast').addEventListener('click', () => toast('Saved successfully', { variant: 'success', title: 'Done' }));
+    </script>
+  </body>
+</html>
