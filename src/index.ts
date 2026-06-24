@@ -37,7 +37,6 @@ export type {
 } from "./internal/bookings/booking-service.js";
 
 export { ReviewService } from "./internal/reviews/review-service.js";
-export type { ReviewServiceOptions } from "./internal/reviews/review-service.js";
 
 export { ADD_ON_PRODUCT_TYPE } from "./models/product.js";
 export type { Product, ProductTicket } from "./models/product.js";
