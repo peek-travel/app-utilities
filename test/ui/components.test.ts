@@ -161,6 +161,13 @@ describe('ody-card', () => {
     const el = await mount('<ody-card>Body</ody-card>');
     expect(el.querySelector('.ody-card__container__bar')!.getAttribute('style')).toBeNull();
   });
+
+  it('omits the accent bar when no-bar is set', async () => {
+    const el = await mount('<ody-card no-bar>Body</ody-card>');
+    expect(el.querySelector('.ody-card--no-bar')).not.toBeNull();
+    expect(el.querySelector('.ody-card__container__bar')).toBeNull();
+    expect(el.querySelector('.ody-card__container__content')!.textContent).toBe('Body');
+  });
 });
 
 describe('simple display components', () => {

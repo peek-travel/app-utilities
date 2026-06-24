@@ -178,6 +178,7 @@ ody-alert, ody-card, ody-divider, ody-loading-bar { display: block; }
 .ody-card__container { min-height: 2rem; color: var(--color-neutral-300); }
 .ody-card__container__bar { background-color: var(--color-neutral-200); width: 4px; border-radius: 16px 0 0 16px; height: auto; }
 .ody-card__container__content { padding: 10px 12px; border-radius: 0 4px 4px 0; border: 1px solid var(--color-neutral-100); border-left: none; width: 100%; }
+.ody-card--no-bar .ody-card__container__content { border-radius: 4px; border-left: 1px solid var(--color-neutral-100); }
 .ody-card--clickable { cursor: pointer; }
 
 /* ---- divider ------------------------------------------------------------- */
