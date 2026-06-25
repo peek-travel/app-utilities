@@ -232,13 +232,22 @@ be set on the element object; **Events** bubble and are read via `event.detail`;
 ```
 
 #### `<ody-card>`
-**Use when** grouping content in a bordered container with a left accent bar.
+**Use when** grouping content in a bordered container. Reach for the plain
+`no-bar` card by default; add a left accent bar only when the bar's colour
+carries meaning (e.g. status).
 **Attributes**
-- `bar-color` — CSS colour for the accent bar (default neutral-200).
+- `no-bar` — boolean; omits the accent bar, rendering a plain bordered
+  container. **This is the default card to use.**
+- `bar-color` — CSS colour for the accent bar (default neutral-200). Ignored
+  when `no-bar` is set.
 - `clickable` — boolean; adds pointer affordance (handle `click` yourself).
 **Slots / content** — child nodes are the card content.
 **Example**
 ```html
+<!-- Default: plain bordered card -->
+<ody-card no-bar><p>Card body</p></ody-card>
+
+<!-- Accent bar when the colour is meaningful -->
 <ody-card bar-color="var(--color-interaction-300)"><p>Card body</p></ody-card>
 ```
 
