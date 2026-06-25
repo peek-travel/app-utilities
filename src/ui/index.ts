@@ -37,6 +37,7 @@ import './components/product-indicator.js';
 import './components/toggle-button.js';
 import './components/section.js';
 import './components/two-column.js';
+import './components/page-container.js';
 import './components/collapsible-section.js';
 // Form inputs
 import './components/input.js';
@@ -147,6 +148,7 @@ export {
   OdyTwoColumnSecondary,
   OdyTwoColumnSecondaryHeader,
 } from './components/two-column.js';
+export { OdyPageContainer } from './components/page-container.js';
 export {
   OdyCollapsibleSection,
   OdyCollapsibleCollapsed,

@@ -203,8 +203,11 @@ Load-bearing rules:
   `svg-jar`, or bootstrap. Colours/spacing reference the `tokens.css` custom
   properties; icons are inlined; button variant colours (which live in a
   bootstrap base layer upstream) are reproduced from Odyssey tokens.
-- **Scope:** ~45 components across display, layout, form-input, interactive,
-  overlay, and data/selection tiers. The data/selection tier — `dropdown-single`,
+- **Scope:** ~46 components across display, layout, form-input, interactive,
+  overlay, and data/selection tiers. The layout tier includes
+  `ody-page-container` — the required full-bleed wrapper for app **settings**
+  UIs, sized to the two settings-host iframe widths (868px / 1310px) and
+  exposing an `ody-page` CSS container context for the content within. The data/selection tier — `dropdown-single`,
   `dropdown-multi` (+ shared `select-base.ts`), `datepicker`, `table` — was
   **rebuilt from scratch** as lightweight vanilla components (rather than ported
   from their `ember-power-select` / `ember-power-calendar` originals), following

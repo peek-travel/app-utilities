@@ -223,6 +223,7 @@ ody-alert, ody-card, ody-divider, ody-loading-bar { display: block; }
   ody-list-item, ody-product-indicator, ody-toggle-button, ody-section-columns,
   ody-section-column-item, ody-section-rows, ody-section-row-item, ody-two-column,
   ody-two-column-main, ody-two-column-secondary, ody-two-column-secondary-header,
+  ody-page-container,
   ody-collapsible-section, ody-collapsible-collapsed, ody-collapsible-content,
   ody-input, ody-inline-input, ody-search-input, ody-money-input, ody-percentage-input,
   ody-checkbox, ody-radio-button-group, ody-checkbox-group, ody-accordion, ody-collapsible,
@@ -379,6 +380,10 @@ ody-percentage-input, ody-checkbox, ody-radio-button-group, ody-checkbox-group {
 .ody-two-column .ody-two-column__secondary .ody-two-column__secondary__header .ody-button { padding: 0; }
 .ody-two-column .ody-two-column__secondary .ody-two-column__secondary__close-button { background: none; border: none; cursor: pointer; color: var(--color-neutral-300); }
 .ody-two-column .ody-two-column__secondary .ody-two-column__secondary__close-button .icon { width: 20px; height: 20px; }
+
+/* ===== page-container ===== */
+ody-page-container { display: block; width: 100%; }
+.ody-page-container { width: 100%; max-width: 1310px; margin: 0 auto; container-type: inline-size; container-name: ody-page; }
 
 /* ===== collapsible-section ===== */
 .ody-collapsible-section .ody-collapsible-container .ody-collapsible { margin: 0; }
