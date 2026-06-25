@@ -161,6 +161,7 @@ function Guests({ columns, rows, onSort }) {
 | Empty / error / no-results view | `ody-empty-state` |
 | KPI figures | `ody-stat-summary` + `ody-stat` |
 | Expand/collapse | `ody-accordion`, `ody-collapsible`, `ody-collapsible-section` |
+| Full-page wrapper for an **app settings UI** | `ody-page-container` (required — see below) |
 | Master/detail page layout | `ody-two-column` |
 | Row/column section layout | `ody-section-rows` / `ody-section-columns` |
 | Progress | `ody-loading-bar`, `ody-loading-spinner` |
@@ -447,6 +448,47 @@ Extra content (e.g. a tag) is the child content.
     …detail…
   </ody-two-column-secondary>
 </ody-two-column>
+```
+
+#### `<ody-page-container>`
+> [!IMPORTANT]
+> **Every app settings UI must wrap its content in `<ody-page-container>`.** It is
+> the standard responsive page wrapper that keeps the settings page sized to the
+> two widths the settings host iframe renders at — **868px** (narrow) and
+> **1310px** (wide).
+>
+> **Design for 868px first — it is the default.** Optimise every settings layout
+> for the narrow 868px width, then make sure it *also* renders correctly when the
+> host expands it to 1310px (e.g. progressively widen or add columns; never
+> assume the extra width is present). Do **not** design 1310px-first and let it
+> degrade — 868px is the baseline that must always look right.
+
+**Use when** building the top-level layout of an app settings page (or any
+full-page UI embedded in the settings host).
+The container is `width: 100%`, so it fills whichever of the two widths the
+parent iframe gives it; a `max-width` of `1310px` caps and centres it if it is
+ever embedded somewhere wider. Content is **full-bleed** (edge-to-edge, no side
+gutters). It also establishes a CSS **container context** named `ody-page`, so
+the content inside can adapt between the two widths with container queries
+instead of viewport media queries — treat 868px as the base styles and use a
+container query to *enhance* for the wider view.
+**Attributes** — none; the width is driven entirely by the parent.
+**Slots / content** — child nodes are the page content.
+**Example**
+```html
+<ody-page-container>
+  <ody-section-rows gap-size="24">
+    …settings UI…
+  </ody-section-rows>
+</ody-page-container>
+```
+```css
+/* Base styles target the default 868px width… */
+.my-settings-grid { grid-template-columns: 1fr; }
+/* …then progressively enhance for the expanded 1310px view. */
+@container ody-page (min-width: 1310px) {
+  .my-settings-grid { grid-template-columns: 1fr 1fr; }
+}
 ```
 
 #### `<ody-collapsible-section>` + `<ody-collapsible-collapsed>` + `<ody-collapsible-content>`

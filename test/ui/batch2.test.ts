@@ -9,6 +9,7 @@ import '../../src/ui/components/product-indicator.js';
 import '../../src/ui/components/toggle-button.js';
 import '../../src/ui/components/section.js';
 import '../../src/ui/components/two-column.js';
+import '../../src/ui/components/page-container.js';
 import '../../src/ui/components/collapsible-section.js';
 
 /** Render HTML, flush the deferred first render, and return the first element. */
@@ -389,6 +390,17 @@ describe('ody-two-column', () => {
     header.querySelector<HTMLElement>('.ody-two-column__secondary__header__title')!.click();
     expect(fired).toBe(false);
     header.remove();
+  });
+});
+
+describe('ody-page-container', () => {
+  it('wraps slotted content in the full-bleed container', async () => {
+    const el = await mount<HTMLElement>(
+      '<ody-page-container><p>Settings UI</p></ody-page-container>',
+    );
+    const container = el.querySelector('.ody-page-container');
+    expect(container).not.toBeNull();
+    expect(container!.querySelector('p')!.textContent).toBe('Settings UI');
   });
 });
 
