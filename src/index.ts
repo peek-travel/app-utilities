@@ -38,6 +38,8 @@ export type {
 
 export { parseBookingWebhook } from "./internal/bookings/booking-webhook.js";
 
+export { parseWaiverWebhook } from "./internal/waivers/waiver-webhook.js";
+
 export { ReviewService } from "./internal/reviews/review-service.js";
 
 export { ADD_ON_PRODUCT_TYPE } from "./models/product.js";
@@ -112,6 +114,7 @@ export type {
   BookingAddonsMutationResult,
 } from "./models/booking-addon.js";
 export type { Guide, Review } from "./models/review.js";
+export type { Waiver } from "./models/waiver.js";
 
 export { noopLogger } from "./logger.js";
 export type { Logger } from "./logger.js";

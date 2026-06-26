@@ -196,29 +196,37 @@ both `import` and `require` consumers (including the Node 22 / CommonJS Firebase
 Functions runtime) resolve correctly. Its only runtime dependency is
 `jsonwebtoken`.
 
-## Booking webhooks
+## Webhooks
 
-Receiver apps can consume Peek **booking** webhooks without hand-writing a
-payload parser. A booking webhook's payload shape is set by the GraphQL field
-selection registered with it — and that registration happens **once, in an
-external system** (the App Store `broadcast_to_url` config), not from your code.
-So there are two halves: the query you paste into that external config, and the
-parser your receiver runs. This package owns both from one source so they can't
-drift — the registered query is documented (and drift-guarded by a test), and the
-delivery is parsed by the one runtime export:
+Receiver apps can consume Peek **booking** and **waiver** webhooks without
+hand-writing a payload parser. Each has a pure parser (construct nothing — no
+auth/network) that returns a clean model:
 
 ```ts
-import { parseBookingWebhook, type Booking } from "@peektravel/app-utilities";
+import {
+  parseBookingWebhook,
+  parseWaiverWebhook,
+  type Booking,
+  type Waiver,
+} from "@peektravel/app-utilities";
 
 app.post("/booking-webhook", (req, res) => {
   const booking: Booking = parseBookingWebhook(req.body);
   res.sendStatus(200);
 });
+
+app.post("/waiver-webhook", (req, res) => {
+  const waiver: Waiver = parseWaiverWebhook(req.body);
+  res.sendStatus(200);
+});
 ```
 
-`parseBookingWebhook` is a pure transform (construct nothing — no auth/network),
-tolerates the `{ booking: … }` envelope / a bare node / a JSON string, and
-auto-detects guest and price-breakdown fields. **The query to register and the
+Both tolerate the delivery envelope / a bare node / a JSON string and never throw
+on malformed input. They differ on registration: a **booking** webhook's payload
+shape is set by a GraphQL query configured **once in an external system** (the
+App Store `broadcast_to_url` config) — this package documents and drift-guards
+the exact query to paste there — whereas a **waiver** webhook has a fixed payload,
+so you just subscribe to its event with no query. **The query to register and the
 full guide: [`docs/webhooks.md`](docs/webhooks.md) (shipped).**
 
 ## UI components (`/ui`)

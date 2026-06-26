@@ -68,22 +68,23 @@ const peek = new PeekAccessService({
   importable; branch with `instanceof`.
 - Plain `Error` for validation/precondition failures thrown before any request.
 
-## Booking webhooks (booking-only)
+## Webhooks (booking + waiver)
 
-A booking webhook's payload shape is defined by the GraphQL selection registered
-with it. Registration is done **once in an external system** (App Store config),
-not from code — so the package does not register at runtime. Two halves:
+Two webhook parsers, each a pure transform — needs no auth/network/
+`PeekAccessService`; accepts the `{<key>:…}` envelope, a bare node, or a JSON
+string; never throws on malformed input. Registration is done **once in an
+external system** (App Store config), not from code.
 
-- **Register the query** (setup-time, external): paste the canonical maximal
-  selection into `output_fields_gql_query`. The string is documented in
-  `docs/webhooks.md` and pinned by a drift-guard test — it is NOT a runtime
-  export.
-- **Parse the delivery** (the one runtime export): `parseBookingWebhook(body):
-  Booking`. Pure transform — needs no auth/network/`PeekAccessService`; accepts
-  the `{booking:…}` envelope, a bare node, or a JSON string; auto-detects
-  guests/breakdown (no flags to keep in sync); never throws on malformed input.
-  Returns the same `Booking` model as the read services. **Full guide +
-  query-to-register: `docs/webhooks.md` (shipped).**
+- `parseBookingWebhook(body): Booking` — auto-detects guests/breakdown. Booking
+  payload shape is defined by a GraphQL selection registered externally; paste
+  the canonical maximal selection into `output_fields_gql_query`. That string is
+  documented in `docs/webhooks.md` and pinned by a drift-guard test — it is NOT a
+  runtime export.
+- `parseWaiverWebhook(body): Waiver` — maps the fixed `snake_case`
+  `waiver_webhook_data` payload to the clean `Waiver` model. **No query to
+  register** — just subscribe to the `agreement_signature_created` event.
+
+**Full guide + booking query-to-register: `docs/webhooks.md` (shipped).**
 
 ## UI components (`@peektravel/app-utilities/ui`)
 

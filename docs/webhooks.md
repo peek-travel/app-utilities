@@ -1,8 +1,21 @@
-# Booking webhooks
+# Webhooks
 
-A guide for wiring a receiver app up to Peek "backoffice" **booking** webhooks
-using `@peektravel/app-utilities`. Booking is the only resource with webhook
-support today.
+A guide for wiring a receiver app up to Peek "backoffice" webhooks using
+`@peektravel/app-utilities`. Two webhook types are supported today — **booking**
+and **waiver** — and each has a parser that turns the delivered payload into a
+clean data model. They differ in one important way: a booking webhook is
+configured with a GraphQL query (so the package documents the exact query to
+register), while a waiver webhook has a fixed payload (so there's nothing to
+register beyond subscribing to the event).
+
+| Webhook | Register | Parse the delivery |
+| --- | --- | --- |
+| Booking | paste a GraphQL query into the external config (below) | `parseBookingWebhook(body)` → `Booking` |
+| Waiver | subscribe to the event — **no query needed** | `parseWaiverWebhook(body)` → `Waiver` |
+
+Both parsers are pure transforms — no auth, no network, construct nothing.
+
+# Booking webhooks
 
 ## The problem this solves
 
@@ -79,3 +92,50 @@ app.post("/booking-webhook", (req, res) => {
   not currently surface which event fired.
 - Authenticating the delivery (verifying it really came from Peek) is the
   receiver's responsibility and out of scope for this parser.
+
+# Waiver webhooks
+
+A waiver webhook fires when a participant signs a liability agreement. Unlike the
+booking webhook, its payload is **fixed** — Peek delivers a predefined shape (the
+`waiver_webhook_data` output format), so there is **no GraphQL query to
+register**.
+
+## Step 1 — subscribe to the event (external, one-time)
+
+Register the webhook for the `agreement_signature_created` event in the external
+config. Leave `output_fields_gql_query` null; the `output_format` is
+`waiver_webhook_data`. There is nothing query-shaped to paste.
+
+## Step 2 — parse the delivered webhook into a `Waiver`
+
+```ts
+import { parseWaiverWebhook, type Waiver } from "@peektravel/app-utilities";
+
+app.post("/waiver-webhook", (req, res) => {
+  const waiver: Waiver = parseWaiverWebhook(req.body);
+  // waiver.bookingId, waiver.templateId, waiver.fileUrl, waiver.signedAt,
+  // waiver.guestName, waiver.isSignedByGuardian, …
+  res.sendStatus(200);
+});
+```
+
+`parseWaiverWebhook` mirrors the booking parser: a pure transform (no
+auth/network/`PeekAccessService`), it tolerates the `{ waiver: … }` envelope / a
+bare node / a JSON string, maps the raw `snake_case` payload to the clean
+camelCase [`Waiver`](#waiver-webhooks) model, and never throws on malformed input
+(missing fields become `""` / `null` / `false`).
+
+The resulting `Waiver` is flat:
+
+| Field | Type | From |
+| --- | --- | --- |
+| `templateId` | `string` | `agreement_template_id` |
+| `bookingId` | `string` | `booking_id` |
+| `fileUrl` | `string` | `file_url` |
+| `signedAt` | `string` | `signed_at` (ISO) |
+| `isSignedByGuardian` | `boolean` | `signed_by_guardian` |
+| `guestName` | `string \| null` | `waiver_data.participant_name` |
+| `isOptinMarketing` | `boolean` | `waiver_data.participant_optin_marketing` |
+| `isOptinSms` | `boolean` | `waiver_data.participant_optin_sms` |
+
+Authenticating the delivery is the receiver's responsibility, as with bookings.
