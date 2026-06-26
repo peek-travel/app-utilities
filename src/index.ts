@@ -36,6 +36,8 @@ export type {
   CancelBookingResult,
 } from "./internal/bookings/booking-service.js";
 
+export { parseBookingWebhook } from "./internal/bookings/booking-webhook.js";
+
 export { ReviewService } from "./internal/reviews/review-service.js";
 
 export { ADD_ON_PRODUCT_TYPE } from "./models/product.js";

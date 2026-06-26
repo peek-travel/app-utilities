@@ -196,6 +196,31 @@ both `import` and `require` consumers (including the Node 22 / CommonJS Firebase
 Functions runtime) resolve correctly. Its only runtime dependency is
 `jsonwebtoken`.
 
+## Booking webhooks
+
+Receiver apps can consume Peek **booking** webhooks without hand-writing a
+payload parser. A booking webhook's payload shape is set by the GraphQL field
+selection registered with it — and that registration happens **once, in an
+external system** (the App Store `broadcast_to_url` config), not from your code.
+So there are two halves: the query you paste into that external config, and the
+parser your receiver runs. This package owns both from one source so they can't
+drift — the registered query is documented (and drift-guarded by a test), and the
+delivery is parsed by the one runtime export:
+
+```ts
+import { parseBookingWebhook, type Booking } from "@peektravel/app-utilities";
+
+app.post("/booking-webhook", (req, res) => {
+  const booking: Booking = parseBookingWebhook(req.body);
+  res.sendStatus(200);
+});
+```
+
+`parseBookingWebhook` is a pure transform (construct nothing — no auth/network),
+tolerates the `{ booking: … }` envelope / a bare node / a JSON string, and
+auto-detects guest and price-breakdown fields. **The query to register and the
+full guide: [`docs/webhooks.md`](docs/webhooks.md) (shipped).**
+
 ## UI components (`/ui`)
 
 The package also ships framework-agnostic **Web Components** ported from the Peek
@@ -326,6 +351,7 @@ src/ui/                    Web Components + Odyssey CSS (barrel: src/ui/index.ts
 test/                      vitest unit tests (test/ui/* run under happy-dom)
 examples/ui-gallery.html   component gallery (npm run sample)
 dist/                      build output (generated, git-ignored)
+docs/webhooks.md           booking-webhook consumer guide (shipped)
 docs/internal/             maintainer docs (ARCHITECTURE.md — not shipped)
 llms.txt                   AI-agent quickstart (shipped in the package)
 ```
