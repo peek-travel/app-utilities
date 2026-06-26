@@ -35,7 +35,7 @@ const guestFields = `
   }
 `;
 
-const bookingGuestsFields = `
+export const bookingGuestsFields = `
   bookingGuests {
     ${guestFields}
   }
@@ -44,7 +44,7 @@ const bookingGuestsFields = `
   }
 `;
 
-const bookingQueryFields = `
+export const bookingQueryFields = `
   displayId
   id
   primaryGuest {
@@ -158,7 +158,7 @@ const bookingQueryFields = `
   }
 `;
 
-const PRICE_BREAKDOWN_FIELDS = `
+export const PRICE_BREAKDOWN_FIELDS = `
   convenienceFee { amount formatted }
   deposit { amount formatted }
   discount { amount formatted }

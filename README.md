@@ -196,6 +196,39 @@ both `import` and `require` consumers (including the Node 22 / CommonJS Firebase
 Functions runtime) resolve correctly. Its only runtime dependency is
 `jsonwebtoken`.
 
+## Webhooks
+
+Receiver apps can consume Peek **booking** and **waiver** webhooks without
+hand-writing a payload parser. Each has a pure parser (construct nothing — no
+auth/network) that returns a clean model:
+
+```ts
+import {
+  parseBookingWebhook,
+  parseWaiverWebhook,
+  type Booking,
+  type Waiver,
+} from "@peektravel/app-utilities";
+
+app.post("/booking-webhook", (req, res) => {
+  const booking: Booking = parseBookingWebhook(req.body);
+  res.sendStatus(200);
+});
+
+app.post("/waiver-webhook", (req, res) => {
+  const waiver: Waiver = parseWaiverWebhook(req.body);
+  res.sendStatus(200);
+});
+```
+
+Both tolerate the delivery envelope / a bare node / a JSON string and never throw
+on malformed input. They differ on registration: a **booking** webhook's payload
+shape is set by a GraphQL query configured **once in an external system** (the
+App Store `broadcast_to_url` config) — this package documents and drift-guards
+the exact query to paste there — whereas a **waiver** webhook has a fixed payload,
+so you just subscribe to its event with no query. **The query to register and the
+full guide: [`docs/webhooks.md`](docs/webhooks.md) (shipped).**
+
 ## UI components (`/ui`)
 
 The package also ships framework-agnostic **Web Components** ported from the Peek
@@ -326,6 +359,7 @@ src/ui/                    Web Components + Odyssey CSS (barrel: src/ui/index.ts
 test/                      vitest unit tests (test/ui/* run under happy-dom)
 examples/ui-gallery.html   component gallery (npm run sample)
 dist/                      build output (generated, git-ignored)
+docs/webhooks.md           booking-webhook consumer guide (shipped)
 docs/internal/             maintainer docs (ARCHITECTURE.md — not shipped)
 llms.txt                   AI-agent quickstart (shipped in the package)
 ```

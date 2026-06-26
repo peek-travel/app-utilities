@@ -94,11 +94,52 @@ Resources: `products`, `account-users`, `resource-pools`, `timeslots`,
 `resellers`, `promo-codes`, `daily-notes`, `availability`, `memberships`,
 `bookings`, `reviews`. Clean data shapes live in `src/models/`.
 
+`waivers` is a **webhook-only resource**: it has no GraphQL reads (so no
+queries/service/converter triad), just `src/internal/waivers/waiver-webhook.ts`
+and the `src/models/waiver.ts` model. See the webhook notes below.
+
 A resource may split into more than one triad when it carries a distinct
 sub-domain. `bookings` does: alongside `booking-queries`/`booking-converter`,
 the add-on flows live in `addon-queries.ts` (the `sales` add-ons query + raw
 node shapes) and `addon-converter.ts` (raw node → the internal `AddonItem`
-detail model and the clean public `BookingAddon`). The detailed `AddonItem`
+detail model and the clean public `BookingAddon`).
+
+`bookings` also carries the webhook surface (`booking-webhook.ts`). A Peek
+booking webhook's payload shape is defined by the GraphQL field selection
+registered with it, so the registered query and the parser must stay in lockstep.
+Crucially, that registration is done **once in an external system** (the App
+Store `broadcast_to_url` config), not from consumer code — so the package
+registers nothing at runtime, and the two halves split:
+
+- **The query is a setup-time artifact, not a runtime API.**
+  `BOOKING_WEBHOOK_GQL_QUERY` is the single maximal selection set (guests + full
+  price breakdown always included) built from the same field fragments the read
+  path uses (`bookingQueryFields`, `bookingGuestsFields`, `PRICE_BREAKDOWN_FIELDS`,
+  exported from `booking-queries` for reuse). It is the bare selection set (no
+  `query`/`sales` wrapper — the webhook system supplies that; whitespace
+  collapsed so it drops into a JSON config string). It is **internal** —
+  surfaced for humans/AI through `docs/webhooks.md` and pinned by a drift-guard
+  test that snapshots the exact string, so a field change is caught here before
+  it diverges from the external config (e.g. the connector's `app.json`).
+- **The parser is the only public runtime export.** The pure
+  `parseBookingWebhook(body)` unwraps the `{booking:…}` delivery envelope (or a
+  bare node / JSON string) and runs the existing `fromBookingNode` converter,
+  auto-detecting guests/price-breakdown from the payload (nothing to keep in sync
+  with the registered query) and never throwing on malformed input. Parsing needs
+  no auth, network, or client, so it is a **standalone function, not a method on
+  `PeekAccessService`** (a receiver may not hold gateway credentials).
+
+The **waiver** webhook (`waivers/waiver-webhook.ts`) is the simpler sibling and
+deliberately diverges from the booking shape because the upstream webhook does
+too: it has **no GraphQL query** (the App Store `waiver_webhook_data` output
+format ships a fixed payload, `output_fields_gql_query` is null), so there is no
+query constant and no drift-guard — only a parser. `parseWaiverWebhook(body)`
+unwraps the `{waiver:…}` envelope (or a bare node / JSON string) and runs the
+pure `fromWaiverNode` converter, which maps the fixed `snake_case` payload to the
+flat clean `Waiver` model (defaulting missing fields to `""`/`null`/`false`, so
+it never throws). Same standalone-pure-function rationale as bookings. Because
+there are no reads, `waivers` carries no queries/service triad — just the
+webhook module and the model. The detailed `AddonItem`
 model (refids + reservation statuses) is **internal only** — consumers see just
 the grouped `BookingAddons`; the internal model exists solely so add/remove can
 build their mutation payloads.
@@ -148,7 +189,10 @@ The barrel re-exports only the public contract: `PeekAccessService` + its config
 each resource service class (and the options/result types callers need), all
 data-model **types**, the `Logger` interface + `noopLogger`, and the three typed
 error classes. Query strings and raw response interfaces are deliberately kept
-internal.
+internal — including the booking-webhook registration query
+(`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
+The webhook-related public exports are the two parsers `parseBookingWebhook` and
+`parseWaiverWebhook` (plus the `Waiver` model type; see the webhook notes above).
 
 ### 6. UI components — the `./ui` subpath
 `src/ui/`
