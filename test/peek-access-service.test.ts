@@ -70,9 +70,15 @@ describe("PeekAccessService constructor validation", () => {
   );
 
   it("does not require gatewayKey in v2 mode", () => {
-    const { gatewayKey: _, ...withoutKey } = REQUIRED_CONFIG;
     expect(
-      () => new PeekAccessService({ ...withoutKey, mode: "v2" }),
+      () =>
+        new PeekAccessService({
+          installId: REQUIRED_CONFIG.installId,
+          jwtSecret: REQUIRED_CONFIG.jwtSecret,
+          issuer: REQUIRED_CONFIG.issuer,
+          appId: REQUIRED_CONFIG.appId,
+          mode: "v2",
+        }),
     ).not.toThrow();
   });
 });
