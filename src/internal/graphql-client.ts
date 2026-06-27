@@ -24,8 +24,8 @@ export interface GraphQLClientOptions {
   baseUrl: string;
   /** Peek app ID, used in the endpoint path. */
   appId: string;
-  /** API gateway key sent as the `pk-api-key` header. */
-  gatewayKey: string;
+  /** API gateway key sent as the `pk-api-key` header. Omitted from headers when absent (v2 mode). */
+  gatewayKey?: string;
   /** Supplies a valid bearer token for each request. */
   getToken: () => string;
   /** Backoff delays (ms) applied on successive HTTP 429 responses. */
@@ -34,6 +34,11 @@ export interface GraphQLClientOptions {
   logger: Logger;
   /** `fetch` implementation to use. */
   fetchFn: typeof fetch;
+  /**
+   * Optional fixed path segment inserted between `appId` and the endpoint name.
+   * Used in v2 mode: `baseUrl/appId/endpointPathPrefix/endpointName`.
+   */
+  endpointPathPrefix?: string;
 }
 
 const sleep = (ms: number): Promise<void> =>
@@ -106,14 +111,19 @@ export class GraphQLClient {
   }
 
   private endpoint(endpointName: string): string {
-    return `${this.options.baseUrl}/${this.options.appId}/${endpointName}`;
+    const { baseUrl, appId, endpointPathPrefix } = this.options;
+    const prefix = endpointPathPrefix ? `${endpointPathPrefix}/` : "";
+    return `${baseUrl}/${appId}/${prefix}${endpointName}`;
   }
 
   private buildHeaders(): Record<string, string> {
-    return {
+    const headers: Record<string, string> = {
       "X-Peek-Auth": `Bearer ${this.options.getToken()}`,
-      "pk-api-key": this.options.gatewayKey,
       "Content-Type": "application/json",
     };
+    if (this.options.gatewayKey) {
+      headers["pk-api-key"] = this.options.gatewayKey;
+    }
+    return headers;
   }
 }
