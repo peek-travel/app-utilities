@@ -45,7 +45,10 @@ function makeEmptyFetch(): { fetchFn: typeof fetch; calls: RecordedCall[] } {
       ? jsonResponse({ data: { activities: [] } })
       : jsonResponse({
           data: {
-            itemOptions: { edges: [], pageInfo: { hasNextPage: false, endCursor: null } },
+            itemOptions: {
+              edges: [],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
           },
         });
   }) as unknown as typeof fetch;
@@ -58,19 +61,35 @@ afterEach(() => {
 
 describe("PeekAccessService constructor validation", () => {
   it.each(["installId", "jwtSecret", "issuer", "appId", "gatewayKey"] as const)(
-    "throws when %s is missing",
+    "throws when %s is missing (v1)",
     (field) => {
       expect(
         () => new PeekAccessService({ ...REQUIRED_CONFIG, [field]: "" }),
       ).toThrow(new RegExp(field));
     },
   );
+
+  it("does not require gatewayKey in v2 mode", () => {
+    expect(
+      () =>
+        new PeekAccessService({
+          installId: REQUIRED_CONFIG.installId,
+          jwtSecret: REQUIRED_CONFIG.jwtSecret,
+          issuer: REQUIRED_CONFIG.issuer,
+          appId: REQUIRED_CONFIG.appId,
+          mode: "v2",
+        }),
+    ).not.toThrow();
+  });
 });
 
 describe("PeekAccessService.getProductService", () => {
   it("returns a ProductService and memoizes the instance", () => {
     const { fetchFn } = makeEmptyFetch();
-    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
 
     const productService = service.getProductService();
     expect(productService).toBeInstanceOf(ProductService);
@@ -79,7 +98,10 @@ describe("PeekAccessService.getProductService", () => {
 
   it("returns an AccountUserService and memoizes the instance", () => {
     const { fetchFn } = makeEmptyFetch();
-    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
 
     const accountUserService = service.getAccountUserService();
     expect(accountUserService).toBeInstanceOf(AccountUserService);
@@ -88,7 +110,10 @@ describe("PeekAccessService.getProductService", () => {
 
   it("returns a ResourcePoolService and memoizes the instance", () => {
     const { fetchFn } = makeEmptyFetch();
-    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
 
     const resourcePoolService = service.getResourcePoolService();
     expect(resourcePoolService).toBeInstanceOf(ResourcePoolService);
@@ -97,7 +122,10 @@ describe("PeekAccessService.getProductService", () => {
 
   it("returns a TimeslotService and memoizes the instance", () => {
     const { fetchFn } = makeEmptyFetch();
-    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
 
     const timeslotService = service.getTimeslotService();
     expect(timeslotService).toBeInstanceOf(TimeslotService);
@@ -106,7 +134,10 @@ describe("PeekAccessService.getProductService", () => {
 
   it("returns a ResellerService and memoizes the instance", () => {
     const { fetchFn } = makeEmptyFetch();
-    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
 
     const resellerService = service.getResellerService();
     expect(resellerService).toBeInstanceOf(ResellerService);
@@ -115,7 +146,10 @@ describe("PeekAccessService.getProductService", () => {
 
   it("returns a PromoCodeService and memoizes the instance", () => {
     const { fetchFn } = makeEmptyFetch();
-    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
 
     const promoCodeService = service.getPromoCodeService();
     expect(promoCodeService).toBeInstanceOf(PromoCodeService);
@@ -124,7 +158,10 @@ describe("PeekAccessService.getProductService", () => {
 
   it("returns a DailyNoteService and memoizes the instance", () => {
     const { fetchFn } = makeEmptyFetch();
-    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
 
     const dailyNoteService = service.getDailyNoteService();
     expect(dailyNoteService).toBeInstanceOf(DailyNoteService);
@@ -133,7 +170,10 @@ describe("PeekAccessService.getProductService", () => {
 
   it("returns an AvailabilityService and memoizes the instance", () => {
     const { fetchFn } = makeEmptyFetch();
-    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
 
     const availabilityService = service.getAvailabilityService();
     expect(availabilityService).toBeInstanceOf(AvailabilityService);
@@ -142,7 +182,10 @@ describe("PeekAccessService.getProductService", () => {
 
   it("returns a MembershipService and memoizes the instance", () => {
     const { fetchFn } = makeEmptyFetch();
-    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
 
     const membershipService = service.getMembershipService();
     expect(membershipService).toBeInstanceOf(MembershipService);
@@ -151,7 +194,10 @@ describe("PeekAccessService.getProductService", () => {
 
   it("returns a BookingService and memoizes the instance", () => {
     const { fetchFn } = makeEmptyFetch();
-    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
 
     const bookingService = service.getBookingService();
     expect(bookingService).toBeInstanceOf(BookingService);
@@ -160,7 +206,10 @@ describe("PeekAccessService.getProductService", () => {
 
   it("returns a ReviewService and memoizes the instance", () => {
     const { fetchFn } = makeEmptyFetch();
-    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
 
     const reviewService = service.getReviewService();
     expect(reviewService).toBeInstanceOf(ReviewService);
@@ -201,8 +250,54 @@ describe("PeekAccessService.getProductService", () => {
     expect(logger.info).toHaveBeenCalled();
 
     const itemCall = calls.find((c) =>
-      (JSON.parse(c.init.body as string).query as string).includes("itemOptions"),
+      (JSON.parse(c.init.body as string).query as string).includes(
+        "itemOptions",
+      ),
     );
     expect(JSON.parse(itemCall!.init.body as string).variables.first).toBe(7);
+  });
+});
+
+describe("PeekAccessService v2 mode", () => {
+  it("uses the app-registry sandbox base URL by default", async () => {
+    const { fetchFn, calls } = makeEmptyFetch();
+    vi.stubGlobal("fetch", fetchFn);
+
+    const service = new PeekAccessService({ ...REQUIRED_CONFIG, mode: "v2" });
+    await service.getProductService().getAllProducts();
+
+    expect(calls[0]!.url).toBe(
+      "https://app-registry.peeklabs.com/installations-api/app-1/peek_backoffice_api-v1/sales",
+    );
+  });
+
+  it("inserts peek_backoffice_api-v1 segment with a custom baseUrl", async () => {
+    const { fetchFn, calls } = makeEmptyFetch();
+
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      mode: "v2",
+      fetch: fetchFn,
+      baseUrl: "https://app-registry.prod.peeklabs.com/installations-api",
+    });
+    await service.getProductService().getAllProducts();
+
+    expect(calls[0]!.url).toBe(
+      "https://app-registry.prod.peeklabs.com/installations-api/app-1/peek_backoffice_api-v1/sales",
+    );
+  });
+
+  it("still mints and sends a bearer token in v2 mode", async () => {
+    const { fetchFn, calls } = makeEmptyFetch();
+
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      mode: "v2",
+      fetch: fetchFn,
+    });
+    await service.getProductService().getAllProducts();
+
+    const headers = calls[0]!.init.headers as Record<string, string>;
+    expect(headers["X-Peek-Auth"]).toMatch(/^Bearer .+/);
   });
 });
