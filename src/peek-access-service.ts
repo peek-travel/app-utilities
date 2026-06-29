@@ -22,11 +22,15 @@ import {
   type ProductServiceOptions,
 } from "./internal/products/product-service.js";
 import { PromoCodeService } from "./internal/promo-codes/promo-code-service.js";
+import { V2_EXTENDABLE_SLUG } from "./internal/gateway-endpoints.js";
 import { TokenManager } from "./internal/token-manager.js";
 import { noopLogger, type Logger } from "./logger.js";
 
-/** Default backoffice GraphQL gateway base URL. */
+/** Default backoffice GraphQL gateway base URL (v1). */
 const DEFAULT_BASE_URL = "https://apps.peekapis.com/backoffice-gql";
+/** Default gateway base URL when operating in v2 mode. */
+const DEFAULT_V2_BASE_URL =
+  "https://app-registry.peeklabs.com/installations-api";
 /** Default JWT lifetime (1 hour). */
 const DEFAULT_TOKEN_TTL_SECONDS = 3600;
 /** Default leeway before expiry at which a cached token is re-minted. */
@@ -44,10 +48,17 @@ export interface PeekAccessServiceConfig {
   issuer: string;
   /** Peek app ID, used in the gateway endpoint path. */
   appId: string;
-  /** API gateway key, sent as the `pk-api-key` header. */
-  gatewayKey: string;
+  /** API gateway key, sent as the `pk-api-key` header. Required in v1 mode; not used in v2. */
+  gatewayKey?: string;
 
-  /** Override the gateway base URL. Default: Peek production gateway. */
+  /**
+   * Gateway mode. `"v2"` routes through the app-registry installations API
+   * (`baseUrl/appId/peek_backoffice_api-v1/endpointName`) and defaults to the
+   * app-registry sandbox base URL. `"v1"` (default) uses the standard backoffice
+   * GraphQL gateway.
+   */
+  mode?: "v2";
+  /** Override the gateway base URL. Default: Peek production gateway (v1) or app-registry sandbox (v2). */
   baseUrl?: string;
   /** JWT lifetime in seconds. Default: 3600. */
   tokenTtlSeconds?: number;
@@ -106,11 +117,12 @@ export class PeekAccessService {
   private reviewService?: ReviewService;
 
   constructor(config: PeekAccessServiceConfig) {
+    const isV2 = config.mode === "v2";
     requireNonEmpty(config.installId, "installId");
     requireNonEmpty(config.jwtSecret, "jwtSecret");
     requireNonEmpty(config.issuer, "issuer");
     requireNonEmpty(config.appId, "appId");
-    requireNonEmpty(config.gatewayKey, "gatewayKey");
+    if (!isV2) requireNonEmpty(config.gatewayKey ?? "", "gatewayKey");
 
     const logger = config.logger ?? noopLogger;
     const tokens = new TokenManager({
@@ -119,17 +131,20 @@ export class PeekAccessService {
       installId: config.installId,
       ttlSeconds: config.tokenTtlSeconds ?? DEFAULT_TOKEN_TTL_SECONDS,
       leewaySeconds:
-        config.tokenRefreshLeewaySeconds ?? DEFAULT_TOKEN_REFRESH_LEEWAY_SECONDS,
+        config.tokenRefreshLeewaySeconds ??
+        DEFAULT_TOKEN_REFRESH_LEEWAY_SECONDS,
     });
 
+    const defaultBaseUrl = isV2 ? DEFAULT_V2_BASE_URL : DEFAULT_BASE_URL;
     this.client = new GraphQLClient({
-      baseUrl: config.baseUrl ?? DEFAULT_BASE_URL,
+      baseUrl: config.baseUrl ?? defaultBaseUrl,
       appId: config.appId,
       gatewayKey: config.gatewayKey,
       getToken: () => tokens.getToken(),
       retryDelaysMs: config.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS,
       logger,
       fetchFn: config.fetch ?? globalThis.fetch,
+      endpointPathPrefix: isV2 ? V2_EXTENDABLE_SLUG : undefined,
     });
 
     this.productServiceOptions = {

@@ -49,9 +49,15 @@ call typed methods like `peek.getProductService().getAllProducts()`.
     guide resolution).
   - `BookingService` receives the product service (for add-on → parent-item
     resolution).
-- Optional config: `baseUrl`, `tokenTtlSeconds` (3600), `tokenRefreshLeewaySeconds`
+- Optional config: `mode` (`"v2"` — see below), `baseUrl`, `tokenTtlSeconds` (3600), `tokenRefreshLeewaySeconds`
   (60), `retryDelaysMs` (`[1000, 2000, 4000]`), `logger` (no-op default),
   `fetch` (global default), `itemOptionsPageSize` (50).
+- **v2 mode** (`mode: "v2"`): routes requests through the app-registry
+  installations API. The endpoint URL becomes
+  `baseUrl/appId/peek_backoffice_api-v1/endpointName` and the default `baseUrl`
+  switches to `https://app-registry.peeklabs.com/installations-api`.
+  A custom `baseUrl` still overrides the default in v2 mode. All other
+  behaviour (JWT auth, headers, retries, resource services) is unchanged.
 
 ### 2. `TokenManager` — auth
 `src/internal/token-manager.ts`
@@ -65,8 +71,11 @@ call typed methods like `peek.getProductService().getAllProducts()`.
 
 The only place that touches the network. Responsibilities:
 
-- Builds the endpoint URL as `${baseUrl}/${appId}/${endpointName}`. Today every
-  operation routes through the single `sales` endpoint (`gateway-endpoints.ts`).
+- Builds the endpoint URL as `${baseUrl}/${appId}/${endpointName}`, or
+  `${baseUrl}/${appId}/${endpointPathPrefix}/${endpointName}` when an
+  `endpointPathPrefix` is set (v2 mode inserts `peek_backoffice_api-v1`). Today
+  every operation routes through the single `sales` endpoint
+  (`gateway-endpoints.ts`).
 - Sets headers: `X-Peek-Auth: Bearer <jwt>`, `pk-api-key: <gatewayKey>`,
   `Content-Type: application/json`.
 - Collapses query whitespace (`\s+` → single space) before sending.
