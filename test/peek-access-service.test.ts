@@ -1,3 +1,4 @@
+import * as jwt from "jsonwebtoken";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AccountUserService } from "../src/internal/account-users/account-user-service.js";
@@ -255,6 +256,109 @@ describe("PeekAccessService.getProductService", () => {
       ),
     );
     expect(JSON.parse(itemCall!.init.body as string).variables.first).toBe(7);
+  });
+});
+
+const PEEK_REGISTRY_ISSUER = "app_registry_v2";
+const PEEK_REGISTRY_AUDIENCE = "Joken"; // still used when minting test tokens
+
+const SAMPLE_USER_PAYLOAD = {
+  email: "admin@peek.com",
+  id: "null",
+  is_admin: false,
+  locale: "en",
+  name: "Admin User",
+};
+
+function mintRegistryToken(
+  secret: string,
+  overrides: Record<string, unknown> = {},
+): string {
+  return jwt.sign(
+    { display_version: "0.0.11", user: SAMPLE_USER_PAYLOAD, ...overrides },
+    secret,
+    {
+      subject: "8c1f32b4-ab3c-4e20-82b7-844ea9e03bc9",
+      issuer: PEEK_REGISTRY_ISSUER,
+      audience: PEEK_REGISTRY_AUDIENCE,
+      jwtid: "7d3d42c5-5724-489e-8380-a33abfc14936",
+      expiresIn: 60,
+      notBefore: 0,
+    },
+  );
+}
+
+describe("PeekAccessService.verifyPeekAuthToken", () => {
+  it("returns fully typed claims from a valid Peek registry token", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const token = mintRegistryToken(REQUIRED_CONFIG.jwtSecret);
+
+    const claims = service.verifyPeekAuthToken(token);
+
+    expect(claims.installId).toBe("8c1f32b4-ab3c-4e20-82b7-844ea9e03bc9");
+    expect(claims.displayVersion).toBe("0.0.11");
+  });
+
+  it("maps the nested user object to typed fields", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const token = mintRegistryToken(REQUIRED_CONFIG.jwtSecret);
+
+    const { user } = service.verifyPeekAuthToken(token);
+
+    expect(user.email).toBe("admin@peek.com");
+    expect(user.id).toBe("null");
+    expect(user.isAdmin).toBe(false);
+    expect(user.locale).toBe("en");
+    expect(user.name).toBe("Admin User");
+  });
+
+  it("maps is_admin: true correctly", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const token = mintRegistryToken(REQUIRED_CONFIG.jwtSecret, {
+      user: { ...SAMPLE_USER_PAYLOAD, is_admin: true },
+    });
+
+    expect(service.verifyPeekAuthToken(token).user.isAdmin).toBe(true);
+  });
+
+  it("throws on a token signed with a different secret", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const token = mintRegistryToken("wrong-secret");
+
+    expect(() => service.verifyPeekAuthToken(token)).toThrow();
+  });
+
+  it("throws on a token with a different issuer", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const token = jwt.sign({ user: SAMPLE_USER_PAYLOAD }, REQUIRED_CONFIG.jwtSecret, {
+      issuer: "wrong-issuer",
+      audience: PEEK_REGISTRY_AUDIENCE,
+      expiresIn: 60,
+    });
+
+    expect(() => service.verifyPeekAuthToken(token)).toThrow();
+  });
+
+  it("throws on an expired token", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const token = jwt.sign(
+      { display_version: "0.0.11", user: SAMPLE_USER_PAYLOAD },
+      REQUIRED_CONFIG.jwtSecret,
+      {
+        subject: "8c1f32b4-ab3c-4e20-82b7-844ea9e03bc9",
+        issuer: PEEK_REGISTRY_ISSUER,
+        audience: PEEK_REGISTRY_AUDIENCE,
+        expiresIn: -1,
+      },
+    );
+
+    expect(() => service.verifyPeekAuthToken(token)).toThrow();
+  });
+
+  it("throws on a malformed token string", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+
+    expect(() => service.verifyPeekAuthToken("not.a.jwt")).toThrow();
   });
 });
 

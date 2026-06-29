@@ -7,6 +7,7 @@
  * service objects — e.g. {@link PeekAccessService.getProductService} — that
  * carry the resource-specific business logic.
  */
+import * as jwt from "jsonwebtoken";
 import { AccountUserService } from "./internal/account-users/account-user-service.js";
 import { AvailabilityService } from "./internal/availability/availability-service.js";
 import { BookingService } from "./internal/bookings/booking-service.js";
@@ -25,6 +26,7 @@ import { PromoCodeService } from "./internal/promo-codes/promo-code-service.js";
 import { V2_EXTENDABLE_SLUG } from "./internal/gateway-endpoints.js";
 import { TokenManager } from "./internal/token-manager.js";
 import { noopLogger, type Logger } from "./logger.js";
+import type { PeekAuthTokenClaims } from "./models/auth-token.js";
 
 /** Default backoffice GraphQL gateway base URL (v1). */
 const DEFAULT_BASE_URL = "https://apps.peekapis.com/backoffice-gql";
@@ -37,6 +39,14 @@ const DEFAULT_TOKEN_TTL_SECONDS = 3600;
 const DEFAULT_TOKEN_REFRESH_LEEWAY_SECONDS = 60;
 /** Default HTTP 429 retry backoff. */
 const DEFAULT_RETRY_DELAYS_MS = [1000, 2000, 4000];
+/** JWT issuer set by the Peek app registry on all tokens it issues. */
+const PEEK_TOKEN_ISSUER = "app_registry_v2";
+
+interface RawPeekTokenPayload {
+  sub: string;
+  display_version: string;
+  user: { email: string; id: string; is_admin: boolean; locale: string; name: string };
+}
 
 /** Configuration for a {@link PeekAccessService} instance. */
 export interface PeekAccessServiceConfig {
@@ -104,6 +114,7 @@ export interface PeekAccessServiceConfig {
 export class PeekAccessService {
   private readonly client: GraphQLClient;
   private readonly productServiceOptions: ProductServiceOptions;
+  private readonly jwtSecret: string;
   private productService?: ProductService;
   private accountUserService?: AccountUserService;
   private resourcePoolService?: ResourcePoolService;
@@ -123,6 +134,8 @@ export class PeekAccessService {
     requireNonEmpty(config.issuer, "issuer");
     requireNonEmpty(config.appId, "appId");
     if (!isV2) requireNonEmpty(config.gatewayKey ?? "", "gatewayKey");
+
+    this.jwtSecret = config.jwtSecret;
 
     const logger = config.logger ?? noopLogger;
     const tokens = new TokenManager({
@@ -149,6 +162,43 @@ export class PeekAccessService {
 
     this.productServiceOptions = {
       itemOptionsPageSize: config.itemOptionsPageSize,
+    };
+  }
+
+  /**
+   * Verifies a Peek auth token issued by the app registry and returns the
+   * decoded claims.
+   *
+   * Validates the HMAC signature (using this service's `jwtSecret`), the token
+   * expiry, the `"app_registry_v2"` issuer, and the `"Joken"` audience. Throws
+   * from the `jsonwebtoken` library on any failure — callers should catch to
+   * distinguish error kinds:
+   *
+   * - `JsonWebTokenError` — signature invalid, wrong issuer/audience, or token
+   *   malformed
+   * - `TokenExpiredError` — past `exp`
+   * - `NotBeforeError` — before `nbf`
+   *
+   * @throws {JsonWebTokenError} signature invalid or token malformed
+   * @throws {TokenExpiredError} token has expired
+   * @throws {NotBeforeError} token not yet valid
+   */
+  verifyPeekAuthToken(token: string): PeekAuthTokenClaims {
+    const payload = jwt.verify(token, this.jwtSecret, {
+      issuer: PEEK_TOKEN_ISSUER,
+    }) as RawPeekTokenPayload;
+
+    const { user: u } = payload;
+    return {
+      installId: payload.sub,
+      displayVersion: payload.display_version,
+      user: {
+        email: u.email,
+        id: u.id,
+        isAdmin: u.is_admin,
+        locale: u.locale,
+        name: u.name,
+      },
     };
   }
 

@@ -44,6 +44,11 @@ call typed methods like `peek.getProductService().getAllProducts()`.
 - Constructs a single shared `TokenManager` and `GraphQLClient`.
 - Exposes one `get<Resource>Service()` accessor per resource. Each is **lazily
   created and memoized** — repeated calls return the same instance.
+- Exposes `verifyPeekAuthToken(token)` to verify HMAC-signed JWTs issued by
+  the Peek app registry (`iss: "app_registry_v2"`), returning
+  a fully typed `PeekAuthTokenClaims` (including the nested `PeekAuthTokenUser`
+  object). Throws `JsonWebTokenError` / `TokenExpiredError` / `NotBeforeError`
+  from `jsonwebtoken` on failure.
 - Composes dependencies between services where needed:
   - `TimeslotService` receives the resource-pool and account-user services (for
     guide resolution).
@@ -196,8 +201,8 @@ Recurring patterns inside services:
 
 The barrel re-exports only the public contract: `PeekAccessService` + its config,
 each resource service class (and the options/result types callers need), all
-data-model **types**, the `Logger` interface + `noopLogger`, and the three typed
-error classes. Query strings and raw response interfaces are deliberately kept
+data-model **types** (including `PeekAuthTokenClaims` and `PeekAuthTokenUser`),
+the `Logger` interface + `noopLogger`, and the three typed error classes. Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and
