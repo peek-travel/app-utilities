@@ -1,5 +1,5 @@
 import * as jwt from "jsonwebtoken";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AccountUserService } from "../src/internal/account-users/account-user-service.js";
 import { ProductService } from "../src/internal/products/product-service.js";
@@ -403,5 +403,255 @@ describe("PeekAccessService v2 mode", () => {
 
     const headers = calls[0]!.init.headers as Record<string, string>;
     expect(headers["X-Peek-Auth"]).toMatch(/^Bearer .+/);
+  });
+});
+
+describe("PeekAccessService proxy methods", () => {
+  let service: PeekAccessService;
+
+  beforeEach(() => {
+    const { fetchFn } = makeEmptyFetch();
+    service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+  });
+
+  it("getAllProducts delegates to ProductService.getAllProducts", async () => {
+    const spy = vi.spyOn(service.getProductService(), "getAllProducts").mockResolvedValue([]);
+    await service.getAllProducts();
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it("getAllActivities delegates to ProductService.getAllActivities", async () => {
+    const spy = vi.spyOn(service.getProductService(), "getAllActivities").mockResolvedValue([]);
+    await service.getAllActivities();
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it("getAllRentals delegates to ProductService.getAllRentals", async () => {
+    const spy = vi.spyOn(service.getProductService(), "getAllRentals").mockResolvedValue([]);
+    await service.getAllRentals();
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it("getAllAddons delegates to ProductService.getAllAddons", async () => {
+    const spy = vi.spyOn(service.getProductService(), "getAllAddons").mockResolvedValue([]);
+    await service.getAllAddons();
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it("getAllAccountUsers delegates to AccountUserService.getAll", async () => {
+    const spy = vi.spyOn(service.getAccountUserService(), "getAll").mockResolvedValue([]);
+    await service.getAllAccountUsers();
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it("getAccountUserById delegates to AccountUserService.getById", async () => {
+    const spy = vi.spyOn(service.getAccountUserService(), "getById").mockResolvedValue(null);
+    await service.getAccountUserById("user-1");
+    expect(spy).toHaveBeenCalledWith("user-1");
+  });
+
+  it("getAllResourcePools delegates to ResourcePoolService.getAll", async () => {
+    const spy = vi.spyOn(service.getResourcePoolService(), "getAll").mockResolvedValue([]);
+    await service.getAllResourcePools();
+    expect(spy).toHaveBeenCalledOnce();
+    await service.getAllResourcePools("PEOPLE");
+    expect(spy).toHaveBeenCalledWith("PEOPLE");
+  });
+
+  it("getTimeslotsForDay delegates to TimeslotService.getForDay", async () => {
+    const spy = vi.spyOn(service.getTimeslotService(), "getForDay").mockResolvedValue([]);
+    await service.getTimeslotsForDay("prod-1", "2026-07-01");
+    expect(spy).toHaveBeenCalledWith("prod-1", "2026-07-01", undefined);
+    await service.getTimeslotsForDay("prod-1", "2026-07-01", "open");
+    expect(spy).toHaveBeenCalledWith("prod-1", "2026-07-01", "open");
+  });
+
+  it("getTimeslotById delegates to TimeslotService.getById", async () => {
+    const spy = vi.spyOn(service.getTimeslotService(), "getById").mockResolvedValue(null);
+    await service.getTimeslotById("ts-1");
+    expect(spy).toHaveBeenCalledWith("ts-1");
+  });
+
+  it("setTimeslotAvailability delegates to TimeslotService.setAvailability", async () => {
+    const spy = vi.spyOn(service.getTimeslotService(), "setAvailability").mockResolvedValue({ id: "" });
+    await service.setTimeslotAvailability("ts-1", "open");
+    expect(spy).toHaveBeenCalledWith("ts-1", "open");
+  });
+
+  it("setTimeslotNotes delegates to TimeslotService.setNotes", async () => {
+    const spy = vi.spyOn(service.getTimeslotService(), "setNotes").mockResolvedValue({ id: "" });
+    await service.setTimeslotNotes("ts-1", "note");
+    expect(spy).toHaveBeenCalledWith("ts-1", "note");
+  });
+
+  it("assignTimeslotGuide delegates to TimeslotService.assignGuide", async () => {
+    const assignment = { timeslotIds: ["ts-1"], guideIds: ["g-1"], action: "assign" as const };
+    const spy = vi.spyOn(service.getTimeslotService(), "assignGuide").mockResolvedValue({ timeslotIds: [], resourcePoolIds: [], action: "assign", errors: [] });
+    await service.assignTimeslotGuide(assignment);
+    expect(spy).toHaveBeenCalledWith(assignment);
+  });
+
+  it("getAllChannels delegates to ResellerService.getAllChannels", async () => {
+    const spy = vi.spyOn(service.getResellerService(), "getAllChannels").mockResolvedValue([]);
+    await service.getAllChannels();
+    expect(spy).toHaveBeenCalledOnce();
+    await service.getAllChannels(5);
+    expect(spy).toHaveBeenCalledWith(5);
+  });
+
+  it("getAllPromoCodes delegates to PromoCodeService.getAll", async () => {
+    const spy = vi.spyOn(service.getPromoCodeService(), "getAll").mockResolvedValue([]);
+    await service.getAllPromoCodes();
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it("createPromoCode delegates to PromoCodeService.create", async () => {
+    const input = { name: "SAVE10", code: "SAVE10", amount: "10", discountType: "percent" as const };
+    const spy = vi.spyOn(service.getPromoCodeService(), "create").mockResolvedValue({ id: "", code: "", name: "", discountType: "percent", amount: 0 });
+    await service.createPromoCode(input);
+    expect(spy).toHaveBeenCalledWith(input);
+  });
+
+  it("getDailyNoteToday delegates to DailyNoteService.getToday", async () => {
+    const spy = vi.spyOn(service.getDailyNoteService(), "getToday").mockResolvedValue(null);
+    await service.getDailyNoteToday();
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it("updateDailyNote delegates to DailyNoteService.update", async () => {
+    const spy = vi.spyOn(service.getDailyNoteService(), "update").mockResolvedValue(null);
+    await service.updateDailyNote("hello");
+    expect(spy).toHaveBeenCalledWith("hello");
+  });
+
+  it("getAvailabilityTimes delegates to AvailabilityService.getAvailabilityTimes", async () => {
+    const query = { activityId: "act-1", date: "2026-07-01", resourceOptionQuantities: [] };
+    const spy = vi.spyOn(service.getAvailabilityService(), "getAvailabilityTimes").mockResolvedValue([]);
+    await service.getAvailabilityTimes(query);
+    expect(spy).toHaveBeenCalledWith(query);
+  });
+
+  it("getAllMemberships delegates to MembershipService.getAll", async () => {
+    const spy = vi.spyOn(service.getMembershipService(), "getAll").mockResolvedValue([]);
+    await service.getAllMemberships();
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it("purchaseMembership delegates to MembershipService.purchase", async () => {
+    const input = { membershipVariantId: "mv-1", guest: { name: "Alice", email: "a@b.com", phone: null }, amount: "50", currency: "USD", idempotencyKey: "key-1" };
+    const spy = vi.spyOn(service.getMembershipService(), "purchase").mockResolvedValue({ membershipId: "", bookingId: "" });
+    await service.purchaseMembership(input);
+    expect(spy).toHaveBeenCalledWith(input);
+  });
+
+  it("getBookingById delegates to BookingService.getById", async () => {
+    const spy = vi.spyOn(service.getBookingService(), "getById").mockResolvedValue(null);
+    await service.getBookingById("b_1");
+    expect(spy).toHaveBeenCalledWith("b_1", undefined);
+    const opts = { includeGuests: true };
+    await service.getBookingById("b_1", opts);
+    expect(spy).toHaveBeenCalledWith("b_1", opts);
+  });
+
+  it("searchBookingsByTimeRange delegates to BookingService.searchByTimeRange", async () => {
+    const input = { start: "2026-07-01T00:00:00Z", end: "2026-07-31T23:59:59Z" };
+    const spy = vi.spyOn(service.getBookingService(), "searchByTimeRange").mockResolvedValue([]);
+    await service.searchBookingsByTimeRange(input);
+    expect(spy).toHaveBeenCalledWith(input);
+  });
+
+  it("searchBookingsByTimeslot delegates to BookingService.searchByTimeslot", async () => {
+    const spy = vi.spyOn(service.getBookingService(), "searchByTimeslot").mockResolvedValue([]);
+    await service.searchBookingsByTimeslot("ts-1");
+    expect(spy).toHaveBeenCalledWith("ts-1", undefined);
+  });
+
+  it("getBookingGuests delegates to BookingService.getGuests", async () => {
+    const spy = vi.spyOn(service.getBookingService(), "getGuests").mockResolvedValue([]);
+    await service.getBookingGuests("b_1");
+    expect(spy).toHaveBeenCalledWith("b_1");
+  });
+
+  it("getBookingPaymentsOnFile delegates to BookingService.getPaymentsOnFile", async () => {
+    const spy = vi.spyOn(service.getBookingService(), "getPaymentsOnFile").mockResolvedValue(null);
+    await service.getBookingPaymentsOnFile("b_1");
+    expect(spy).toHaveBeenCalledWith("b_1");
+  });
+
+  it("appendBookingNote delegates to BookingService.appendNote", async () => {
+    const spy = vi.spyOn(service.getBookingService(), "appendNote").mockResolvedValue(null);
+    await service.appendBookingNote("b_1", "note");
+    expect(spy).toHaveBeenCalledWith("b_1", "note", undefined);
+    await service.appendBookingNote("b_1", "note", "overwrite");
+    expect(spy).toHaveBeenCalledWith("b_1", "note", "overwrite");
+  });
+
+  it("setBookingCheckinStatus delegates to BookingService.setCheckinStatus", async () => {
+    const spy = vi.spyOn(service.getBookingService(), "setCheckinStatus").mockResolvedValue(null);
+    await service.setBookingCheckinStatus("b_1", true);
+    expect(spy).toHaveBeenCalledWith("b_1", true);
+  });
+
+  it("cancelBooking delegates to BookingService.cancel", async () => {
+    const spy = vi.spyOn(service.getBookingService(), "cancel").mockResolvedValue({ id: "", displayId: "", reservationStatus: "" });
+    await service.cancelBooking("b_1");
+    expect(spy).toHaveBeenCalledWith("b_1", undefined);
+    await service.cancelBooking("b_1", "Duplicate");
+    expect(spy).toHaveBeenCalledWith("b_1", "Duplicate");
+  });
+
+  it("makeBookingPayment delegates to BookingService.makePayment", async () => {
+    const input = { bookingId: "b_1", paymentSourceId: "cash/cash", amount: "50", currency: "USD", idempotencyKey: "k" };
+    const spy = vi.spyOn(service.getBookingService(), "makePayment").mockResolvedValue({ transactionId: "", bookingId: "", orderId: "", amount: "", currency: "", paymentSourceId: "" });
+    await service.makeBookingPayment(input);
+    expect(spy).toHaveBeenCalledWith(input);
+  });
+
+  it("refundBooking delegates to BookingService.refund", async () => {
+    const input = { bookingId: "b_1", paymentId: "pmt_1", amount: "10", currency: "USD", idempotencyKey: "k" };
+    const spy = vi.spyOn(service.getBookingService(), "refund").mockResolvedValue({ transactionId: "", bookingId: "", orderId: "", amount: "", currency: "", paymentId: "" });
+    await service.refundBooking(input);
+    expect(spy).toHaveBeenCalledWith(input);
+  });
+
+  it("createBookingInvoiceLink delegates to BookingService.createInvoiceLink", async () => {
+    const spy = vi.spyOn(service.getBookingService(), "createInvoiceLink").mockResolvedValue({ bookingId: "", orderId: "", invoiceLink: "" });
+    await service.createBookingInvoiceLink("b_1");
+    expect(spy).toHaveBeenCalledWith("b_1");
+  });
+
+  it("listBookingAddons delegates to BookingService.listAddons", async () => {
+    const spy = vi.spyOn(service.getBookingService(), "listAddons").mockResolvedValue({ bookingId: "", displayId: "", orderId: "", addons: [] });
+    await service.listBookingAddons("b_1");
+    expect(spy).toHaveBeenCalledWith("b_1");
+  });
+
+  it("addBookingAddon delegates to BookingService.addAddon", async () => {
+    const input = { addonOptionId: "opt-1", quantity: "1" };
+    const spy = vi.spyOn(service.getBookingService(), "addAddon").mockResolvedValue({ updatedBookingAddons: { bookingId: "", displayId: "", orderId: "", addons: [] } });
+    await service.addBookingAddon("b_1", input);
+    expect(spy).toHaveBeenCalledWith("b_1", input);
+  });
+
+  it("removeBookingAddon delegates to BookingService.removeAddon", async () => {
+    const input = { addonOptionId: "opt-1", quantity: "1" };
+    const spy = vi.spyOn(service.getBookingService(), "removeAddon").mockResolvedValue({ updatedBookingAddons: { bookingId: "", displayId: "", orderId: "", addons: [] } });
+    await service.removeBookingAddon("b_1", input);
+    expect(spy).toHaveBeenCalledWith("b_1", input);
+  });
+
+  it("createBooking delegates to BookingService.create", async () => {
+    const input = { activityId: "act-1", availabilityTimeId: "avt-1", tickets: [{ resourceOptionId: "r-1", quantity: 1 }], guest: { name: "Alice" } };
+    const spy = vi.spyOn(service.getBookingService(), "create").mockResolvedValue({ bookingId: "", displayId: "", balanceFormatted: "" });
+    await service.createBooking(input);
+    expect(spy).toHaveBeenCalledWith(input);
+  });
+
+  it("getReviews delegates to ReviewService.getReviews", async () => {
+    const spy = vi.spyOn(service.getReviewService(), "getReviews").mockResolvedValue([]);
+    await service.getReviews("act-1");
+    expect(spy).toHaveBeenCalledWith("act-1", undefined, undefined);
+    await service.getReviews("act-1", 10, 5);
+    expect(spy).toHaveBeenCalledWith("act-1", 10, 5);
   });
 });

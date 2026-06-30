@@ -237,3 +237,114 @@ describe("ProductService.getAllProducts", () => {
     await expect(service.getAllProducts()).rejects.toThrow(/HTTP 500/);
   });
 });
+
+const RENTAL = {
+  name: "Test Rental",
+  id: "rental-1",
+  type: "RENTAL",
+  colorHex: "#1EC6CE",
+  resourceOptions: [{ id: "r2", name: "Bikes" }],
+};
+
+describe("ProductService.getAllActivities", () => {
+  it("returns only ACTIVITY-typed products, making one request", async () => {
+    const { fetchFn, calls } = makeFetch((query) => {
+      expect(query).not.toContain("itemOptions");
+      return jsonResponse({ data: { activities: [ACTIVITY, RENTAL] } });
+    });
+
+    const service = new ProductService(buildClient(fetchFn));
+    const products = await service.getAllActivities();
+
+    expect(products).toEqual([
+      {
+        productId: "act-1",
+        name: "Kayak Tour",
+        type: "ACTIVITY",
+        color: "#1A2B3C",
+        tickets: [{ id: "r1", name: "Single" }],
+      },
+    ]);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("returns empty list when no ACTIVITY-typed products exist", async () => {
+    const { fetchFn } = makeFetch(() =>
+      jsonResponse({ data: { activities: [RENTAL] } }),
+    );
+    const service = new ProductService(buildClient(fetchFn));
+    await expect(service.getAllActivities()).resolves.toEqual([]);
+  });
+});
+
+describe("ProductService.getAllRentals", () => {
+  it("returns only RENTAL-typed products, making one request", async () => {
+    const { fetchFn, calls } = makeFetch((query) => {
+      expect(query).not.toContain("itemOptions");
+      return jsonResponse({ data: { activities: [ACTIVITY, RENTAL] } });
+    });
+
+    const service = new ProductService(buildClient(fetchFn));
+    const products = await service.getAllRentals();
+
+    expect(products).toEqual([
+      {
+        productId: "rental-1",
+        name: "Test Rental",
+        type: "RENTAL",
+        color: "#1EC6CE",
+        tickets: [{ id: "r2", name: "Bikes" }],
+      },
+    ]);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("returns empty list when no RENTAL-typed products exist", async () => {
+    const { fetchFn } = makeFetch(() =>
+      jsonResponse({ data: { activities: [ACTIVITY] } }),
+    );
+    const service = new ProductService(buildClient(fetchFn));
+    await expect(service.getAllRentals()).resolves.toEqual([]);
+  });
+});
+
+describe("ProductService.getAllAddons", () => {
+  it("returns only add-on products, paginating across pages", async () => {
+    let page = 0;
+    const { fetchFn, calls } = makeFetch((query) => {
+      expect(query).not.toContain("activities");
+      page += 1;
+      if (page === 1) {
+        return jsonResponse({
+          data: {
+            itemOptions: {
+              edges: [{ cursor: "c1", node: { id: "opt-1", name: "Helmet", description: null, item: { id: "item-1", name: "Safety Gear" } } }],
+              pageInfo: { hasNextPage: true, endCursor: "c1" },
+            },
+          },
+        });
+      }
+      return jsonResponse(emptyItemOptions);
+    });
+
+    const service = new ProductService(buildClient(fetchFn));
+    const products = await service.getAllAddons();
+
+    expect(products).toEqual([
+      {
+        productId: "item-1",
+        name: "Safety Gear",
+        type: "ADD-ON",
+        color: "#FFFFFF",
+        tickets: [{ id: "opt-1", name: "Helmet" }],
+      },
+    ]);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("returns empty list when no add-ons exist", async () => {
+    const { fetchFn } = makeFetch(() => jsonResponse(emptyItemOptions));
+    const service = new ProductService(buildClient(fetchFn));
+    await expect(service.getAllAddons()).resolves.toEqual([]);
+  });
+});

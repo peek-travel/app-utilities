@@ -7,7 +7,11 @@
  */
 import { SALES_ENDPOINT } from "../gateway-endpoints.js";
 import type { GraphQLBody, GraphQLClient } from "../graphql-client.js";
-import type { Product } from "../../models/product.js";
+import {
+  ACTIVITY_PRODUCT_TYPE,
+  RENTAL_PRODUCT_TYPE,
+  type Product,
+} from "../../models/product.js";
 import { fromActivities, fromItemOptionNodes } from "./product-converter.js";
 import {
   ITEM_OPTIONS_QUERY,
@@ -58,6 +62,24 @@ export class ProductService {
     ]);
 
     return [...fromActivities(activities), ...fromItemOptionNodes(itemOptionNodes)];
+  }
+
+  /** Returns products with type {@link ACTIVITY_PRODUCT_TYPE}. */
+  async getAllActivities(): Promise<Product[]> {
+    const activities = await this.fetchActivities();
+    return fromActivities(activities).filter((p) => p.type === ACTIVITY_PRODUCT_TYPE);
+  }
+
+  /** Returns products with type {@link RENTAL_PRODUCT_TYPE}. */
+  async getAllRentals(): Promise<Product[]> {
+    const activities = await this.fetchActivities();
+    return fromActivities(activities).filter((p) => p.type === RENTAL_PRODUCT_TYPE);
+  }
+
+  /** Returns only add-on products. */
+  async getAllAddons(): Promise<Product[]> {
+    const nodes = await this.fetchAllItemOptionNodes();
+    return fromItemOptionNodes(nodes);
   }
 
   private async fetchActivities(): Promise<ProductsResponse["activities"]> {

@@ -7,7 +7,9 @@ point (`PeekAccessService`) that hands out per-resource services returning clean
 plain-object data models.
 
 Consumers never see GraphQL. They construct one access service per install and
-call typed methods like `peek.getProductService().getAllProducts()`.
+call typed methods like `peek.getProductService().getAllProducts()` or directly
+via the top-level short-forms like `peek.getAllProducts()` and
+`peek.getAllActivities()`.
 
 ## Layers
 
@@ -44,6 +46,8 @@ call typed methods like `peek.getProductService().getAllProducts()`.
 - Constructs a single shared `TokenManager` and `GraphQLClient`.
 - Exposes one `get<Resource>Service()` accessor per resource. Each is **lazily
   created and memoized** — repeated calls return the same instance.
+- Exposes **top-level short-form methods** that delegate directly to the
+  underlying service, e.g. `peek.getAllProducts()` → `peek.getProductService().getAllProducts()`. Every public service method has a named proxy on `PeekAccessService`; the names are prefixed with the resource noun where disambiguation is needed (e.g. `getBookingById`, `getTimeslotById`).
 - Exposes `verifyPeekAuthToken(token)` to verify HMAC-signed JWTs issued by
   the Peek app registry (`iss: "app_registry_v2"`), returning
   a fully typed `PeekAuthTokenClaims` (including the nested `PeekAuthTokenUser`
@@ -107,6 +111,10 @@ Each resource follows the same **three-file triad**:
 Resources: `products`, `account-users`, `resource-pools`, `timeslots`,
 `resellers`, `promo-codes`, `daily-notes`, `availability`, `memberships`,
 `bookings`, `reviews`. Clean data shapes live in `src/models/`.
+
+`ProductService` exposes three top-level product filters in addition to the combined `getAllProducts()`:
+- `getAllActivities()` — fetches only the `activities` connection (one request, no add-on pagination).
+- `getAllAddons()` — fetches only the `itemOptions` connection, paginated.
 
 `waivers` is a **webhook-only resource**: it has no GraphQL reads (so no
 queries/service/converter triad), just `src/internal/waivers/waiver-webhook.ts`
