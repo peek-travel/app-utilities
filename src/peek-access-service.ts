@@ -27,6 +27,19 @@ import { V2_EXTENDABLE_SLUG } from "./internal/gateway-endpoints.js";
 import { TokenManager } from "./internal/token-manager.js";
 import { noopLogger, type Logger } from "./logger.js";
 import type { PeekAuthTokenClaims } from "./models/auth-token.js";
+import type { AvailabilityTimesQuery } from "./models/availability-time.js";
+import type {
+  BookingReadOptions,
+  BookingTimeRangeSearch,
+  CreateBookingInput,
+  NoteMode,
+} from "./models/booking.js";
+import type { MakePaymentInput, RefundInput } from "./models/booking-payment.js";
+import type { MembershipPurchaseInput } from "./models/membership.js";
+import type { CreatePromoCodeInput } from "./models/promo-code.js";
+import type { ResourcePoolMode } from "./models/resource-pool.js";
+import type { GuideAssignment, TimeslotFilter } from "./models/timeslot.js";
+import type { AddAddonInput } from "./internal/bookings/booking-service.js";
 
 /** Default backoffice GraphQL gateway base URL (v1). */
 const DEFAULT_BASE_URL = "https://apps.peekapis.com/backoffice-gql";
@@ -330,6 +343,172 @@ export class PeekAccessService {
       this.reviewService = new ReviewService(this.client);
     }
     return this.reviewService;
+  }
+
+  // ─── Product short-forms ─────────────────────────────────────────────────
+
+  /** All products (activities + add-ons). Delegates to {@link ProductService.getAllProducts}. */
+  getAllProducts() { return this.getProductService().getAllProducts(); }
+
+  /** All activity products (excludes add-ons). Delegates to {@link ProductService.getAllActivities}. */
+  getAllActivities() { return this.getProductService().getAllActivities(); }
+
+  /** All rental products. Delegates to {@link ProductService.getAllRentals}. */
+  getAllRentals() { return this.getProductService().getAllRentals(); }
+
+  /** All add-on products. Delegates to {@link ProductService.getAllAddons}. */
+  getAllAddons() { return this.getProductService().getAllAddons(); }
+
+  // ─── Account-user short-forms ─────────────────────────────────────────────
+
+  /** All active account users. Delegates to {@link AccountUserService.getAll}. */
+  getAllAccountUsers() { return this.getAccountUserService().getAll(); }
+
+  /** Account user by id, or null. Delegates to {@link AccountUserService.getById}. */
+  getAccountUserById(userId: string) { return this.getAccountUserService().getById(userId); }
+
+  // ─── Resource-pool short-forms ────────────────────────────────────────────
+
+  /** All resource pools. Delegates to {@link ResourcePoolService.getAll}. */
+  getAllResourcePools(mode?: ResourcePoolMode) { return this.getResourcePoolService().getAll(mode); }
+
+  // ─── Timeslot short-forms ─────────────────────────────────────────────────
+
+  /** Timeslots for an activity on a given date. Delegates to {@link TimeslotService.getForDay}. */
+  getTimeslotsForDay(productId: string, date: string, filter?: TimeslotFilter) {
+    return this.getTimeslotService().getForDay(productId, date, filter);
+  }
+
+  /** Single timeslot by id. Delegates to {@link TimeslotService.getById}. */
+  getTimeslotById(timeslotId: string) { return this.getTimeslotService().getById(timeslotId); }
+
+  /** Set timeslot status. Delegates to {@link TimeslotService.setAvailability}. */
+  setTimeslotAvailability(timeslotId: string, status: string) {
+    return this.getTimeslotService().setAvailability(timeslotId, status);
+  }
+
+  /** Set timeslot manifest notes. Delegates to {@link TimeslotService.setNotes}. */
+  setTimeslotNotes(timeslotId: string, manifestNotes: string) {
+    return this.getTimeslotService().setNotes(timeslotId, manifestNotes);
+  }
+
+  /** Assign or unassign guides on timeslots. Delegates to {@link TimeslotService.assignGuide}. */
+  assignTimeslotGuide(assignment: GuideAssignment) {
+    return this.getTimeslotService().assignGuide(assignment);
+  }
+
+  // ─── Reseller short-forms ─────────────────────────────────────────────────
+
+  /** All reseller channels. Delegates to {@link ResellerService.getAllChannels}. */
+  getAllChannels(agentsPerChannel?: number) {
+    return this.getResellerService().getAllChannels(agentsPerChannel);
+  }
+
+  // ─── Promo-code short-forms ───────────────────────────────────────────────
+
+  /** All promo codes. Delegates to {@link PromoCodeService.getAll}. */
+  getAllPromoCodes() { return this.getPromoCodeService().getAll(); }
+
+  /** Create a promo code. Delegates to {@link PromoCodeService.create}. */
+  createPromoCode(input: CreatePromoCodeInput) { return this.getPromoCodeService().create(input); }
+
+  // ─── Daily-note short-forms ───────────────────────────────────────────────
+
+  /** Today's daily note. Delegates to {@link DailyNoteService.getToday}. */
+  getDailyNoteToday() { return this.getDailyNoteService().getToday(); }
+
+  /** Update today's daily note. Delegates to {@link DailyNoteService.update}. */
+  updateDailyNote(note: string) { return this.getDailyNoteService().update(note); }
+
+  // ─── Availability short-forms ─────────────────────────────────────────────
+
+  /** Availability times for an activity. Delegates to {@link AvailabilityService.getAvailabilityTimes}. */
+  getAvailabilityTimes(query: AvailabilityTimesQuery) {
+    return this.getAvailabilityService().getAvailabilityTimes(query);
+  }
+
+  // ─── Membership short-forms ───────────────────────────────────────────────
+
+  /** All memberships. Delegates to {@link MembershipService.getAll}. */
+  getAllMemberships() { return this.getMembershipService().getAll(); }
+
+  /** Purchase a membership. Delegates to {@link MembershipService.purchase}. */
+  purchaseMembership(input: MembershipPurchaseInput) {
+    return this.getMembershipService().purchase(input);
+  }
+
+  // ─── Booking short-forms ──────────────────────────────────────────────────
+
+  /** Booking by id. Delegates to {@link BookingService.getById}. */
+  getBookingById(bookingId: string, options?: BookingReadOptions) {
+    return this.getBookingService().getById(bookingId, options);
+  }
+
+  /** Bookings by time range. Delegates to {@link BookingService.searchByTimeRange}. */
+  searchBookingsByTimeRange(input: BookingTimeRangeSearch) {
+    return this.getBookingService().searchByTimeRange(input);
+  }
+
+  /** Bookings on a timeslot. Delegates to {@link BookingService.searchByTimeslot}. */
+  searchBookingsByTimeslot(timeslotId: string, options?: BookingReadOptions) {
+    return this.getBookingService().searchByTimeslot(timeslotId, options);
+  }
+
+  /** Guests on a booking. Delegates to {@link BookingService.getGuests}. */
+  getBookingGuests(bookingId: string) { return this.getBookingService().getGuests(bookingId); }
+
+  /** Payments on file for a booking. Delegates to {@link BookingService.getPaymentsOnFile}. */
+  getBookingPaymentsOnFile(bookingId: string) {
+    return this.getBookingService().getPaymentsOnFile(bookingId);
+  }
+
+  /** Append or overwrite operator notes. Delegates to {@link BookingService.appendNote}. */
+  appendBookingNote(bookingId: string, note: string, mode?: NoteMode) {
+    return this.getBookingService().appendNote(bookingId, note, mode);
+  }
+
+  /** Set booking check-in status. Delegates to {@link BookingService.setCheckinStatus}. */
+  setBookingCheckinStatus(bookingId: string, checkedIn: boolean) {
+    return this.getBookingService().setCheckinStatus(bookingId, checkedIn);
+  }
+
+  /** Cancel a booking. Delegates to {@link BookingService.cancel}. */
+  cancelBooking(bookingId: string, notes?: string) {
+    return this.getBookingService().cancel(bookingId, notes);
+  }
+
+  /** Charge a booking. Delegates to {@link BookingService.makePayment}. */
+  makeBookingPayment(input: MakePaymentInput) { return this.getBookingService().makePayment(input); }
+
+  /** Refund a booking payment. Delegates to {@link BookingService.refund}. */
+  refundBooking(input: RefundInput) { return this.getBookingService().refund(input); }
+
+  /** Create an invoice link. Delegates to {@link BookingService.createInvoiceLink}. */
+  createBookingInvoiceLink(bookingId: string) {
+    return this.getBookingService().createInvoiceLink(bookingId);
+  }
+
+  /** List add-ons on a booking. Delegates to {@link BookingService.listAddons}. */
+  listBookingAddons(bookingId: string) { return this.getBookingService().listAddons(bookingId); }
+
+  /** Add an add-on to a booking. Delegates to {@link BookingService.addAddon}. */
+  addBookingAddon(bookingId: string, input: AddAddonInput) {
+    return this.getBookingService().addAddon(bookingId, input);
+  }
+
+  /** Remove an add-on from a booking. Delegates to {@link BookingService.removeAddon}. */
+  removeBookingAddon(bookingId: string, input: AddAddonInput) {
+    return this.getBookingService().removeAddon(bookingId, input);
+  }
+
+  /** Create a booking. Delegates to {@link BookingService.create}. */
+  createBooking(input: CreateBookingInput) { return this.getBookingService().create(input); }
+
+  // ─── Review short-forms ───────────────────────────────────────────────────
+
+  /** Reviews for an activity. Delegates to {@link ReviewService.getReviews}. */
+  getReviews(productId: string, reviewCount?: number, reviewOffset?: number) {
+    return this.getReviewService().getReviews(productId, reviewCount, reviewOffset);
   }
 }
 

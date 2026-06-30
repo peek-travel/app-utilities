@@ -63,6 +63,12 @@ export interface ProductTicket {
   name: string;
 }
 
+/** {@link Product.type} for standard bookable activities. */
+export const ACTIVITY_PRODUCT_TYPE = "ACTIVITY";
+
+/** {@link Product.type} for rental products. */
+export const RENTAL_PRODUCT_TYPE = "RENTAL";
+
 /**
  * The {@link Product.type} value assigned to add-on products.
  *

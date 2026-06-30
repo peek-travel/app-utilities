@@ -42,7 +42,7 @@ export { parseWaiverWebhook } from "./internal/waivers/waiver-webhook.js";
 
 export { ReviewService } from "./internal/reviews/review-service.js";
 
-export { ADD_ON_PRODUCT_TYPE } from "./models/product.js";
+export { ACTIVITY_PRODUCT_TYPE, ADD_ON_PRODUCT_TYPE, RENTAL_PRODUCT_TYPE } from "./models/product.js";
 export type { Product, ProductTicket } from "./models/product.js";
 export type { AccountUser, AssignedActivity } from "./models/account-user.js";
 export type {
