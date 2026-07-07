@@ -110,6 +110,55 @@ describe('ody-input', () => {
     fire(el.querySelector<HTMLInputElement>('.ody-input__field')!, 'input', 'abc');
     expect(el.querySelector('.ody-input__length-message')!.textContent).toContain('3 / 5');
   });
+
+  it('keeps focus and caret while typing (no destructive re-render on value)', async () => {
+    const el = await mount('<ody-input label="Name"></ody-input>');
+    const input = el.querySelector<HTMLInputElement>('.ody-input__field')!;
+    input.focus();
+    for (const text of ['a', 'ab', 'abc']) {
+      input.value = text;
+      input.setSelectionRange(text.length, text.length);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    const current = el.querySelector<HTMLInputElement>('.ody-input__field')!;
+    expect(current).toBe(input); // same node — never rebuilt
+    expect(document.activeElement).toBe(input); // focus retained
+    expect(input.selectionStart).toBe(3); // caret preserved
+    expect((el as HTMLElement & { value: string }).value).toBe('abc');
+  });
+
+  it('adds and removes the clear button in place as the value changes', async () => {
+    const el = await mount('<ody-input></ody-input>');
+    const input = el.querySelector<HTMLInputElement>('.ody-input__field')!;
+    expect(el.querySelector('.ody-input__clear-button')).toBeNull();
+    fire(input, 'input', 'x');
+    const clear = el.querySelector<HTMLButtonElement>('.ody-input__clear-button')!;
+    expect(clear).not.toBeNull();
+    expect(el.querySelector('.ody-input__field')).toBe(input); // still not rebuilt
+    clear.click(); // wired even though added after the initial render
+    expect((el as HTMLElement & { value: string }).value).toBe('');
+    expect(el.querySelector('.ody-input__clear-button')).toBeNull();
+  });
+
+  it('reflects a programmatic value into the live field without a rebuild', async () => {
+    const el = await mount<HTMLElement & { value: string }>('<ody-input></ody-input>');
+    const input = el.querySelector<HTMLInputElement>('.ody-input__field')!;
+    el.value = 'set externally';
+    expect(el.querySelector('.ody-input__field')).toBe(input);
+    expect(input.value).toBe('set externally');
+  });
+
+  it('still re-renders chrome for non-value attributes, and no-ops on an unchanged value', async () => {
+    const el = await mount('<ody-input value="hi"></ody-input>');
+    const input = el.querySelector<HTMLInputElement>('.ody-input__field')!;
+    // Re-setting the same value is a no-op — the field is not rebuilt.
+    el.setAttribute('value', 'hi');
+    expect(el.querySelector('.ody-input__field')).toBe(input);
+    // A chrome attribute (label) still re-renders via the base implementation.
+    el.setAttribute('label', 'Name');
+    expect(el.querySelector('.ody-input__label')!.textContent).toBe('Name');
+    expect(el.querySelector('.ody-input__field')).not.toBe(input); // rebuilt
+  });
 });
 
 describe('ody-inline-input', () => {

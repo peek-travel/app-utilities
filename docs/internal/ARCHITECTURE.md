@@ -245,6 +245,17 @@ Load-bearing rules:
   across re-renders through a `[data-ody-slot]` placeholder. The first render is
   deferred one microtask (so parser/`innerHTML` children are attached before the
   slot is captured); attribute-change re-renders are synchronous.
+- **Text fields update `value` in place, never re-render.** The native
+  `<input>`/`<textarea>` already reflects what the user typed, so a destructive
+  re-render on each keystroke would drop focus and caret. The controlled inputs
+  (`ody-input`, `ody-inline-input`, `ody-search-input`) therefore `override
+  attributeChangedCallback` to special-case `value`: they push it into the live
+  control via `reflectControlValue` (a no-op when the control already holds it)
+  and toggle the counter/clear-button imperatively, skipping `render()`. Every
+  other observed attribute changes chrome and still re-renders through the base.
+  (`ody-money-input`/`ody-percentage-input` sidestep the issue differently —
+  they write the private `#value` on input and only reflect the attribute on
+  blur, when focus has already left.)
 - **Localization (`i18n.ts`).** Components' built-in strings (aria-labels,
   default placeholders, check-in-status labels) go through `OdyElement.term(key)`
   / `localized(attr, key)`, never hardcoded. The active language is resolved from

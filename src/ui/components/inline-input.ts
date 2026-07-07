@@ -1,4 +1,4 @@
-import { OdyElement, classes, define } from '../base.js';
+import { OdyElement, classes, define, reflectControlValue } from '../base.js';
 import { iconSvg } from '../icons.js';
 
 export type OdyInlineInputSize = 'base' | 'small';
@@ -31,6 +31,29 @@ export class OdyInlineInput extends OdyElement {
   set value(next: string) {
     this.#value = next;
     this.setAttribute('value', next);
+  }
+
+  /**
+   * Reflect `value` into the live control in place — the native field already
+   * shows what the user typed, so rebuilding it (as a full re-render would)
+   * needlessly drops focus and caret. Every other observed attribute changes
+   * the chrome and still re-renders via the base implementation.
+   */
+  override attributeChangedCallback(name?: string, oldValue?: string | null, newValue?: string | null): void {
+    if (name === 'value') {
+      if (oldValue === newValue) return;
+      const value = newValue ?? '';
+      reflectControlValue(
+        this.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+          '.ody-inline-input__field, .ody-inline-input__textarea',
+        ),
+        value,
+      );
+      this.#syncCounter(value);
+      this.#syncClearButton(value);
+      return;
+    }
+    super.attributeChangedCallback();
   }
 
   protected render(): void {
@@ -80,12 +103,7 @@ export class OdyInlineInput extends OdyElement {
           ` placeholder="${this.esc(this.attr('placeholder'))}"${maxlengthAttr}` +
           `${isReadonly ? ' readonly' : ''}${isDisabled ? ' disabled' : ''} />`;
 
-    const clearEnabled =
-      !this.flag('no-clear') && !isDisabled && !isReadonly && value !== '';
-    const clearEl = clearEnabled
-      ? `<button type="button" class="btn ody-inline-input__clear-button" aria-label="${this.localized('clear-label', 'clear')}">` +
-          `${iconSvg('close', 'icon__svg clear-icon')}</button>`
-      : '';
+    const clearEl = this.#clearEnabled(value) ? this.#clearButtonHtml() : '';
 
     const showCounter = !isReadonly && !isDisabled && maxlength !== '';
     const footerNeeded = showCounter || caption !== '' || warning !== '' || info !== '';
@@ -124,7 +142,8 @@ export class OdyInlineInput extends OdyElement {
   #onInput = (event: Event): void => {
     event.stopPropagation();
     const value = (event.target as HTMLInputElement).value;
-    this.#syncCounter(value);
+    // Reflecting to the `value` attribute drives the counter and clear button
+    // in place (see attributeChangedCallback) without a focus-dropping rebuild.
     this.value = value;
     this.dispatchEvent(new CustomEvent('input', { detail: { value }, bubbles: true }));
   };
@@ -145,6 +164,30 @@ export class OdyInlineInput extends OdyElement {
     const counter = this.querySelector('.ody-inline-input-footer__length-message');
     const max = this.attr('maxlength');
     if (counter && max) counter.textContent = `${value.length} / ${max}`;
+  }
+
+  /** Whether the clear button should be shown for the given value. */
+  #clearEnabled(value: string): boolean {
+    return !this.flag('no-clear') && !this.flag('disabled') && !this.flag('readonly') && value !== '';
+  }
+
+  /** Markup for the clear button (shared by render and the in-place sync). */
+  #clearButtonHtml(): string {
+    return `<button type="button" class="btn ody-inline-input__clear-button" aria-label="${this.localized('clear-label', 'clear')}">` +
+      `${iconSvg('close', 'icon__svg clear-icon')}</button>`;
+  }
+
+  /** Add or remove the clear button in place as the value gains/loses content. */
+  #syncClearButton(value: string): void {
+    const existing = this.querySelector('.ody-inline-input__clear-button');
+    if (this.#clearEnabled(value)) {
+      if (existing) return;
+      const control = this.querySelector('.ody-inline-input__field, .ody-inline-input__textarea');
+      control?.insertAdjacentHTML('afterend', this.#clearButtonHtml());
+      this.querySelector('.ody-inline-input__clear-button')?.addEventListener('click', this.#onClear);
+    } else {
+      existing?.remove();
+    }
   }
 }
 
