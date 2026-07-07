@@ -169,6 +169,19 @@ export function classes(...parts: Array<string | false | null | undefined>): str
 }
 
 /**
+ * Push a controlled `value` into a native input/textarea in place. Skips the
+ * write when the control already holds it (user typing has updated it) so the
+ * caret and selection are never disturbed. Used by the text-field components to
+ * reflect `value` changes without a destructive re-render.
+ */
+export function reflectControlValue(
+  control: HTMLInputElement | HTMLTextAreaElement | null,
+  value: string,
+): void {
+  if (control && control.value !== value) control.value = value;
+}
+
+/**
  * Register a custom element under `tag`, guarding against double registration
  * (and against running in a non-DOM environment such as a Node import).
  */

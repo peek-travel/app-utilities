@@ -1,4 +1,4 @@
-import { OdyElement, classes, define } from '../base.js';
+import { OdyElement, classes, define, reflectControlValue } from '../base.js';
 import { iconSvg } from '../icons.js';
 
 export type OdySearchInputSize = 'base' | 'small';
@@ -35,6 +35,21 @@ export class OdySearchInput extends OdyElement {
   set value(next: string) {
     this.#value = next;
     this.setAttribute('value', next);
+  }
+
+  /**
+   * Reflect `value` into the live control in place — the native field already
+   * shows what the user typed, so rebuilding it (as a full re-render would)
+   * needlessly drops focus, caret and the `--focused` state. Every other
+   * observed attribute changes the chrome and still re-renders via the base.
+   */
+  override attributeChangedCallback(name?: string, oldValue?: string | null, newValue?: string | null): void {
+    if (name === 'value') {
+      if (oldValue === newValue) return;
+      reflectControlValue(this.querySelector<HTMLInputElement>('.ody-input__field'), newValue ?? '');
+      return;
+    }
+    super.attributeChangedCallback();
   }
 
   protected render(): void {
