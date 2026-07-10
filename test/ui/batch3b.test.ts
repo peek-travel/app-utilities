@@ -20,6 +20,7 @@ afterEach(() => {
   document.body.innerHTML = '';
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  delete (document as unknown as { execCommand?: unknown }).execCommand;
 });
 
 describe('ody-accordion', () => {
@@ -109,46 +110,87 @@ describe('ody-tabs', () => {
 });
 
 describe('ody-copy-button', () => {
-  it('copies the value, shows success, dispatches copy, then reverts', async () => {
+  /** Stub the synchronous clipboard path (happy-dom has no execCommand). */
+  function stubExecCommand(result: boolean): ReturnType<typeof vi.fn> {
+    const execCommand = vi.fn().mockReturnValue(result);
+    (document as unknown as { execCommand: unknown }).execCommand = execCommand;
+    return execCommand;
+  }
+
+  it('copies the value synchronously, shows success, dispatches copy, then reverts', async () => {
     vi.useFakeTimers();
+    const execCommand = stubExecCommand(true);
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     const el = await mount<HTMLElement>('<ody-copy-button value="hello" label="Copy" success-duration="500"></ody-copy-button>');
     const detail: Array<{ value: string; ok: boolean }> = [];
     el.addEventListener('copy', (e) => detail.push((e as CustomEvent).detail));
     el.querySelector('button')!.click();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(writeText).toHaveBeenCalledWith('hello');
+    expect(execCommand).toHaveBeenCalledWith('copy');
     expect(el.querySelector('.ody-button.success')).not.toBeNull();
     expect(detail).toEqual([{ value: 'hello', ok: true }]);
+    // The sync path succeeded, so the async API must not be touched.
+    expect(writeText).not.toHaveBeenCalled();
     vi.advanceTimersByTime(500);
     expect(el.querySelector('.ody-button.success')).toBeNull();
   });
 
-  it('shows an error state when the clipboard write rejects', async () => {
-    const writeText = vi.fn().mockRejectedValue(new Error('nope'));
+  it.each([
+    ['resolves', () => vi.fn().mockResolvedValue(undefined)],
+    ['rejects', () => vi.fn().mockRejectedValue(new Error('blocked'))],
+  ])('falls back to a best-effort async write when the sync copy fails and the async %s, reflecting the sync result immediately', async (_label, makeWriteText) => {
+    stubExecCommand(false);
+    const writeText = makeWriteText();
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     const el = await mount<HTMLElement>('<ody-copy-button value="x"></ody-copy-button>');
     const detail: Array<{ ok: boolean }> = [];
     el.addEventListener('copy', (e) => detail.push((e as CustomEvent).detail));
     el.querySelector('button')!.click();
-    await Promise.resolve();
-    await Promise.resolve();
+    // UI reflects the (failed) sync result immediately, without waiting on the async API.
     expect(el.querySelector('.ody-button.danger')).not.toBeNull();
     expect(el.querySelector('.ody-button--icon-only')).not.toBeNull();
     expect(detail[0].ok).toBe(false);
+    // Best-effort async path was still invoked.
+    expect(writeText).toHaveBeenCalledWith('x');
+    await Promise.resolve();
+    await Promise.resolve();
+    // The late async result (success or failure) never flips the UI back.
+    expect(el.querySelector('.ody-button.danger')).not.toBeNull();
+    expect(detail).toHaveLength(1);
   });
 
-  it('falls back to an error state when the clipboard API is missing', async () => {
+  it('shows an error state when both the sync copy and the async API are unavailable', async () => {
+    stubExecCommand(false);
     vi.stubGlobal('navigator', {});
     const el = await mount<HTMLElement>('<ody-copy-button value="x" label="C"></ody-copy-button>');
     el.querySelector('button')!.click();
     expect(el.querySelector('.ody-button.danger')).not.toBeNull();
   });
 
+  it('shows an error state for an empty value without running the sync copy', async () => {
+    const execCommand = stubExecCommand(true);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    const el = await mount<HTMLElement>('<ody-copy-button label="C"></ody-copy-button>');
+    el.querySelector('button')!.click();
+    expect(el.querySelector('.ody-button.danger')).not.toBeNull();
+    // Empty value short-circuits the sync copy before execCommand runs.
+    expect(execCommand).not.toHaveBeenCalled();
+  });
+
+  it('tolerates a throwing execCommand and reports an error', async () => {
+    (document as unknown as { execCommand: unknown }).execCommand = vi.fn(() => {
+      throw new Error('blocked');
+    });
+    vi.stubGlobal('navigator', {});
+    const el = await mount<HTMLElement>('<ody-copy-button value="x"></ody-copy-button>');
+    el.querySelector('button')!.click();
+    expect(el.querySelector('.ody-button.danger')).not.toBeNull();
+  });
+
   it('clears a pending timer on a second copy and tolerates a non-numeric duration', async () => {
-    vi.stubGlobal('navigator', { clipboard: {} }); // no writeText -> error path, runs #feedback
+    stubExecCommand(false);
+    vi.stubGlobal('navigator', {}); // error path, runs #feedback
     const el = await mount<HTMLElement>('<ody-copy-button value="x" success-duration="abc"></ody-copy-button>');
     el.querySelector('button')!.click();
     // second click while the first revert timer is still pending exercises clearTimeout
@@ -158,7 +200,8 @@ describe('ody-copy-button', () => {
 
   it('skips the revert render after the element is disconnected', async () => {
     vi.useFakeTimers();
-    vi.stubGlobal('navigator', { clipboard: {} });
+    stubExecCommand(false);
+    vi.stubGlobal('navigator', {});
     const el = await mount<HTMLElement>('<ody-copy-button value="x" success-duration="100"></ody-copy-button>');
     el.querySelector('button')!.click();
     el.remove(); // now not connected; the pending timer must not throw on render
