@@ -55,7 +55,7 @@ export function fromTimeslotNode(
     durationMin: node.minuteLength ?? 0,
     date: node.date || "",
     startTime: node.start ?? null,
-    assignedResources: mapAssignedResources(node.resourceAllocations),
+    assignedResources: mapAssignedResources(node.inheritedResourceAllocations),
   };
 }
 
@@ -69,11 +69,11 @@ function mapAssignedResources(
   return allocations.map((allocation) => {
     const pool = allocation.resourcePool;
     return {
-      id: pool?.id || "",
       name: pool?.name || "",
       capacity: pool?.capacity ?? 0,
       category: pool?.category || "",
       quantity: allocation.quantity ?? 0,
+      status: allocation.status || "",
       accountUserId: pool?.accountUser?.id ?? null,
     };
   });

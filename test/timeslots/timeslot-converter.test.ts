@@ -18,11 +18,11 @@ const fullNode: TimeslotNode = {
   status: "OPEN",
   date: "2026-01-02",
   start: "2026-01-02T10:00:00Z",
-  resourceAllocations: [
+  inheritedResourceAllocations: [
     {
       quantity: 1,
+      status: "ACTIVE",
       resourcePool: {
-        id: "pool-1",
         name: "Ada",
         category: "guide",
         capacity: 5,
@@ -49,11 +49,11 @@ describe("fromTimeslotNode", () => {
       startTime: "2026-01-02T10:00:00Z",
       assignedResources: [
         {
-          id: "pool-1",
           name: "Ada",
           capacity: 5,
           category: "guide",
           quantity: 1,
+          status: "ACTIVE",
           accountUserId: "u1",
         },
       ],
@@ -90,7 +90,7 @@ describe("fromTimeslotNode", () => {
       minuteLength: null,
       status: null,
       date: null,
-      resourceAllocations: [{ quantity: null, resourcePool: null }],
+      inheritedResourceAllocations: [{ quantity: null, status: null, resourcePool: null }],
     } as unknown as TimeslotNode;
 
     expect(fromTimeslotNode(node, "act-1")).toEqual({
@@ -107,13 +107,13 @@ describe("fromTimeslotNode", () => {
       date: "",
       startTime: null,
       assignedResources: [
-        { id: "", name: "", capacity: 0, category: "", quantity: 0, accountUserId: null },
+        { name: "", capacity: 0, category: "", quantity: 0, status: "", accountUserId: null },
       ],
     });
   });
 
-  it("treats missing resourceAllocations as no assigned resources", () => {
-    const node = { ...fullNode, resourceAllocations: null } as unknown as TimeslotNode;
+  it("treats missing inheritedResourceAllocations as no assigned resources", () => {
+    const node = { ...fullNode, inheritedResourceAllocations: null } as unknown as TimeslotNode;
     expect(fromTimeslotNode(node, "act-1").assignedResources).toEqual([]);
   });
 });

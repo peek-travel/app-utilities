@@ -89,7 +89,7 @@ const timeslotNode = {
   minuteLength: 60,
   status: "OPEN",
   date: "2026-01-02",
-  resourceAllocations: [],
+  inheritedResourceAllocations: [],
 };
 
 describe("TimeslotService.getForDay", () => {

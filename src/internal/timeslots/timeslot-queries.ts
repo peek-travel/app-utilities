@@ -20,10 +20,10 @@ export const TIMESLOTS_QUERY = `
           minuteLength
           status
           date
-          resourceAllocations {
+          inheritedResourceAllocations {
             quantity
+            status
             resourcePool {
-              id
               name
               category
               capacity
@@ -60,10 +60,10 @@ export const TIMESLOT_BY_ID_QUERY = `
           minuteLength
           status
           date
-          resourceAllocations {
+          inheritedResourceAllocations {
             quantity
+            status
             resourcePool {
-              id
               name
               category
               capacity
@@ -99,11 +99,11 @@ export const UPDATE_TIMESLOT_MUTATION = `
   }
 `;
 
-/** A single resource allocation on a timeslot node. */
+/** A single inherited resource allocation on a timeslot node. */
 export interface TimeslotResourceAllocationNode {
   quantity: number | null;
+  status: string | null;
   resourcePool: {
-    id: string;
     name: string;
     category: string;
     capacity: number | null;
@@ -124,7 +124,7 @@ export interface TimeslotNode {
   status: string | null;
   date: string | null;
   start?: string | null;
-  resourceAllocations: TimeslotResourceAllocationNode[] | null;
+  inheritedResourceAllocations: TimeslotResourceAllocationNode[] | null;
 }
 
 /** `data` payload of {@link TIMESLOTS_QUERY}. */
