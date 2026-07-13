@@ -17,6 +17,16 @@ export interface Ticket {
   quantity: number;
   /** The resource option id backing this ticket. Falls back to `"unknown"`. */
   ticketId: string;
+  /**
+   * Per-unit list price of the ticket — only populated when
+   * `includePriceBreakdown` is requested.
+   */
+  listPrice?: Price;
+  /**
+   * Total value for this ticket line — only populated when
+   * `includePriceBreakdown` is requested.
+   */
+  totalValue?: Price;
 }
 
 /** A formatted monetary value: a human display string plus its raw amount. */
