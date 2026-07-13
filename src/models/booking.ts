@@ -139,6 +139,11 @@ export interface Booking {
    * `"unknown"` when the origin can't be mapped.
    */
   sourceDescription: string;
+  /**
+   * Raw source actor name reported by Peek, when present. `null` when the
+   * origin actor carries no name.
+   */
+  sourceDetails: string | null;
 
   /** Primary guest's name, or `""` when unknown. */
   customerName: string | null;
