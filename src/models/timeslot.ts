@@ -34,8 +34,6 @@ export interface Timeslot {
 
 /** A resource allocated to a {@link Timeslot}. */
 export interface AssignedResource {
-  /** Resource pool id. */
-  id: string;
   /** Resource pool name. */
   name: string;
   /** Resource pool capacity. */
@@ -44,6 +42,8 @@ export interface AssignedResource {
   category: string;
   /** Allocated quantity. */
   quantity: number;
+  /** Allocation status (e.g. `"ACTIVE"`). */
+  status: string;
   /** Backing account user id, or null. */
   accountUserId: string | null;
 }
