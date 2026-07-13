@@ -12,7 +12,7 @@ describe("fromBookingGuestsResponse", () => {
     const guests = fromBookingGuestsResponse(
       response({
         displayId: "B-1",
-        id: "bkg_1",
+        id: "b_1",
         primaryGuest: { id: "g1" },
         bookingGuests: [{ id: "g1" }, { id: "g2" }],
       }),
@@ -27,7 +27,7 @@ describe("fromBookingGuestsResponse", () => {
     const guests = fromBookingGuestsResponse(
       response({
         displayId: "B-1",
-        id: "bkg_1",
+        id: "b_1",
         primaryGuest: { id: "p1" },
         bookingGuests: [{ id: "g2" }],
       }),
@@ -37,7 +37,7 @@ describe("fromBookingGuestsResponse", () => {
 
   it("returns an empty list when the booking has no guests at all", () => {
     expect(
-      fromBookingGuestsResponse(response({ displayId: "B-1", id: "bkg_1" })),
+      fromBookingGuestsResponse(response({ displayId: "B-1", id: "b_1" })),
     ).toEqual([]);
   });
 

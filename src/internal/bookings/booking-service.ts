@@ -83,7 +83,13 @@ const DEFAULT_CANCEL_NOTE = "Canceled";
 /** Default customer message attached to a charge. */
 const DEFAULT_CUSTOMER_MESSAGE = "Charge initiated via API";
 
-const BOOKING_ID_PREFIX = "b_";
+// Booking/order ids come in two forms: a lowercase db id with `_`
+// (`b_abc123` / `o_abc123`) and an uppercase display id with `-`
+// (`B-ABC123` / `O-ABC123`). Bookings are prefixed `b`, orders `o`.
+const BOOKING_DB_ID_REGEX = /^b_[a-z0-9]+$/;
+const BOOKING_DISPLAY_ID_REGEX = /^B-[A-Z0-9]+$/;
+const ORDER_DB_ID_REGEX = /^o_[a-z0-9]+$/;
+const ORDER_DISPLAY_ID_REGEX = /^O-[A-Z0-9]+$/;
 const PAYMENT_SOURCE_PREFIX = "ps_";
 const PAYMENT_ID_PREFIX = "pmt_";
 const ALLOWED_PAYMENT_SOURCE_IDS = ["cash/cash", "custom/other", "custom/voucher"];
@@ -126,7 +132,10 @@ export interface AddAddonInput {
 
 const ERROR_ADDON_OPTION_ID_REQUIRED = "addonOptionId is required";
 const ERROR_QUANTITY_INVALID = "quantity must be a positive integer string";
-const ERROR_BOOKING_ID_REQUIRED = "bookingId is required";
+const ERROR_INVALID_BOOKING_ID =
+  "bookingId is required and must be a valid booking id, e.g. 'b_abc123' or 'B-ABC123'";
+const ERROR_INVALID_ORDER_ID =
+  "orderId is required and must be a valid order id, e.g. 'o_abc123' or 'O-ABC123'";
 const ERROR_BOOKING_NOT_FOUND = "Booking not found";
 const ERROR_MULTIPLE_BOOKINGS_FOUND =
   "Expected exactly one booking for the provided bookingId";
@@ -166,6 +175,7 @@ export class BookingService {
     bookingId: string,
     options: BookingReadOptions = {},
   ): Promise<Booking | null> {
+    assertBookingId(bookingId);
     const includeGuests = options.includeGuests ?? false;
     const includePriceBreakdown = options.includePriceBreakdown ?? false;
 
@@ -225,6 +235,7 @@ export class BookingService {
 
   /** Returns the guests on a booking (primary guest included). */
   async getGuests(bookingId: string): Promise<Guest[]> {
+    assertBookingId(bookingId);
     const body: GraphQLBody<BookingGuestsResponse> =
       await this.client.request<BookingGuestsResponse>(
         SALES_ENDPOINT,
@@ -240,6 +251,7 @@ export class BookingService {
 
   /** Returns the payments on file for a booking, or null when not found. */
   async getPaymentsOnFile(bookingId: string): Promise<BookingPaymentsOnFile | null> {
+    assertBookingId(bookingId);
     const normalized = normalizeBookingId(bookingId);
     const body: GraphQLBody<BookingPaymentsOnFileResponse> =
       await this.client.request<BookingPaymentsOnFileResponse>(
@@ -259,6 +271,7 @@ export class BookingService {
     note: string,
     mode: NoteMode = "append",
   ): Promise<Booking | null> {
+    assertBookingId(bookingId);
     const normalized = normalizeBookingId(bookingId);
     const booking = await this.getById(normalized);
     if (!booking) {
@@ -284,6 +297,7 @@ export class BookingService {
     bookingId: string,
     checkedIn: boolean,
   ): Promise<Booking | null> {
+    assertBookingId(bookingId);
     const normalized = normalizeBookingId(bookingId);
     const checkedInAt = checkedIn ? new Date().toISOString() : null;
 
@@ -299,6 +313,7 @@ export class BookingService {
     bookingId: string,
     notes: string = DEFAULT_CANCEL_NOTE,
   ): Promise<CancelBookingResult> {
+    assertBookingId(bookingId);
     const body: GraphQLBody<CancelBookingResponse> =
       await this.client.request<CancelBookingResponse>(
         SALES_ENDPOINT,
@@ -337,12 +352,13 @@ export class BookingService {
    * @throws {Error} when `paymentSourceId` is missing or not a `ps_…` id / one
    * of `cash/cash`, `custom/other`, `custom/voucher`; when `amount` is not a
    * valid number; when `currency` is not a 3-letter uppercase code; when
-   * `idempotencyKey` is empty; when `bookingId` does not resolve to a `b_…` id;
-   * when the booking or payment source is not found; or when the charge fails.
+   * `idempotencyKey` is empty; when `bookingId` is not a valid booking id
+   * (`b_…`/`B-…`); when the booking or payment source is not found; or when the
+   * charge fails.
    */
   async makePayment(input: MakePaymentInput): Promise<MakePaymentResult> {
+    this.validatePaymentInput(input);
     const normalized = normalizeBookingId(input.bookingId);
-    this.validatePaymentInput(input, normalized);
 
     const onFile = await this.getPaymentsOnFile(normalized);
     if (!onFile) {
@@ -392,8 +408,8 @@ export class BookingService {
    * payments-on-file, then applies the refund.
    */
   async refund(input: RefundInput): Promise<RefundResult> {
+    this.validateRefundInput(input);
     const normalized = normalizeBookingId(input.bookingId);
-    this.validateRefundInput(input, normalized);
 
     const onFile = await this.getPaymentsOnFile(normalized);
     if (!onFile) {
@@ -438,9 +454,7 @@ export class BookingService {
 
   /** Creates an invoice link for a booking's order. */
   async createInvoiceLink(bookingId: string): Promise<InvoiceLinkResult> {
-    if (!bookingId || bookingId.trim().length === 0) {
-      throw new Error("bookingId is required");
-    }
+    assertBookingId(bookingId);
     const normalized = normalizeBookingId(bookingId);
 
     const booking = await this.getById(normalized);
@@ -465,6 +479,7 @@ export class BookingService {
 
   /** Returns the add-ons on a booking, grouped by add-on item (clean model). */
   async listAddons(bookingId: string): Promise<BookingAddons> {
+    assertBookingId(bookingId);
     const { items, displayId, orderId, normalizedBookingId } =
       await this.fetchBookingSale(bookingId);
 
@@ -508,6 +523,7 @@ export class BookingService {
     bookingId: string,
     input: AddAddonInput,
   ): Promise<BookingAddonsMutationResult> {
+    assertBookingId(bookingId);
     const addonOptionId = (input?.addonOptionId || input?.addonId || "").trim();
     if (!addonOptionId) {
       throw new Error(ERROR_ADDON_OPTION_ID_REQUIRED);
@@ -583,6 +599,7 @@ export class BookingService {
     bookingId: string,
     input: AddAddonInput,
   ): Promise<BookingAddonsMutationResult> {
+    assertBookingId(bookingId);
     const addonOptionId = (input?.addonOptionId || input?.addonId || "").trim();
     if (!addonOptionId) {
       throw new Error(ERROR_ADDON_OPTION_ID_REQUIRED);
@@ -627,16 +644,11 @@ export class BookingService {
     orderId: string;
     normalizedBookingId: string;
   }> {
-    const searchString = (bookingId || "").trim();
-    if (!searchString) {
-      throw new Error(ERROR_BOOKING_ID_REQUIRED);
-    }
-
     const body: GraphQLBody<SalesAddonsResponse> =
       await this.client.request<SalesAddonsResponse>(
         SALES_ENDPOINT,
         SALES_ADDONS_QUERY,
-        buildSalesAddonsVariables(searchString),
+        buildSalesAddonsVariables(bookingId),
       );
 
     const edges = body.data?.sales?.edges ?? [];
@@ -864,7 +876,7 @@ export class BookingService {
     return matched.productId;
   }
 
-  private validatePaymentInput(input: MakePaymentInput, normalizedBookingId: string): void {
+  private validatePaymentInput(input: MakePaymentInput): void {
     if (
       !input.paymentSourceId ||
       (!input.paymentSourceId.startsWith(PAYMENT_SOURCE_PREFIX) &&
@@ -878,17 +890,17 @@ export class BookingService {
     assertAmount(input.amount);
     assertCurrency(input.currency);
     assertIdempotencyKey(input.idempotencyKey);
-    assertBookingId(normalizedBookingId);
+    assertBookingId(input.bookingId);
   }
 
-  private validateRefundInput(input: RefundInput, normalizedBookingId: string): void {
+  private validateRefundInput(input: RefundInput): void {
     if (!input.paymentId || !input.paymentId.startsWith(PAYMENT_ID_PREFIX)) {
       throw new Error("paymentId is required and must start with 'pmt_'");
     }
     assertAmount(input.amount);
     assertCurrency(input.currency);
     assertIdempotencyKey(input.idempotencyKey);
-    assertBookingId(normalizedBookingId);
+    assertBookingId(input.bookingId);
   }
 
   private async fetchPaginated(
@@ -951,9 +963,17 @@ function assertIdempotencyKey(idempotencyKey: string): void {
   }
 }
 
-function assertBookingId(normalizedBookingId: string): void {
-  if (!normalizedBookingId.startsWith(BOOKING_ID_PREFIX)) {
-    throw new Error("bookingId is required and must start with 'b_' or 'B-'");
+/** Throws unless `bookingId` is a valid booking db id (`b_…`) or display id (`B-…`). */
+function assertBookingId(bookingId: string): void {
+  if (!(BOOKING_DB_ID_REGEX.test(bookingId) || BOOKING_DISPLAY_ID_REGEX.test(bookingId))) {
+    throw new Error(ERROR_INVALID_BOOKING_ID);
+  }
+}
+
+/** Throws unless `orderId` is a valid order db id (`o_…`) or display id (`O-…`). */
+function assertOrderId(orderId: string): void {
+  if (!(ORDER_DB_ID_REGEX.test(orderId) || ORDER_DISPLAY_ID_REGEX.test(orderId))) {
+    throw new Error(ERROR_INVALID_ORDER_ID);
   }
 }
 
@@ -971,6 +991,9 @@ function validateCreateInput(input: CreateBookingInput): void {
   }
   if (input.markAsPaid && !input.idempotencyKey) {
     throw new Error("idempotencyKey is required when markAsPaid is set");
+  }
+  if (input.parentOrderId) {
+    assertOrderId(input.parentOrderId);
   }
 }
 
