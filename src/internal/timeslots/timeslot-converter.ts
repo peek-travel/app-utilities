@@ -59,6 +59,9 @@ export function fromTimeslotNode(
   };
 }
 
+/** Only allocations with this status are considered assigned. */
+const ACTIVE_ALLOCATION_STATUS = "ACTIVE";
+
 function mapAssignedResources(
   allocations: TimeslotResourceAllocationNode[] | null | undefined,
 ): AssignedResource[] {
@@ -66,15 +69,16 @@ function mapAssignedResources(
     return [];
   }
 
-  return allocations.map((allocation) => {
-    const pool = allocation.resourcePool;
-    return {
-      name: pool?.name || "",
-      capacity: pool?.capacity ?? 0,
-      category: pool?.category || "",
-      quantity: allocation.quantity ?? 0,
-      status: allocation.status || "",
-      accountUserId: pool?.accountUser?.id ?? null,
-    };
-  });
+  return allocations
+    .filter((allocation) => allocation.status === ACTIVE_ALLOCATION_STATUS)
+    .map((allocation) => {
+      const pool = allocation.resourcePool;
+      return {
+        name: pool?.name || "",
+        capacity: pool?.capacity ?? 0,
+        category: pool?.category || "",
+        quantity: allocation.quantity ?? 0,
+        accountUserId: pool?.accountUser?.id ?? null,
+      };
+    });
 }

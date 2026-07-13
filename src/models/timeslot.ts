@@ -42,8 +42,6 @@ export interface AssignedResource {
   category: string;
   /** Allocated quantity. */
   quantity: number;
-  /** Allocation status (e.g. `"ACTIVE"`). */
-  status: string;
   /** Backing account user id, or null. */
   accountUserId: string | null;
 }
