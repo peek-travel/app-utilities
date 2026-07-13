@@ -171,14 +171,30 @@ export const PRICE_BREAKDOWN_FIELDS = `
   tips { amount formatted }
 `;
 
+/**
+ * Per-ticket price selection (list price + line total) injected into
+ * `ticketQuantities` when the price breakdown is requested.
+ */
+export const TICKET_VALUE_FIELDS = `
+  value {
+    price { amount formatted }
+    total { amount formatted }
+  }
+`;
+
 /** Builds the bookings listing query, optionally including guests and price breakdown. */
 export function buildBookingsListingQuery(
   includeGuests: boolean,
   includePriceBreakdown: boolean,
 ): string {
   const guestsSection = includeGuests ? bookingGuestsFields : "";
+  // Inject the booking-level breakdown first: it anchors on the first `value {`,
+  // which is the booking node's. The ticket-level `value` (added by the second
+  // replace) must go in afterwards, or it would capture that anchor instead.
   const fields = includePriceBreakdown
-    ? bookingQueryFields.replace("value {", `value { ${PRICE_BREAKDOWN_FIELDS}`)
+    ? bookingQueryFields
+        .replace("value {", `value { ${PRICE_BREAKDOWN_FIELDS}`)
+        .replace("ticketQuantities {", `ticketQuantities { ${TICKET_VALUE_FIELDS}`)
     : bookingQueryFields;
 
   return `
@@ -469,6 +485,11 @@ export interface BookingNode {
   ticketQuantities?: Array<{
     quantity?: number;
     resourceOptionSnapshot?: { name?: string; id?: string } | null;
+    // Present only when the price breakdown is requested (see TICKET_VALUE_FIELDS).
+    value?: {
+      price?: { amount?: string; formatted?: string };
+      total?: { amount?: string; formatted?: string };
+    };
   }>;
   reservationStatus?: string;
   checkinStatus?: string;

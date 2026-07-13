@@ -8,8 +8,11 @@
 
 /** Money amount for an add-on line, as returned by the gateway. */
 export interface BookingAddonMoney {
+  /** Numeric amount as a string (e.g. `"10.00"`). */
   amount: string;
+  /** ISO currency code (e.g. `"USD"`). */
   currency: string;
+  /** Human-formatted amount (e.g. `"$10.00"`). */
   formatted: string;
 }
 
@@ -37,8 +40,11 @@ export interface BookingAddon {
 
 /** A booking's add-ons. */
 export interface BookingAddons {
+  /** The booking id these add-ons belong to. */
   bookingId: string;
+  /** The booking's human-facing display id. */
   displayId: string;
+  /** The order id the add-ons live on. */
   orderId: string;
   /** Add-ons with at least one live option; fully-canceled add-ons are omitted. */
   addons: BookingAddon[];

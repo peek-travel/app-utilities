@@ -11,7 +11,7 @@ describe("fromPaymentsOnFileResponse", () => {
           {
             node: {
               order: {
-                id: "ord-1",
+                id: "o_1",
                 paymentSources: [
                   { description: "Visa", id: "ps-1", type: "CARD" },
                   { description: "Cash", id: "ps-2", type: "CASH" },
@@ -46,10 +46,10 @@ describe("fromPaymentsOnFileResponse", () => {
       },
     };
 
-    const result = fromPaymentsOnFileResponse(response, "bkg_1");
+    const result = fromPaymentsOnFileResponse(response, "b_1");
     expect(result).toEqual({
-      bookingId: "bkg_1",
-      orderId: "ord-1",
+      bookingId: "b_1",
+      orderId: "o_1",
       paymentsOnFile: [
         {
           description: "Visa",
@@ -76,15 +76,15 @@ describe("fromPaymentsOnFileResponse", () => {
   });
 
   it("returns null when the booking is not found", () => {
-    expect(fromPaymentsOnFileResponse({ sales: { edges: [] } }, "bkg_1")).toBeNull();
-    expect(fromPaymentsOnFileResponse(undefined, "bkg_1")).toBeNull();
+    expect(fromPaymentsOnFileResponse({ sales: { edges: [] } }, "b_1")).toBeNull();
+    expect(fromPaymentsOnFileResponse(undefined, "b_1")).toBeNull();
   });
 
   it("defaults an absent order to an empty result", () => {
     const result = fromPaymentsOnFileResponse(
       { sales: { edges: [{ node: {} }] } },
-      "bkg_1",
+      "b_1",
     );
-    expect(result).toEqual({ bookingId: "bkg_1", orderId: "", paymentsOnFile: [] });
+    expect(result).toEqual({ bookingId: "b_1", orderId: "", paymentsOnFile: [] });
   });
 });

@@ -14,7 +14,7 @@ function node(overrides: Partial<SalesAddonBookingNode> = {}): SalesAddonBooking
     displayId: "B-1",
     refid: "bq-1",
     reservationStatus: "CONFIRMED",
-    order: { id: "ord-1", displayId: "O-1" },
+    order: { id: "o_1", displayId: "O-1" },
     items: [],
     ...overrides,
   } as SalesAddonBookingNode;
@@ -48,7 +48,7 @@ describe("parseSaleNode", () => {
       {
         bookingId: "b_1",
         displayId: "B-1",
-        orderId: "ord-1",
+        orderId: "o_1",
         total: MONEY,
         bookingQuoteRefid: "bq-1",
         bookingQuoteReservationStatus: "CONFIRMED",
@@ -136,7 +136,7 @@ describe("toBookingAddon", () => {
     return {
       bookingId: "b_1",
       displayId: "B-1",
-      orderId: "ord-1",
+      orderId: "o_1",
       total: MONEY,
       bookingQuoteRefid: "bq-1",
       bookingQuoteReservationStatus: "CONFIRMED",

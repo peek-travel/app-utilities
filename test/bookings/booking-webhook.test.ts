@@ -18,7 +18,7 @@ const REGISTERED_WEBHOOK_QUERY =
 
 function webhookNode(): BookingNode {
   return {
-    id: "bkg_1",
+    id: "b_1",
     displayId: "B-1",
     primaryGuest: { id: "g1", name: "Ada", email: "ada@example.com", phone: "+1" },
     activitySnapshot: { type: "RENTAL", name: "Kayak", id: "act-1" },
@@ -28,7 +28,7 @@ function webhookNode(): BookingNode {
     returnStatus: "NONE",
     value: { total: { amount: "100.00", formatted: "$100.00" } },
     balance: { total: { amount: "0.00", formatted: "$0.00" } },
-    order: { id: "ord-1", initialQuote: { source: { actor: { app: "WIDGET" } } } },
+    order: { id: "o_1", initialQuote: { source: { actor: { app: "WIDGET" } } } },
   };
 }
 
@@ -55,7 +55,7 @@ describe("BOOKING_WEBHOOK_GQL_QUERY", () => {
 describe("parseBookingWebhook", () => {
   it("parses the { booking } envelope into a Booking", () => {
     const booking = parseBookingWebhook({ booking: webhookNode() });
-    expect(booking.bookingId).toBe("bkg_1");
+    expect(booking.bookingId).toBe("b_1");
     expect(booking.displayId).toBe("B-1");
     expect(booking.source).toBe("website");
     expect(booking.customerName).toBe("Ada");
@@ -63,12 +63,12 @@ describe("parseBookingWebhook", () => {
 
   it("parses a bare booking node (no envelope)", () => {
     const booking = parseBookingWebhook(webhookNode());
-    expect(booking.bookingId).toBe("bkg_1");
+    expect(booking.bookingId).toBe("b_1");
   });
 
   it("parses a JSON string body", () => {
     const booking = parseBookingWebhook(JSON.stringify({ booking: webhookNode() }));
-    expect(booking.bookingId).toBe("bkg_1");
+    expect(booking.bookingId).toBe("b_1");
   });
 
   it("auto-detects guests when the payload carries them", () => {

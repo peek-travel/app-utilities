@@ -8,7 +8,7 @@ import type { BookingNode } from "../../src/internal/bookings/booking-queries.js
 
 function fullNode(): BookingNode {
   return {
-    id: "bkg_1",
+    id: "b_1",
     displayId: "B-1",
     primaryGuest: {
       id: "g1",
@@ -28,7 +28,14 @@ function fullNode(): BookingNode {
     },
     activitySnapshot: { type: "RENTAL", name: "Kayak", id: "act-1" },
     ticketQuantities: [
-      { quantity: 2, resourceOptionSnapshot: { name: "Adult", id: "r1" } },
+      {
+        quantity: 2,
+        resourceOptionSnapshot: { name: "Adult", id: "r1" },
+        value: {
+          price: { amount: "45.00", formatted: "$45.00" },
+          total: { amount: "90.00", formatted: "$90.00" },
+        },
+      },
       { quantity: 1, resourceOptionSnapshot: { name: "Child", id: "r2" } },
     ],
     reservationStatus: "CANCELED",
@@ -53,7 +60,7 @@ function fullNode(): BookingNode {
     balance: { total: { amount: "10.00", formatted: "$10.00" } },
     tips: [{ price: { amount: "5.00", formatted: "$5.00" } }],
     order: {
-      id: "ord-1",
+      id: "o_1",
       promoCodes: [{ code: "SUMMER" }],
       channelSnapshot: { id: "ch-1", name: "Acme", agent: { name: "Jane" } },
       initialQuote: { source: { actor: { app: "WIDGET" } } },
@@ -101,7 +108,7 @@ describe("fromBookingNode", () => {
   it("maps a fully-populated node with guests and price breakdown", () => {
     const booking = fromBookingNode(fullNode(), true, true);
 
-    expect(booking.bookingId).toBe("bkg_1");
+    expect(booking.bookingId).toBe("b_1");
     expect(booking.displayId).toBe("B-1");
     expect(booking.source).toBe("website");
     expect(booking.sourceApp).toBe("WIDGET");
@@ -112,6 +119,14 @@ describe("fromBookingNode", () => {
     expect(booking.totalTickets).toBe(3);
     expect(booking.ticketDescription).toBe("2x Adult, 1x Child");
     expect(booking.tickets).toHaveLength(2);
+    expect(booking.tickets[0]).toMatchObject({
+      name: "Adult",
+      listPrice: { amount: "45.00", display: "$45.00" },
+      totalValue: { amount: "90.00", display: "$90.00" },
+    });
+    // A ticket without a `value` selection has no list/total price.
+    expect(booking.tickets[1]!.listPrice).toBeUndefined();
+    expect(booking.tickets[1]!.totalValue).toBeUndefined();
     expect(booking.isCanceled).toBe(true);
     expect(booking.isNoShow).toBe(true);
     expect(booking.isCheckedIn).toBe(true);
@@ -126,7 +141,7 @@ describe("fromBookingNode", () => {
     expect(booking.resourcePoolAssignments).toEqual([{ id: "res-1", name: "Ada" }]);
     expect(booking.resellerId).toBe("ch-1");
     expect(booking.resellerName).toBe("Acme - Jane");
-    expect(booking.orderId).toBe("ord-1");
+    expect(booking.orderId).toBe("o_1");
     expect(booking.convenienceFee).toEqual({ amount: "2.00", display: "$2.00" });
     expect(booking.price).toEqual({ amount: "90.00", display: "$90.00" });
     expect(booking.taxes).toBeUndefined();
@@ -202,6 +217,9 @@ describe("fromBookingNode", () => {
     const booking = fromBookingNode(fullNode(), false, false);
     expect(booking.convenienceFee).toBeUndefined();
     expect(booking.guests).toBeUndefined();
+    // Ticket list/total prices are part of the breakdown and stay off too.
+    expect(booking.tickets[0]!.listPrice).toBeUndefined();
+    expect(booking.tickets[0]!.totalValue).toBeUndefined();
   });
 
   it("falls back gracefully for present-but-empty nested fields", () => {

@@ -99,7 +99,7 @@ describe("MembershipService.purchase", () => {
               createOrderFromQuote: {
                 errors: null,
                 order: {
-                  id: "ord-1",
+                  id: "o_1",
                   sales: [
                     {
                       id: "mem-1",
@@ -124,7 +124,7 @@ describe("MembershipService.purchase", () => {
     });
 
     expect(result).toEqual({
-      orderId: "ord-1",
+      orderId: "o_1",
       membershipId: "mem-1",
       displayId: "M-1",
       primaryMemberId: "pm-1",
@@ -158,7 +158,7 @@ describe("MembershipService.purchase", () => {
     const { service } = makeRoutingService((query) =>
       query.includes("createQuoteV2")
         ? { data: { createQuoteV2: { errors: null, quote: { id: "q-1" } } } }
-        : { data: { createOrderFromQuote: { errors: null, order: { id: "ord-1", sales: [{ id: "m", displayId: "M" }] } } } },
+        : { data: { createOrderFromQuote: { errors: null, order: { id: "o_1", sales: [{ id: "m", displayId: "M" }] } } } },
     );
     const result = await service.purchase(VALID_PURCHASE);
     expect(result).toMatchObject({
@@ -197,7 +197,7 @@ describe("MembershipService.purchase", () => {
     const { service } = makeRoutingService((query) =>
       query.includes("createQuoteV2")
         ? { data: { createQuoteV2: { errors: null, quote: { id: "q-1" } } } }
-        : { data: { createOrderFromQuote: { errors: null, order: { id: "ord-1", sales: [] } } } },
+        : { data: { createOrderFromQuote: { errors: null, order: { id: "o_1", sales: [] } } } },
     );
     await expect(service.purchase(VALID_PURCHASE)).rejects.toThrow(/no sales found/);
   });

@@ -53,7 +53,7 @@ function listing(nodes: object[], pageInfo = { hasNextPage: false, endCursor: nu
 }
 
 const NODE = {
-  id: "bkg_1",
+  id: "b_1",
   displayId: "B-1",
   operatorNotes: "old",
   reservationStatus: "CONFIRMED",
@@ -64,17 +64,34 @@ const NODE = {
 describe("BookingService.getById", () => {
   it("normalizes the id, filters by it, and converts", async () => {
     const { service, calls } = makeService(() => listing([NODE]));
-    const booking = await service.getById("BKG-1");
+    const booking = await service.getById("B-ABC123");
 
-    expect(booking?.bookingId).toBe("bkg_1");
+    expect(booking?.bookingId).toBe("b_1");
     const filter = (calls[0]!.variables.filter as { bookingFilter: { ids: string[] } });
-    expect(filter.bookingFilter.ids).toEqual(["bkg_1"]);
+    expect(filter.bookingFilter.ids).toEqual(["b_abc123"]);
   });
 
   it("returns null when not found", async () => {
     const { service } = makeService(() => listing([]));
-    expect(await service.getById("x")).toBeNull();
+    expect(await service.getById("b_missing")).toBeNull();
   });
+});
+
+describe("BookingService booking-id validation", () => {
+  // A valid id reaches the client; an empty listing just yields null.
+  it.each(["b_abc123", "B-123ABC"])("accepts a valid booking id: %s", async (id) => {
+    const { service } = makeService(() => listing([]));
+    expect(await service.getById(id)).toBeNull();
+  });
+
+  // Rejected: no prefix, mismatched case/separator, an order id, or empty.
+  it.each(["abc123", "B_abc123", "o-Ab123", "o_abc123", ""])(
+    "rejects an invalid booking id: %s",
+    async (id) => {
+      const { service } = makeService(() => listing([]));
+      await expect(service.getById(id)).rejects.toThrow(/valid booking id/);
+    },
+  );
 });
 
 describe("BookingService search", () => {
@@ -84,7 +101,7 @@ describe("BookingService search", () => {
       page += 1;
       return page === 1
         ? listing([NODE], { hasNextPage: true, endCursor: "c1" })
-        : listing([{ ...NODE, id: "bkg_2" }]);
+        : listing([{ ...NODE, id: "b_2" }]);
     });
 
     const bookings = await service.searchByTimeRange({
@@ -94,7 +111,7 @@ describe("BookingService search", () => {
       email: "a@x.com",
     });
 
-    expect(bookings.map((b) => b.bookingId)).toEqual(["bkg_1", "bkg_2"]);
+    expect(bookings.map((b) => b.bookingId)).toEqual(["b_1", "b_2"]);
     const filter = calls[0]!.variables.filter as {
       purchasedAtRangeUtc: string;
       primaryGuestEmail: string;
@@ -149,7 +166,7 @@ describe("BookingService.getGuests", () => {
             {
               node: {
                 displayId: "B-1",
-                id: "bkg_1",
+                id: "b_1",
                 primaryGuest: { id: "g1" },
                 bookingGuests: [{ id: "g1" }, { id: "g2" }],
               },
@@ -158,7 +175,7 @@ describe("BookingService.getGuests", () => {
         },
       },
     }));
-    const guests = await service.getGuests("bkg_1");
+    const guests = await service.getGuests("b_1");
     expect(guests.map((g) => g.id)).toEqual(["g1", "g2"]);
   });
 });
@@ -172,7 +189,7 @@ describe("BookingService.getPaymentsOnFile", () => {
             {
               node: {
                 order: {
-                  id: "ord-1",
+                  id: "o_1",
                   paymentSources: [{ description: "Visa", id: "ps-1", type: "CARD" }],
                   payments: [],
                 },
@@ -182,8 +199,8 @@ describe("BookingService.getPaymentsOnFile", () => {
         },
       },
     }));
-    const result = await service.getPaymentsOnFile("BKG-1");
-    expect(result).toEqual({ bookingId: "bkg_1", orderId: "ord-1", paymentsOnFile: [
+    const result = await service.getPaymentsOnFile("B-ABC123");
+    expect(result).toEqual({ bookingId: "b_abc123", orderId: "o_1", paymentsOnFile: [
       { description: "Visa", id: "ps-1", type: "CARD" },
     ] });
     expect(calls[0]!.query).toContain("paymentSources");
@@ -198,7 +215,7 @@ describe("BookingService.appendNote", () => {
         : listing([NODE]),
     );
 
-    const booking = await service.appendNote("bkg_1", "new");
+    const booking = await service.appendNote("b_1", "new");
     expect(booking?.notes).toBe("old\nnew");
     const mutationCall = calls.find((c) => c.query.includes("updateOperatorNotesForBooking"));
     expect((mutationCall!.variables.input as { operatorNotes: string }).operatorNotes).toBe("old\nnew");
@@ -211,7 +228,7 @@ describe("BookingService.appendNote", () => {
         : listing([NODE]),
     );
 
-    const booking = await service.appendNote("bkg_1", "fresh", "overwrite");
+    const booking = await service.appendNote("b_1", "fresh", "overwrite");
     expect(booking?.notes).toBe("fresh");
     const mutationCall = calls.find((c) => c.query.includes("updateOperatorNotesForBooking"));
     expect((mutationCall!.variables.input as { operatorNotes: string }).operatorNotes).toBe("fresh");
@@ -219,7 +236,7 @@ describe("BookingService.appendNote", () => {
 
   it("returns null and skips the mutation when the booking is missing", async () => {
     const { service, calls } = makeService(() => listing([]));
-    expect(await service.appendNote("bkg_1", "x")).toBeNull();
+    expect(await service.appendNote("b_1", "x")).toBeNull();
     expect(calls.every((c) => !c.query.includes("updateOperatorNotesForBooking"))).toBe(true);
   });
 });
@@ -232,8 +249,8 @@ describe("BookingService.setCheckinStatus", () => {
         : listing([NODE]),
     );
 
-    const booking = await service.setCheckinStatus("bkg_1", true);
-    expect(booking?.bookingId).toBe("bkg_1");
+    const booking = await service.setCheckinStatus("b_1", true);
+    expect(booking?.bookingId).toBe("b_1");
     const mutationCall = calls.find((c) => c.query.includes("updateBookingCheckIn"));
     const checkedInAt = (mutationCall!.variables.input as { checkedInAt: string | null }).checkedInAt;
     expect(typeof checkedInAt).toBe("string");
@@ -246,7 +263,7 @@ describe("BookingService.setCheckinStatus", () => {
         : listing([NODE]),
     );
 
-    await service.setCheckinStatus("bkg_1", false);
+    await service.setCheckinStatus("b_1", false);
     const mutationCall = calls.find((c) => c.query.includes("updateBookingCheckIn"));
     expect((mutationCall!.variables.input as { checkedInAt: string | null }).checkedInAt).toBeNull();
   });
@@ -257,21 +274,21 @@ describe("BookingService.cancel", () => {
     const { service, calls } = makeService(() => ({
       data: {
         cancelBooking: {
-          booking: { id: "bkg_1", displayId: "B-1", reservationStatus: "CANCELED" },
+          booking: { id: "b_1", displayId: "B-1", reservationStatus: "CANCELED" },
         },
       },
     }));
 
-    const result = await service.cancel("BKG-1");
-    expect(result).toEqual({ id: "bkg_1", displayId: "B-1", reservationStatus: "CANCELED" });
+    const result = await service.cancel("B-ABC123");
+    expect(result).toEqual({ id: "b_1", displayId: "B-1", reservationStatus: "CANCELED" });
     const input = calls[0]!.variables.input as { bookingId: string; notes: string };
-    expect(input.bookingId).toBe("bkg_1");
+    expect(input.bookingId).toBe("b_abc123");
     expect(input.notes).toBe("Canceled");
   });
 
   it("throws when the mutation returns no booking", async () => {
     const { service } = makeService(() => ({ data: { cancelBooking: null } }));
-    await expect(service.cancel("bkg_1")).rejects.toThrow(/No booking data/);
+    await expect(service.cancel("b_1")).rejects.toThrow(/No booking data/);
   });
 });
 
@@ -282,7 +299,7 @@ const PAYMENTS_RESP = {
         {
           node: {
             order: {
-              id: "ord-1",
+              id: "o_1",
               paymentSources: [{ description: "Visa", id: "ps_1", type: "CARD" }],
               payments: [
                 {
@@ -330,7 +347,7 @@ describe("BookingService.makePayment", () => {
     expect(result).toEqual({
       transactionId: "tx-1",
       bookingId: "b_1",
-      orderId: "ord-1",
+      orderId: "o_1",
       amount: "10",
       currency: "USD",
       paymentSourceId: "ps_1",
@@ -338,7 +355,7 @@ describe("BookingService.makePayment", () => {
     const input = calls.find((c) => c.query.includes("applyPaymentToOrder"))!.variables.input;
     expect(input).toMatchObject({
       amount: { amount: "10", currency: "USD" },
-      orderId: "ord-1",
+      orderId: "o_1",
       paymentSourceId: "ps_1",
       idempotencyKey: "key-1",
       customerMessage: "Charge initiated via API (thanks)",
@@ -396,9 +413,9 @@ describe("BookingService.refund", () => {
     );
 
     const result = await service.refund(validInput);
-    expect(result).toMatchObject({ transactionId: "rf-1", orderId: "ord-1", paymentId: "pmt_1" });
+    expect(result).toMatchObject({ transactionId: "rf-1", orderId: "o_1", paymentId: "pmt_1" });
     const input = calls.find((c) => c.query.includes("applyRefundToOrder"))!.variables.input;
-    expect(input).toMatchObject({ orderId: "ord-1", paymentId: "pmt_1", scopedTo: ["b_1"] });
+    expect(input).toMatchObject({ orderId: "o_1", paymentId: "pmt_1", scopedTo: ["b_1"] });
   });
 
   it("throws when the payment id does not exist", async () => {
@@ -431,7 +448,7 @@ describe("BookingService.refund", () => {
 });
 
 describe("BookingService.createInvoiceLink", () => {
-  const bookingWithOrder = { ...NODE, order: { id: "ord-1" } };
+  const bookingWithOrder = { ...NODE, order: { id: "o_1" } };
 
   it("resolves the order and returns the invoice url", async () => {
     const { service, calls } = makeService((query) =>
@@ -441,9 +458,9 @@ describe("BookingService.createInvoiceLink", () => {
     );
 
     const result = await service.createInvoiceLink("B-1");
-    expect(result).toEqual({ bookingId: "b_1", orderId: "ord_1", invoiceLink: "https://inv/1" });
+    expect(result).toEqual({ bookingId: "b_1", orderId: "o_1", invoiceLink: "https://inv/1" });
     const input = calls.find((c) => c.query.includes("createInvoiceLink"))!.variables.input;
-    expect(input).toEqual({ orderId: "ord_1" });
+    expect(input).toEqual({ orderId: "o_1" });
   });
 
   it("throws when the booking has no order", async () => {
@@ -509,7 +526,7 @@ function addonBookingNode(items: object[], overrides: Record<string, unknown> = 
     displayId: "B-1",
     refid: "bq-1",
     reservationStatus: "CONFIRMED",
-    order: { id: "ord-1", displayId: "O-1" },
+    order: { id: "o_1", displayId: "O-1" },
     items,
     ...overrides,
   };
@@ -549,7 +566,7 @@ describe("BookingService.addAddon", () => {
         return overrides.updateQuote ?? { data: { updateQuoteV2: { errors: null, quote: { id: "q-1" } } } };
       }
       if (query.includes("amendOrder")) {
-        return overrides.amend ?? { data: { amendOrder: { errors: null, order: { id: "ord-1" } } } };
+        return overrides.amend ?? { data: { amendOrder: { errors: null, order: { id: "o_1" } } } };
       }
       return listResponse;
     };
@@ -566,7 +583,7 @@ describe("BookingService.addAddon", () => {
     expect(result.updatedBookingAddons).toEqual({
       bookingId: "b_1",
       displayId: "B-1",
-      orderId: "ord-1",
+      orderId: "o_1",
       addons: [
         {
           addonId: "item-1",
@@ -578,7 +595,7 @@ describe("BookingService.addAddon", () => {
     });
 
     expect(calls.find((c) => c.query.includes("createQuoteFromOrder"))!.variables.input).toEqual({
-      orderId: "ord_1",
+      orderId: "o_1",
       quoteInput: {},
     });
 
@@ -599,7 +616,7 @@ describe("BookingService.addAddon", () => {
 
     expect(calls.find((c) => c.query.includes("amendOrder"))!.variables.input).toEqual({
       quoteId: "q-1",
-      orderId: "ord_1",
+      orderId: "o_1",
     });
   });
 
@@ -723,7 +740,7 @@ describe("BookingService.listAddons", () => {
 
     const result = await service.listAddons("B-1");
     expect(result.bookingId).toBe("b_1");
-    expect(result.orderId).toBe("ord-1");
+    expect(result.orderId).toBe("o_1");
     expect(result.addons).toEqual([
       {
         addonId: "item-1",
@@ -749,7 +766,7 @@ describe("BookingService.listAddons", () => {
   it("uses the booking-level fallback when there are no items", async () => {
     const { service } = makeService(listHandler([addonBookingNode([])]));
     const result = await service.listAddons("B-1");
-    expect(result).toEqual({ bookingId: "b_1", displayId: "B-1", orderId: "ord-1", addons: [] });
+    expect(result).toEqual({ bookingId: "b_1", displayId: "B-1", orderId: "o_1", addons: [] });
   });
 
   it("requires a booking id", async () => {
@@ -775,7 +792,7 @@ describe("BookingService.removeAddon", () => {
         return { data: { updateQuoteV2: { errors: null, quote: { id: "q-1" } } } };
       }
       if (query.includes("amendOrder")) {
-        return { data: { amendOrder: { errors: null, order: { id: "ord-1" } } } };
+        return { data: { amendOrder: { errors: null, order: { id: "o_1" } } } };
       }
       return salesAddons(nodes);
     };
@@ -902,7 +919,7 @@ describe("BookingService.create", () => {
       if (query.includes("createOrderFromQuote")) {
         return (
           overrides.order ?? {
-            data: { createOrderFromQuote: { errors: null, order: { id: "ord-1", sales: [orderSale] } } }
+            data: { createOrderFromQuote: { errors: null, order: { id: "o_1", sales: [orderSale] } } }
           }
         );
       }
@@ -918,7 +935,7 @@ describe("BookingService.create", () => {
 
     const result = await service.create({ ...validCreate, operatorNotes: "VIP" });
     expect(result).toEqual({
-      orderId: "ord-1",
+      orderId: "o_1",
       bookingId: "b_1",
       displayId: "B-1",
       balanceAmount: "100.00",
@@ -953,10 +970,26 @@ describe("BookingService.create", () => {
 
   it("clones from a parent order when provided", async () => {
     const { service, calls } = makeService(createHandler());
-    await service.create({ ...validCreate, parentOrderId: "ord-parent" });
+    await service.create({ ...validCreate, parentOrderId: "o_parent" });
     const quoteInput = (calls[0]!.variables.input as { quoteInput: { source?: { clonedFromId: string } } }).quoteInput;
-    expect(quoteInput.source).toEqual({ clonedFromId: "ord-parent" });
+    expect(quoteInput.source).toEqual({ clonedFromId: "o_parent" });
   });
+
+  it.each(["o_abc123", "O-123ABC"])("accepts a valid parentOrderId: %s", async (parentOrderId) => {
+    const { service } = makeService(createHandler());
+    await expect(service.create({ ...validCreate, parentOrderId })).resolves.toBeDefined();
+  });
+
+  // Rejected: no prefix, mismatched case/separator, or a booking id.
+  it.each(["ord-parent", "o-Ab123", "b_abc123"])(
+    "rejects an invalid parentOrderId: %s",
+    async (parentOrderId) => {
+      const { service } = makeService(createHandler());
+      await expect(service.create({ ...validCreate, parentOrderId })).rejects.toThrow(
+        /valid order id/,
+      );
+    },
+  );
 
   it("marks the booking paid with the full balance", async () => {
     const { service, calls } = makeService(createHandler());
@@ -965,7 +998,7 @@ describe("BookingService.create", () => {
     const payInput = calls.find((c) => c.query.includes("applyPaymentToOrder"))!.variables.input;
     expect(payInput).toMatchObject({
       amount: { amount: "100.00", currency: "USD" },
-      orderId: "ord-1",
+      orderId: "o_1",
       paymentSourceId: "custom/other",
       idempotencyKey: "k1",
       customerMessage: "Marked as paid",
@@ -996,7 +1029,7 @@ describe("BookingService.create", () => {
 
   it("throws when the order has no sales", async () => {
     const { service } = makeService(
-      createHandler({ order: { data: { createOrderFromQuote: { errors: null, order: { id: "ord-1", sales: [] } } } } }),
+      createHandler({ order: { data: { createOrderFromQuote: { errors: null, order: { id: "o_1", sales: [] } } } } }),
     );
     await expect(service.create(validCreate)).rejects.toThrow(/no sales found/);
   });

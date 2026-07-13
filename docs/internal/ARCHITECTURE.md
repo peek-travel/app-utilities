@@ -200,9 +200,16 @@ Recurring patterns inside services:
   `removeAddon` cancels options by their existing refids, marking the parent
   add-on canceled only when all of its options end up canceled. Both finish by
   re-listing and returning the booking's refreshed add-ons.
-- **Input validation** lives in the service (booking id prefix `b_`/`B-`,
-  3-letter currency, positive-integer quantities, allowed payment sources, etc.).
-  `normalizeBookingId` lowercases and converts `-` → `_`.
+- **Input validation** lives in the service (3-letter currency,
+  positive-integer quantities, allowed payment sources, etc.).
+  `normalizeBookingId` lowercases and converts `-` → `_`. Every booking/order id
+  accepted as a parameter is format-checked **before** normalization by
+  `assertBookingId`/`assertOrderId`: an id is valid only as a lowercase db id
+  with `_` (`b_abc123` / `o_abc123`) or an uppercase display id with `-`
+  (`B-ABC123` / `O-ABC123`) — bookings prefixed `b`, orders `o`. Mixed forms
+  (`B_abc123`, `o-Ab123`), a missing prefix, or the wrong resource's id are
+  rejected. Validating pre-normalization is deliberate: normalization would
+  erase the case/separator distinction the check relies on.
 
 ### 5. Public API surface
 `src/index.ts`

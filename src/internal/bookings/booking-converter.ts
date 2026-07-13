@@ -113,7 +113,7 @@ export function fromBookingNode(
     timeslotId: data.timeSnapshot?.legacyId || null,
     totalTickets: ticketQuantity(ticketQuantities),
     ticketDescription: formatTickets(ticketQuantities),
-    tickets: ticketsToTicketArray(ticketQuantities),
+    tickets: ticketsToTicketArray(ticketQuantities, includePriceBreakdown),
 
     isCanceled: data.reservationStatus === "CANCELED",
     isNoShow: data.fulfillmentStatusOverride?.status === "NO_SHOW",
@@ -244,12 +244,15 @@ function resellerNameFromChannelSnapshot(
 
 function ticketsToTicketArray(
   ticketQuantities: BookingNode["ticketQuantities"],
+  includePriceBreakdown: boolean,
 ): Ticket[] {
   if (!ticketQuantities || ticketQuantities.length === 0) return [];
   return ticketQuantities.map((ticket) => ({
     name: ticket.resourceOptionSnapshot?.name || "Unknown",
     quantity: ticket.quantity || 0,
     ticketId: ticket.resourceOptionSnapshot?.id || "unknown",
+    listPrice: includePriceBreakdown ? mapPrice(ticket.value?.price) : undefined,
+    totalValue: includePriceBreakdown ? mapPrice(ticket.value?.total) : undefined,
   }));
 }
 
