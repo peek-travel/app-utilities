@@ -63,7 +63,7 @@ function fullNode(): BookingNode {
       id: "o_1",
       promoCodes: [{ code: "SUMMER" }],
       channelSnapshot: { id: "ch-1", name: "Acme", agent: { name: "Jane" } },
-      initialQuote: { source: { actor: { app: "WIDGET" } } },
+      initialQuote: { source: { actor: { app: "WIDGET", name: "Acme Widget" } } },
     },
     questionAnswers: [
       {
@@ -113,6 +113,7 @@ describe("fromBookingNode", () => {
     expect(booking.source).toBe("website");
     expect(booking.sourceApp).toBe("WIDGET");
     expect(booking.sourceDescription).toBe("Website Booking Flow");
+    expect(booking.sourceDetails).toBe("Acme Widget");
     expect(booking.customerName).toBe("Ada");
     expect(booking.isRentalProduct).toBe(true);
     expect(booking.timeslotId).toBe("legacy-ts");
@@ -168,6 +169,7 @@ describe("fromBookingNode", () => {
       source: "unknown",
       sourceApp: "unknown",
       sourceDescription: "unknown",
+      sourceDetails: null,
       customerName: "",
       customerEmail: null,
       productId: "unknown",
@@ -203,6 +205,7 @@ describe("fromBookingNode", () => {
     expect(booking.source).toBe("unknown");
     expect(booking.sourceDescription).toBe("unknown");
     expect(booking.sourceApp).toBe("NOT_A_SOURCE");
+    expect(booking.sourceDetails).toBe(null);
     expect(booking.isRentalProduct).toBe(false);
   });
 

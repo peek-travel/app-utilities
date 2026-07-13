@@ -122,6 +122,7 @@ export const bookingQueryFields = `
       source {
         actor {
           app
+          name
         }
       }
     }
@@ -514,7 +515,9 @@ export interface BookingNode {
     id?: string;
     promoCodes?: Array<{ code: string }>;
     channelSnapshot?: { id?: string; name?: string; agent?: { name?: string } | null } | null;
-    initialQuote?: { source?: { actor?: { app?: string } | null } | null } | null;
+    initialQuote?: {
+      source?: { actor?: { app?: string; name?: string } | null } | null;
+    } | null;
   } | null;
   questionAnswers?: Array<{
     answer: string;

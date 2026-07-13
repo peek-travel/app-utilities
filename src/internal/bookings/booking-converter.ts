@@ -68,6 +68,7 @@ export function fromBookingNode(
   const data = node ?? {};
   const ticketQuantities = data.ticketQuantities ?? [];
   const app = data.order?.initialQuote?.source?.actor?.app ?? null;
+  const sourceDetails = data.order?.initialQuote?.source?.actor?.name ?? null;
 
   const customQuestionAnswers: CustomQuestionAnswer[] = (data.questionAnswers ?? []).map(
     (answer) => {
@@ -101,6 +102,7 @@ export function fromBookingNode(
     source: sourceFromApp(app),
     sourceApp: app || UNKNOWN,
     sourceDescription: sourceDescriptionFromApp(app),
+    sourceDetails,
 
     customerName: data.primaryGuest?.name || "",
     customerEmail: data.primaryGuest?.email || null,
