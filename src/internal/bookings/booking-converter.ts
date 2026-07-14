@@ -11,9 +11,12 @@ import type {
   ResourcePoolAssignment,
   Ticket,
 } from "../../models/booking.js";
+import { normalizeBookingId } from "./booking-queries.js";
 import type { BookingGuestNode, BookingNode } from "./booking-queries.js";
 
 const UNKNOWN = "unknown";
+
+const PEEK_PRO_DEEP_LINK_BASE = "http://pro-app.peek.com/-/order";
 
 const SOURCE_SOURCE_MAP: Record<string, string> = {
   APP_REGISTRY: "app",
@@ -160,6 +163,7 @@ export function fromBookingNode(
     resellerName: resellerNameFromChannelSnapshot(data.order?.channelSnapshot),
 
     orderId: data.order?.id || "",
+    peekProBookingDeepLink: buildPeekProBookingDeepLink(data.order?.id, data.id),
 
     convenienceFee: includePriceBreakdown ? mapPrice(data.value?.convenienceFee) : undefined,
     deposit: includePriceBreakdown ? mapPrice(data.value?.deposit) : undefined,
@@ -221,6 +225,18 @@ export function mapGuestNode(guestNode: BookingGuestNode, isPrimary: boolean): G
     postalCode: guestNode.postalCode ?? null,
     metadata,
   };
+}
+
+/**
+ * Builds the Peek Pro app deep link from an order id and booking id. Both ids
+ * are normalized (lowercased, `-` → `_`); returns `""` when either is absent.
+ */
+function buildPeekProBookingDeepLink(
+  orderId: string | null | undefined,
+  bookingId: string | null | undefined,
+): string {
+  if (!orderId || !bookingId) return "";
+  return `${PEEK_PRO_DEEP_LINK_BASE}%2F${normalizeBookingId(orderId)}%3FsaleId=${normalizeBookingId(bookingId)}`;
 }
 
 function sourceFromApp(app: string | null): string {
