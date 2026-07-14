@@ -261,6 +261,12 @@ export interface Booking {
   /** The order id this booking belongs to. `""` if absent. */
   orderId: string;
 
+  /**
+   * Deep link into the Peek Pro app for this booking, derived from the order id
+   * and booking id. `""` when either id is absent.
+   */
+  peekProBookingDeepLink: string;
+
   /** Custom question answers captured at the booking level. */
   customQuestionAnswers: CustomQuestionAnswer[];
   /** Custom question answers captured per guest/ticket. */

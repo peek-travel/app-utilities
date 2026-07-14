@@ -143,6 +143,9 @@ describe("fromBookingNode", () => {
     expect(booking.resellerId).toBe("ch-1");
     expect(booking.resellerName).toBe("Acme - Jane");
     expect(booking.orderId).toBe("o_1");
+    expect(booking.peekProBookingDeepLink).toBe(
+      "http://pro-app.peek.com/-/order%2Fo_1%3FsaleId=b_1",
+    );
     expect(booking.convenienceFee).toEqual({ amount: "2.00", display: "$2.00" });
     expect(booking.price).toEqual({ amount: "90.00", display: "$90.00" });
     expect(booking.taxes).toBeUndefined();
@@ -189,6 +192,7 @@ describe("fromBookingNode", () => {
       resellerId: null,
       resellerName: null,
       orderId: "",
+      peekProBookingDeepLink: "",
       customQuestionAnswers: [],
       customGuestQuestionAnswers: [],
     });
@@ -207,6 +211,16 @@ describe("fromBookingNode", () => {
     expect(booking.sourceApp).toBe("NOT_A_SOURCE");
     expect(booking.sourceDetails).toBe(null);
     expect(booking.isRentalProduct).toBe(false);
+  });
+
+  it("normalizes ids when building the Peek Pro deep link", () => {
+    const node: BookingNode = {
+      id: "B-2",
+      order: { id: "O-2" },
+    };
+    expect(fromBookingNode(node).peekProBookingDeepLink).toBe(
+      "http://pro-app.peek.com/-/order%2Fo_2%3FsaleId=b_2",
+    );
   });
 
   it("uses just the channel name when there is no agent", () => {
