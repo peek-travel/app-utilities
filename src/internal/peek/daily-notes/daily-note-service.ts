@@ -5,7 +5,7 @@
  */
 import { SALES_ENDPOINT } from "../gateway-endpoints.js";
 import type { GraphQLBody, GraphQLClient } from "../graphql-client.js";
-import type { DailyNote } from "../../../models/daily-note.js";
+import type { DailyNote } from "../../../models/peek/daily-note.js";
 import { fromUpsertResponse, toDailyNote } from "./daily-note-converter.js";
 import {
   DAILY_NOTE_TODAY_QUERY,

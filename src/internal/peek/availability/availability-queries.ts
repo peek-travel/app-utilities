@@ -2,7 +2,7 @@
  * Raw Peek GraphQL query and response shape for availability times. Internal.
  * The node matches the public {@link AvailabilityTime} model one-to-one.
  */
-import type { AvailabilityTime } from "../../../models/availability-time.js";
+import type { AvailabilityTime } from "../../../models/peek/availability-time.js";
 
 /** Fetches availability times for an activity/date and resource-option quantities. */
 export const AVAILABILITY_TIMES_QUERY = `

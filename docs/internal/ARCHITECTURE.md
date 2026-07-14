@@ -126,7 +126,8 @@ Each resource follows the same **three-file triad**:
 
 Resources: `products`, `account-users`, `resource-pools`, `timeslots`,
 `resellers`, `promo-codes`, `daily-notes`, `availability`, `memberships`,
-`bookings`, `reviews`. Clean data shapes live in `src/models/`.
+`bookings`, `reviews`. Clean data shapes are split by brand: Peek models in
+`src/models/peek/`, CNG models in `src/models/cng/`.
 
 `ProductService` exposes three top-level product filters in addition to the combined `getAllProducts()`:
 - `getAllActivities()` — fetches only the `activities` connection (one request, no add-on pagination).
@@ -134,7 +135,7 @@ Resources: `products`, `account-users`, `resource-pools`, `timeslots`,
 
 `waivers` is a **webhook-only resource**: it has no GraphQL reads (so no
 queries/service/converter triad), just `src/internal/peek/waivers/waiver-webhook.ts`
-and the `src/models/waiver.ts` model. See the webhook notes below.
+and the `src/models/peek/waiver.ts` model. See the webhook notes below.
 
 A resource may split into more than one triad when it carries a distinct
 sub-domain. `bookings` does: alongside `booking-queries`/`booking-converter`,
@@ -240,7 +241,7 @@ The webhook-related public exports are the two parsers `parseBookingWebhook` and
 `parseWaiverWebhook` (plus the `Waiver` model type; see the webhook notes above).
 
 ### 5b. CNG accessor (REST)
-`src/cng-access-service.ts`, `src/internal/cng/`, `src/models/cng-product.ts`
+`src/cng-access-service.ts`, `src/internal/cng/`, `src/models/cng/product.ts`
 
 A second, brand-parallel accessor for the **CNG** backoffice — REST, not
 GraphQL. Deliberately low-churn: it sits alongside the Peek code and shares the
@@ -263,7 +264,7 @@ plumbing rather than forking the package.
   `Activity`), `product-service.ts` (`CngProductService.getAllActivities()`,
   tolerating a `{ products: [...] }` envelope or a bare array). Endpoint segments
   live in `src/internal/cng/endpoints.ts`.
-- **Model** `src/models/cng-product.ts` — `Activity`/`ActivityTicket`, mirroring
+- **Model** `src/models/cng/product.ts` — `Activity`/`ActivityTicket`, mirroring
   the Peek `Product` shape so both brands read uniformly.
 - **Shared, not duplicated:** the config contract (`BaseAccessServiceConfig` +
   the `createTokenManager`/`requireNonEmpty` helpers and shared TTL/leeway/retry
@@ -284,7 +285,7 @@ plumbing rather than forking the package.
 > field set are best-guess placeholders (snake_case REST fields, defensive
 > defaults). Confirm against a live sample and adjust — touch only
 > `cng/products/product-queries.ts`, `product-converter.ts`, and
-> `models/cng-product.ts`.
+> `models/cng/product.ts`.
 
 ### 6. UI components — the `./ui` subpath
 `src/ui/`

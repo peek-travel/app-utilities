@@ -7,7 +7,7 @@ import {
 } from "../../../src/internal/peek/graphql-client.js";
 import type { ProductService } from "../../../src/internal/peek/products/product-service.js";
 import { noopLogger } from "../../../src/logger.js";
-import type { Product } from "../../../src/models/product.js";
+import type { Product } from "../../../src/models/peek/product.js";
 
 interface RecordedCall {
   query: string;

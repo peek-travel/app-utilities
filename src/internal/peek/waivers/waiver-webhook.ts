@@ -12,7 +12,7 @@
  * client — so it is a standalone function rather than a method on
  * `PeekAccessService` (the receiver may not hold gateway credentials).
  */
-import type { Waiver } from "../../../models/waiver.js";
+import type { Waiver } from "../../../models/peek/waiver.js";
 
 /** The envelope key the webhook delivery wraps the waiver node under. */
 const PAYLOAD_WAIVER_KEY = "waiver";

@@ -2,7 +2,7 @@
  * Pure functions resolving the daily-note GraphQL unions into the clean
  * {@link DailyNote} model. A not-found / missing note maps to `null`.
  */
-import type { DailyNote } from "../../../models/daily-note.js";
+import type { DailyNote } from "../../../models/peek/daily-note.js";
 import type {
   DailyNoteResponse,
   UpsertDailyNoteResponse,

@@ -8,7 +8,7 @@ import type {
   ActivityNode,
   ItemOptionNode,
 } from "../../../src/internal/peek/products/product-queries.js";
-import { ADD_ON_PRODUCT_TYPE } from "../../../src/models/product.js";
+import { ADD_ON_PRODUCT_TYPE } from "../../../src/models/peek/product.js";
 
 describe("fromActivities", () => {
   it("maps an activity into a clean product", () => {

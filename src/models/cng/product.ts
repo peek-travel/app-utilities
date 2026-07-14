@@ -1,7 +1,7 @@
 /**
  * The clean, transport-agnostic data model for a CNG product.
  *
- * The CNG sibling of `./product.ts` (Peek). Kept as a separate model because the
+ * The CNG sibling of `../peek/product.ts`. Kept as a separate model because the
  * CNG gateway is a distinct backoffice, but the shape deliberately mirrors the
  * Peek `Product` so consumers can treat both brands uniformly. The raw CNG REST
  * response types and the conversion logic live inside the package and are never

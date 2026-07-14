@@ -2,7 +2,7 @@
  * Pure function flattening raw membership nodes into the clean
  * {@link Membership} model — one record per variant.
  */
-import type { Membership } from "../../../models/membership.js";
+import type { Membership } from "../../../models/peek/membership.js";
 import type { MembershipsResponse } from "./membership-queries.js";
 
 /** Flattens a memberships response into one {@link Membership} per variant. */

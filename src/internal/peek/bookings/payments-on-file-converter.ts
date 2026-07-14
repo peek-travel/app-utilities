@@ -6,7 +6,7 @@ import type {
   BookingPaymentsOnFile,
   Payment,
   PaymentSource,
-} from "../../../models/booking-payment.js";
+} from "../../../models/peek/booking-payment.js";
 import type { BookingPaymentsOnFileResponse } from "./booking-queries.js";
 
 /**

@@ -11,7 +11,7 @@ import type {
   Membership,
   MembershipPurchaseInput,
   PurchasedMembership,
-} from "../../../models/membership.js";
+} from "../../../models/peek/membership.js";
 import { fromMembershipsResponse } from "./membership-converter.js";
 import {
   CREATE_MEMBERSHIP_ORDER_FROM_QUOTE_MUTATION,

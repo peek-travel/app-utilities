@@ -2,7 +2,7 @@
  * Raw Peek GraphQL fields, queries, mutations, variables, and response shapes
  * for bookings. Internal.
  */
-import type { BookingSearchBy } from "../../../models/booking.js";
+import type { BookingSearchBy } from "../../../models/peek/booking.js";
 
 export const SEARCH_BY_PURCHASE_DATE: BookingSearchBy = "purchaseDate";
 export const SEARCH_BY_ACTIVITY_DATE: BookingSearchBy = "activityDate";

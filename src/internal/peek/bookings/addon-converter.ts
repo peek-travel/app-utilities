@@ -7,7 +7,7 @@
  * public {@link BookingAddon}. The internal model is intentionally not exported
  * from the package's public entry point.
  */
-import type { BookingAddon, BookingAddonOption } from "../../../models/booking-addon.js";
+import type { BookingAddon, BookingAddonOption } from "../../../models/peek/booking-addon.js";
 import {
   ADDON_OPTION_STATUS_CANCELED,
   type AddonGqlPrice,

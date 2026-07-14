@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { matchGuideToResourcePool } from "../../../src/internal/peek/timeslots/guide-matcher.js";
-import type { ResourcePool } from "../../../src/models/resource-pool.js";
+import type { ResourcePool } from "../../../src/models/peek/resource-pool.js";
 
 function pool(overrides: Partial<ResourcePool>): ResourcePool {
   return {

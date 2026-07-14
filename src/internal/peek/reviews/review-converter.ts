@@ -2,7 +2,7 @@
  * Pure, I/O-free mapping from raw review nodes to the clean {@link Review}
  * model. No network, no logging, no clock access.
  */
-import type { Guide, Review } from "../../../models/review.js";
+import type { Guide, Review } from "../../../models/peek/review.js";
 import type { ReviewNode } from "./review-queries.js";
 
 /** Length of an ISO `YYYY-MM-DD` date prefix. */

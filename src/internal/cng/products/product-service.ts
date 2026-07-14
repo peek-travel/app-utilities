@@ -9,7 +9,7 @@
  */
 import { PRODUCTS_PATH } from "../endpoints.js";
 import type { RestClient } from "../rest-client.js";
-import type { Activity } from "../../../models/cng-product.js";
+import type { Activity } from "../../../models/cng/product.js";
 import { fromProductNodes } from "./product-converter.js";
 import type { ProductsResponse } from "./product-queries.js";
 

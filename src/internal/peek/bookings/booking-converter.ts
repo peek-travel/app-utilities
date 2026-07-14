@@ -10,7 +10,7 @@ import type {
   Price,
   ResourcePoolAssignment,
   Ticket,
-} from "../../../models/booking.js";
+} from "../../../models/peek/booking.js";
 import { normalizeBookingId } from "./booking-queries.js";
 import type { BookingGuestNode, BookingNode } from "./booking-queries.js";
 

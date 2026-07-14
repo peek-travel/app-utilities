@@ -6,7 +6,7 @@
  */
 import { SALES_ENDPOINT } from "../gateway-endpoints.js";
 import type { GraphQLBody, GraphQLClient } from "../graphql-client.js";
-import type { AccountUser } from "../../../models/account-user.js";
+import type { AccountUser } from "../../../models/peek/account-user.js";
 import {
   fromAccountUserNode,
   fromAccountUserNodes,

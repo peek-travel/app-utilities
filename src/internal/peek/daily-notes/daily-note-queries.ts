@@ -2,7 +2,7 @@
  * Raw Peek GraphQL query/mutation and response shapes for the daily note.
  * Internal.
  */
-import type { DailyNote } from "../../../models/daily-note.js";
+import type { DailyNote } from "../../../models/peek/daily-note.js";
 
 /** The global-note type for the dashboard daily note. */
 export const GLOBAL_NOTE_TYPE = "DASHBOARD";

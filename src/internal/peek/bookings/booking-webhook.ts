@@ -19,7 +19,7 @@
  * pure transform — so it is exported as a standalone function rather than a
  * method on `PeekAccessService` (the receiver may not hold gateway credentials).
  */
-import type { Booking } from "../../../models/booking.js";
+import type { Booking } from "../../../models/peek/booking.js";
 import { fromBookingNode } from "./booking-converter.js";
 import {
   bookingGuestsFields,

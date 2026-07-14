@@ -2,7 +2,7 @@
  * Pure functions mapping raw timeslot nodes into the clean {@link Timeslot}
  * model.
  */
-import type { AssignedResource, Timeslot } from "../../../models/timeslot.js";
+import type { AssignedResource, Timeslot } from "../../../models/peek/timeslot.js";
 import type {
   TimeslotNode,
   TimeslotResourceAllocationNode,

@@ -6,7 +6,7 @@ import {
 } from "../../../src/internal/peek/graphql-client.js";
 import { PromoCodeService } from "../../../src/internal/peek/promo-codes/promo-code-service.js";
 import { noopLogger } from "../../../src/logger.js";
-import type { CreatePromoCodeInput, PromoCode } from "../../../src/models/promo-code.js";
+import type { CreatePromoCodeInput, PromoCode } from "../../../src/models/peek/promo-code.js";
 
 interface RecordedCall {
   url: string;

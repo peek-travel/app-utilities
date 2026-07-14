@@ -11,7 +11,7 @@ import {
   ACTIVITY_PRODUCT_TYPE,
   RENTAL_PRODUCT_TYPE,
   type Product,
-} from "../../../models/product.js";
+} from "../../../models/peek/product.js";
 import { fromActivities, fromItemOptionNodes } from "./product-converter.js";
 import {
   ITEM_OPTIONS_QUERY,

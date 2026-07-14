@@ -2,7 +2,7 @@
  * Pure functions that map raw Peek GraphQL nodes into the clean {@link Product}
  * model. No I/O — straightforward, testable transformations.
  */
-import { ADD_ON_PRODUCT_TYPE, type Product } from "../../../models/product.js";
+import { ADD_ON_PRODUCT_TYPE, type Product } from "../../../models/peek/product.js";
 import type { ActivityNode, ItemOptionNode } from "./product-queries.js";
 
 /** Default display color applied to add-on products. */

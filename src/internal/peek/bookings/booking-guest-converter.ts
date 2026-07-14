@@ -2,7 +2,7 @@
  * Resolves the dedicated guests query into a merged guest list (booking guests
  * plus the primary guest when not already present).
  */
-import type { Guest } from "../../../models/booking.js";
+import type { Guest } from "../../../models/peek/booking.js";
 import { mapGuestNode } from "./booking-converter.js";
 import type { BookingGuestsResponse } from "./booking-queries.js";
 

@@ -8,7 +8,7 @@ import type { GraphQLBody, GraphQLClient } from "../graphql-client.js";
 import type {
   ResourcePool,
   ResourcePoolMode,
-} from "../../../models/resource-pool.js";
+} from "../../../models/peek/resource-pool.js";
 import { fromResourcePoolsResponse } from "./resource-pool-converter.js";
 import {
   RESOURCE_POOLS_QUERY,

@@ -9,7 +9,7 @@ import type {
   CreatePromoCodeInput,
   CreatedPromoCode,
   PromoCode,
-} from "../../../models/promo-code.js";
+} from "../../../models/peek/promo-code.js";
 import {
   CREATE_PROMO_CODE_MUTATION,
   PROMO_CODES_QUERY,

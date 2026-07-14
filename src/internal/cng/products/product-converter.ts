@@ -4,7 +4,7 @@
  *
  * ⚠️ Field mapping is a best-guess placeholder; see `./product-queries.ts`.
  */
-import { ACTIVITY_PRODUCT_TYPE, type Activity } from "../../../models/cng-product.js";
+import { ACTIVITY_PRODUCT_TYPE, type Activity } from "../../../models/cng/product.js";
 import type { ProductNode } from "./product-queries.js";
 
 /** Converts a list of raw product nodes into {@link Activity}s. */

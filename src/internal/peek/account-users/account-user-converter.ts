@@ -2,7 +2,7 @@
  * Pure functions mapping raw account-user nodes into the clean
  * {@link AccountUser} model. Inactive users are dropped (mapped to `null`).
  */
-import type { AccountUser } from "../../../models/account-user.js";
+import type { AccountUser } from "../../../models/peek/account-user.js";
 import type { AccountUserNode } from "./account-user-queries.js";
 
 /** Only users in this status are surfaced. */

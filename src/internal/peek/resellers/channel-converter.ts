@@ -2,7 +2,7 @@
  * Pure functions mapping raw channel nodes into the clean {@link Channel}
  * model, flattening the agents edge/node structure.
  */
-import type { Channel } from "../../../models/channel.js";
+import type { Channel } from "../../../models/peek/channel.js";
 import type { ChannelNode, ChannelsResponse } from "./channel-queries.js";
 
 /** Converts a channels response into {@link Channel}s. */

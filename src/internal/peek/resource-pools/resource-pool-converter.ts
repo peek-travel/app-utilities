@@ -5,7 +5,7 @@
 import type {
   ResourcePool,
   ResourcePoolAccountUser,
-} from "../../../models/resource-pool.js";
+} from "../../../models/peek/resource-pool.js";
 import type {
   ResourcePoolNode,
   ResourcePoolsResponse,

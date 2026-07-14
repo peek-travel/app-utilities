@@ -8,7 +8,7 @@ import type { GraphQLBody, GraphQLClient } from "../graphql-client.js";
 import type {
   AvailabilityTime,
   AvailabilityTimesQuery,
-} from "../../../models/availability-time.js";
+} from "../../../models/peek/availability-time.js";
 import {
   AVAILABILITY_TIMES_QUERY,
   type AvailabilityTimesResponse,

@@ -5,7 +5,7 @@
  */
 import { SALES_ENDPOINT } from "../gateway-endpoints.js";
 import type { GraphQLBody, GraphQLClient } from "../graphql-client.js";
-import type { Review } from "../../../models/review.js";
+import type { Review } from "../../../models/peek/review.js";
 import { fromReviewNode } from "./review-converter.js";
 import { encodeCursor } from "./review-cursor.js";
 import {

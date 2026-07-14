@@ -12,7 +12,7 @@ export type { PeekAccessServiceConfig } from "./peek-access-service.js";
 export { CngAccessService } from "./cng-access-service.js";
 export type { CngAccessServiceConfig } from "./cng-access-service.js";
 export { CngProductService } from "./internal/cng/products/product-service.js";
-export type { Activity, ActivityTicket } from "./models/cng-product.js";
+export type { Activity, ActivityTicket } from "./models/cng/product.js";
 
 export { ProductService } from "./internal/peek/products/product-service.js";
 export type { ProductServiceOptions } from "./internal/peek/products/product-service.js";
@@ -48,14 +48,14 @@ export { parseWaiverWebhook } from "./internal/peek/waivers/waiver-webhook.js";
 
 export { ReviewService } from "./internal/peek/reviews/review-service.js";
 
-export { ACTIVITY_PRODUCT_TYPE, ADD_ON_PRODUCT_TYPE, RENTAL_PRODUCT_TYPE } from "./models/product.js";
-export type { Product, ProductTicket } from "./models/product.js";
-export type { AccountUser, AssignedActivity } from "./models/account-user.js";
+export { ACTIVITY_PRODUCT_TYPE, ADD_ON_PRODUCT_TYPE, RENTAL_PRODUCT_TYPE } from "./models/peek/product.js";
+export type { Product, ProductTicket } from "./models/peek/product.js";
+export type { AccountUser, AssignedActivity } from "./models/peek/account-user.js";
 export type {
   ResourcePool,
   ResourcePoolAccountUser,
   ResourcePoolMode,
-} from "./models/resource-pool.js";
+} from "./models/peek/resource-pool.js";
 export type {
   AssignedResource,
   AssignGuideResult,
@@ -63,27 +63,27 @@ export type {
   Timeslot,
   TimeslotFilter,
   UpdateTimeslotResult,
-} from "./models/timeslot.js";
-export type { Agent, Channel } from "./models/channel.js";
+} from "./models/peek/timeslot.js";
+export type { Agent, Channel } from "./models/peek/channel.js";
 export type {
   CreatePromoCodeInput,
   CreatedPromoCode,
   PromoCode,
   PromoCodeFixedAmount,
-} from "./models/promo-code.js";
-export type { DailyNote } from "./models/daily-note.js";
+} from "./models/peek/promo-code.js";
+export type { DailyNote } from "./models/peek/daily-note.js";
 export type {
   Availability,
   AvailabilityTime,
   AvailabilityTimesQuery,
   Duration,
   ResourceOptionQuantity,
-} from "./models/availability-time.js";
+} from "./models/peek/availability-time.js";
 export type {
   Membership,
   MembershipPurchaseInput,
   PurchasedMembership,
-} from "./models/membership.js";
+} from "./models/peek/membership.js";
 export type {
   Booking,
   BookingReadOptions,
@@ -101,7 +101,7 @@ export type {
   Resource,
   ResourcePoolAssignment,
   Ticket,
-} from "./models/booking.js";
+} from "./models/peek/booking.js";
 export type {
   BookingPaymentsOnFile,
   InvoiceLinkResult,
@@ -111,17 +111,17 @@ export type {
   PaymentSource,
   RefundInput,
   RefundResult,
-} from "./models/booking-payment.js";
+} from "./models/peek/booking-payment.js";
 export type {
   BookingAddon,
   BookingAddonMoney,
   BookingAddonOption,
   BookingAddons,
   BookingAddonsMutationResult,
-} from "./models/booking-addon.js";
-export type { Guide, Review } from "./models/review.js";
-export type { Waiver } from "./models/waiver.js";
-export type { PeekAuthTokenClaims, PeekAuthTokenUser } from "./models/auth-token.js";
+} from "./models/peek/booking-addon.js";
+export type { Guide, Review } from "./models/peek/review.js";
+export type { Waiver } from "./models/peek/waiver.js";
+export type { PeekAuthTokenClaims, PeekAuthTokenUser } from "./models/peek/auth-token.js";
 
 export { noopLogger } from "./logger.js";
 export type { Logger } from "./logger.js";

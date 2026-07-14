@@ -3,7 +3,7 @@
  * resource-pool id. A guide may be referenced by resource-pool id, by backing
  * account-user id, or by name (directly or via an account user).
  */
-import type { ResourcePool } from "../../../models/resource-pool.js";
+import type { ResourcePool } from "../../../models/peek/resource-pool.js";
 
 /**
  * Resolves a `guideId` to a resource-pool id using `guideResourcePools`

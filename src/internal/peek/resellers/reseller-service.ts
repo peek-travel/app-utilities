@@ -5,7 +5,7 @@
  */
 import { SALES_ENDPOINT } from "../gateway-endpoints.js";
 import type { GraphQLBody, GraphQLClient } from "../graphql-client.js";
-import type { Channel } from "../../../models/channel.js";
+import type { Channel } from "../../../models/peek/channel.js";
 import { fromChannelsResponse } from "./channel-converter.js";
 import { CHANNELS_QUERY, type ChannelsResponse } from "./channel-queries.js";
 

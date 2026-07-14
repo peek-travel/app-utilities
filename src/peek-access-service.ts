@@ -31,19 +31,19 @@ import {
 import { PromoCodeService } from "./internal/peek/promo-codes/promo-code-service.js";
 import { V2_EXTENDABLE_SLUG } from "./internal/peek/gateway-endpoints.js";
 import { noopLogger } from "./logger.js";
-import type { PeekAuthTokenClaims } from "./models/auth-token.js";
-import type { AvailabilityTimesQuery } from "./models/availability-time.js";
+import type { PeekAuthTokenClaims } from "./models/peek/auth-token.js";
+import type { AvailabilityTimesQuery } from "./models/peek/availability-time.js";
 import type {
   BookingReadOptions,
   BookingTimeRangeSearch,
   CreateBookingInput,
   NoteMode,
-} from "./models/booking.js";
-import type { MakePaymentInput, RefundInput } from "./models/booking-payment.js";
-import type { MembershipPurchaseInput } from "./models/membership.js";
-import type { CreatePromoCodeInput } from "./models/promo-code.js";
-import type { ResourcePoolMode } from "./models/resource-pool.js";
-import type { GuideAssignment, TimeslotFilter } from "./models/timeslot.js";
+} from "./models/peek/booking.js";
+import type { MakePaymentInput, RefundInput } from "./models/peek/booking-payment.js";
+import type { MembershipPurchaseInput } from "./models/peek/membership.js";
+import type { CreatePromoCodeInput } from "./models/peek/promo-code.js";
+import type { ResourcePoolMode } from "./models/peek/resource-pool.js";
+import type { GuideAssignment, TimeslotFilter } from "./models/peek/timeslot.js";
 import type { AddAddonInput } from "./internal/peek/bookings/booking-service.js";
 
 /** Default backoffice GraphQL gateway base URL (v1). */

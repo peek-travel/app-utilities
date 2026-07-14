@@ -3,7 +3,7 @@
  * Internal. The promo-code node matches the public {@link PromoCode} model
  * one-to-one, so no converter is needed.
  */
-import type { PromoCode } from "../../../models/promo-code.js";
+import type { PromoCode } from "../../../models/peek/promo-code.js";
 
 /** Fetches a cursor-paginated page of promo codes. */
 export const PROMO_CODES_QUERY = `

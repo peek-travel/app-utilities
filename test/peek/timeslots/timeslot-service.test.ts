@@ -11,7 +11,7 @@ import {
   type TimeslotServiceDeps,
 } from "../../../src/internal/peek/timeslots/timeslot-service.js";
 import { noopLogger } from "../../../src/logger.js";
-import type { ResourcePool } from "../../../src/models/resource-pool.js";
+import type { ResourcePool } from "../../../src/models/peek/resource-pool.js";
 
 interface RecordedCall {
   url: string;

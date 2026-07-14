@@ -16,8 +16,8 @@ import type {
   CreatedBooking,
   Guest,
   NoteMode,
-} from "../../../models/booking.js";
-import { ADD_ON_PRODUCT_TYPE } from "../../../models/product.js";
+} from "../../../models/peek/booking.js";
+import { ADD_ON_PRODUCT_TYPE } from "../../../models/peek/product.js";
 import type {
   BookingPaymentsOnFile,
   InvoiceLinkResult,
@@ -25,11 +25,11 @@ import type {
   MakePaymentResult,
   RefundInput,
   RefundResult,
-} from "../../../models/booking-payment.js";
+} from "../../../models/peek/booking-payment.js";
 import type {
   BookingAddons,
   BookingAddonsMutationResult,
-} from "../../../models/booking-addon.js";
+} from "../../../models/peek/booking-addon.js";
 import { fromBookingNode } from "./booking-converter.js";
 import { fromBookingGuestsResponse } from "./booking-guest-converter.js";
 import { fromPaymentsOnFileResponse } from "./payments-on-file-converter.js";

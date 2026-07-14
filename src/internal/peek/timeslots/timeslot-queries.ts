@@ -2,7 +2,7 @@
  * Raw Peek GraphQL queries/mutations and response shapes for timeslots.
  * Internal.
  */
-import type { TimeslotFilter } from "../../../models/timeslot.js";
+import type { TimeslotFilter } from "../../../models/peek/timeslot.js";
 
 /** Fetches timeslots for an activity/date via a filter. */
 export const TIMESLOTS_QUERY = `

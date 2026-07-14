@@ -15,7 +15,7 @@ import type {
   Timeslot,
   TimeslotFilter,
   UpdateTimeslotResult,
-} from "../../../models/timeslot.js";
+} from "../../../models/peek/timeslot.js";
 import { fromTimeslotNode, fromTimeslotNodes } from "./timeslot-converter.js";
 import { matchGuideToResourcePool } from "./guide-matcher.js";
 import {
