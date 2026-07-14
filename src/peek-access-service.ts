@@ -8,24 +8,29 @@
  * carry the resource-specific business logic.
  */
 import * as jwt from "jsonwebtoken";
-import { AccountUserService } from "./internal/account-users/account-user-service.js";
-import { AvailabilityService } from "./internal/availability/availability-service.js";
-import { BookingService } from "./internal/bookings/booking-service.js";
-import { DailyNoteService } from "./internal/daily-notes/daily-note-service.js";
-import { GraphQLClient } from "./internal/graphql-client.js";
-import { MembershipService } from "./internal/memberships/membership-service.js";
-import { ResellerService } from "./internal/resellers/reseller-service.js";
-import { ResourcePoolService } from "./internal/resource-pools/resource-pool-service.js";
-import { ReviewService } from "./internal/reviews/review-service.js";
-import { TimeslotService } from "./internal/timeslots/timeslot-service.js";
+import { AccountUserService } from "./internal/peek/account-users/account-user-service.js";
+import { AvailabilityService } from "./internal/peek/availability/availability-service.js";
+import { BookingService } from "./internal/peek/bookings/booking-service.js";
+import { DailyNoteService } from "./internal/peek/daily-notes/daily-note-service.js";
+import {
+  createTokenManager,
+  requireNonEmpty,
+  DEFAULT_RETRY_DELAYS_MS,
+  type BaseAccessServiceConfig,
+} from "./access-service-config.js";
+import { GraphQLClient } from "./internal/peek/graphql-client.js";
+import { MembershipService } from "./internal/peek/memberships/membership-service.js";
+import { ResellerService } from "./internal/peek/resellers/reseller-service.js";
+import { ResourcePoolService } from "./internal/peek/resource-pools/resource-pool-service.js";
+import { ReviewService } from "./internal/peek/reviews/review-service.js";
+import { TimeslotService } from "./internal/peek/timeslots/timeslot-service.js";
 import {
   ProductService,
   type ProductServiceOptions,
-} from "./internal/products/product-service.js";
-import { PromoCodeService } from "./internal/promo-codes/promo-code-service.js";
-import { V2_EXTENDABLE_SLUG } from "./internal/gateway-endpoints.js";
-import { TokenManager } from "./internal/token-manager.js";
-import { noopLogger, type Logger } from "./logger.js";
+} from "./internal/peek/products/product-service.js";
+import { PromoCodeService } from "./internal/peek/promo-codes/promo-code-service.js";
+import { V2_EXTENDABLE_SLUG } from "./internal/peek/gateway-endpoints.js";
+import { noopLogger } from "./logger.js";
 import type { PeekAuthTokenClaims } from "./models/auth-token.js";
 import type { AvailabilityTimesQuery } from "./models/availability-time.js";
 import type {
@@ -39,19 +44,13 @@ import type { MembershipPurchaseInput } from "./models/membership.js";
 import type { CreatePromoCodeInput } from "./models/promo-code.js";
 import type { ResourcePoolMode } from "./models/resource-pool.js";
 import type { GuideAssignment, TimeslotFilter } from "./models/timeslot.js";
-import type { AddAddonInput } from "./internal/bookings/booking-service.js";
+import type { AddAddonInput } from "./internal/peek/bookings/booking-service.js";
 
 /** Default backoffice GraphQL gateway base URL (v1). */
 const DEFAULT_BASE_URL = "https://apps.peekapis.com/backoffice-gql";
 /** Default gateway base URL when operating in v2 mode. */
 const DEFAULT_V2_BASE_URL =
   "https://app-registry.peeklabs.com/installations-api";
-/** Default JWT lifetime (1 hour). */
-const DEFAULT_TOKEN_TTL_SECONDS = 3600;
-/** Default leeway before expiry at which a cached token is re-minted. */
-const DEFAULT_TOKEN_REFRESH_LEEWAY_SECONDS = 60;
-/** Default HTTP 429 retry backoff. */
-const DEFAULT_RETRY_DELAYS_MS = [1000, 2000, 4000];
 /** JWT issuer set by the Peek app registry on all tokens it issues. */
 const PEEK_TOKEN_ISSUER = "app_registry_v2";
 
@@ -61,16 +60,12 @@ interface RawPeekTokenPayload {
   user: { email: string; id: string; is_admin: boolean; locale: string; name: string };
 }
 
-/** Configuration for a {@link PeekAccessService} instance. */
-export interface PeekAccessServiceConfig {
-  /** Peek install ID. Becomes the JWT subject. */
-  installId: string;
-  /** HMAC secret used to sign the JWT (the Peek internal secret). */
-  jwtSecret: string;
-  /** JWT issuer — the app name. */
-  issuer: string;
-  /** Peek app ID, used in the gateway endpoint path. */
-  appId: string;
+/**
+ * Configuration for a {@link PeekAccessService} instance. Extends the shared
+ * {@link BaseAccessServiceConfig} (install/auth/transport fields) with the
+ * Peek-specific extras below.
+ */
+export interface PeekAccessServiceConfig extends BaseAccessServiceConfig {
   /** API gateway key, sent as the `pk-api-key` header. Required in v1 mode; not used in v2. */
   gatewayKey?: string;
 
@@ -81,18 +76,6 @@ export interface PeekAccessServiceConfig {
    * GraphQL gateway.
    */
   mode?: "v2";
-  /** Override the gateway base URL. Default: Peek production gateway (v1) or app-registry sandbox (v2). */
-  baseUrl?: string;
-  /** JWT lifetime in seconds. Default: 3600. */
-  tokenTtlSeconds?: number;
-  /** Re-mint the cached token this many seconds before expiry. Default: 60. */
-  tokenRefreshLeewaySeconds?: number;
-  /** Backoff delays (ms) for HTTP 429 retries. Default: [1000, 2000, 4000]. */
-  retryDelaysMs?: number[];
-  /** Optional logger. Default: no-op (silent). */
-  logger?: Logger;
-  /** Custom `fetch` implementation. Default: the global `fetch`. */
-  fetch?: typeof fetch;
   /** Page size for cursor-paginated item options. Default: 50. */
   itemOptionsPageSize?: number;
 }
@@ -142,24 +125,16 @@ export class PeekAccessService {
 
   constructor(config: PeekAccessServiceConfig) {
     const isV2 = config.mode === "v2";
-    requireNonEmpty(config.installId, "installId");
-    requireNonEmpty(config.jwtSecret, "jwtSecret");
-    requireNonEmpty(config.issuer, "issuer");
-    requireNonEmpty(config.appId, "appId");
-    if (!isV2) requireNonEmpty(config.gatewayKey ?? "", "gatewayKey");
+    requireNonEmpty(config.installId, "installId", "PeekAccessService");
+    requireNonEmpty(config.jwtSecret, "jwtSecret", "PeekAccessService");
+    requireNonEmpty(config.issuer, "issuer", "PeekAccessService");
+    requireNonEmpty(config.appId, "appId", "PeekAccessService");
+    if (!isV2) requireNonEmpty(config.gatewayKey ?? "", "gatewayKey", "PeekAccessService");
 
     this.jwtSecret = config.jwtSecret;
 
     const logger = config.logger ?? noopLogger;
-    const tokens = new TokenManager({
-      secret: config.jwtSecret,
-      issuer: config.issuer,
-      installId: config.installId,
-      ttlSeconds: config.tokenTtlSeconds ?? DEFAULT_TOKEN_TTL_SECONDS,
-      leewaySeconds:
-        config.tokenRefreshLeewaySeconds ??
-        DEFAULT_TOKEN_REFRESH_LEEWAY_SECONDS,
-    });
+    const tokens = createTokenManager(config);
 
     const defaultBaseUrl = isV2 ? DEFAULT_V2_BASE_URL : DEFAULT_BASE_URL;
     this.client = new GraphQLClient({
@@ -509,11 +484,5 @@ export class PeekAccessService {
   /** Reviews for an activity. Delegates to {@link ReviewService.getReviews}. */
   getReviews(productId: string, reviewCount?: number, reviewOffset?: number) {
     return this.getReviewService().getReviews(productId, reviewCount, reviewOffset);
-  }
-}
-
-function requireNonEmpty(value: string, name: string): void {
-  if (!value) {
-    throw new Error(`PeekAccessService: "${name}" is required`);
   }
 }

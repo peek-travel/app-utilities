@@ -11,6 +11,13 @@ call typed methods like `peek.getProductService().getAllProducts()` or directly
 via the top-level short-forms like `peek.getAllProducts()` and
 `peek.getAllActivities()`.
 
+The package also ships a **sibling accessor for the CNG backoffice**,
+`CngAccessService` (REST, not GraphQL). It reuses this package's auth
+(`TokenManager`), retry/backoff loop, `Logger`, base error types, tooling, and
+the Odyssey UI — differing only in transport (REST vs GraphQL) and gateway
+routing (`cng_backoffice_api-v1` vs `peek_backoffice_api-v1`). See
+"CNG accessor" below.
+
 ## Layers
 
 ```
@@ -76,9 +83,14 @@ via the top-level short-forms like `peek.getAllProducts()` and
 - Caches the token and re-mints it once it is within `leewaySeconds` of expiry.
 
 ### 3. `GraphQLClient` — transport
-`src/internal/graphql-client.ts`
+`src/internal/peek/graphql-client.ts`
 
-The only place that touches the network. Responsibilities:
+The place that touches the network for Peek. The retry/backoff loop and 418/429
+mapping are **shared** with the CNG transport in
+`src/internal/http-transport.ts` (`requestWithRetry`): both clients build their
+own `url`/`init`, log their own "Making … request" line, and pass a per-response
+callback that handles the transport-specific success/error parsing.
+Responsibilities:
 
 - Builds the endpoint URL as `${baseUrl}/${appId}/${endpointName}`, or
   `${baseUrl}/${appId}/${endpointPathPrefix}/${endpointName}` when an
@@ -98,7 +110,11 @@ The only place that touches the network. Responsibilities:
   - other non-2xx → generic `Error` with the status.
 
 ### 4. Per-resource services
-`src/internal/<resource>/`
+`src/internal/peek/<resource>/`
+
+Every Peek resource lives under `src/internal/peek/` (mirrored by the CNG
+resources under `src/internal/cng/` — see §5b); the shared plumbing
+(`token-manager.ts`, `http-transport.ts`) stays at `src/internal/`.
 
 Each resource follows the same **three-file triad**:
 
@@ -117,7 +133,7 @@ Resources: `products`, `account-users`, `resource-pools`, `timeslots`,
 - `getAllAddons()` — fetches only the `itemOptions` connection, paginated.
 
 `waivers` is a **webhook-only resource**: it has no GraphQL reads (so no
-queries/service/converter triad), just `src/internal/waivers/waiver-webhook.ts`
+queries/service/converter triad), just `src/internal/peek/waivers/waiver-webhook.ts`
 and the `src/models/waiver.ts` model. See the webhook notes below.
 
 A resource may split into more than one triad when it carries a distinct
@@ -222,6 +238,53 @@ internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and
 `parseWaiverWebhook` (plus the `Waiver` model type; see the webhook notes above).
+
+### 5b. CNG accessor (REST)
+`src/cng-access-service.ts`, `src/internal/cng/`, `src/models/cng-product.ts`
+
+A second, brand-parallel accessor for the **CNG** backoffice — REST, not
+GraphQL. Deliberately low-churn: it sits alongside the Peek code and shares the
+plumbing rather than forking the package.
+
+- **`CngAccessService`** — validates four config fields (`installId`,
+  `jwtSecret`, `issuer`, `appId`; **no `gatewayKey`** — the CNG gateway needs no
+  `pk-api-key`). Builds the shared `TokenManager` and a `RestClient`, defaults
+  the base URL to the app-registry installations API, and exposes
+  `getProductService()` + the short-form `getAllActivities()`.
+- **`RestClient`** (`src/internal/cng/rest-client.ts`) — the REST sibling of
+  `GraphQLClient`. Builds `${baseUrl}/${appId}/${extendableSlug}/${path}` with
+  `extendableSlug = cng_backoffice_api-v1`, GETs it with `X-Peek-Auth: Bearer`
+  (no `pk-api-key`, no `{query,variables}` body), and runs through the shared
+  `requestWithRetry` loop. Parses the body as JSON, falling back to raw text
+  when unparseable; non-2xx (other than 418/429) → `CngApiError` (status + body).
+- **Products triad** (`src/internal/cng/products/`) — same shape as every Peek
+  resource: `product-queries.ts` (raw REST `ProductNode`/`ProductsResponse`
+  interfaces, internal), `product-converter.ts` (pure `fromProductNodes` →
+  `Activity`), `product-service.ts` (`CngProductService.getAllActivities()`,
+  tolerating a `{ products: [...] }` envelope or a bare array). Endpoint segments
+  live in `src/internal/cng/endpoints.ts`.
+- **Model** `src/models/cng-product.ts` — `Activity`/`ActivityTicket`, mirroring
+  the Peek `Product` shape so both brands read uniformly.
+- **Shared, not duplicated:** the config contract (`BaseAccessServiceConfig` +
+  the `createTokenManager`/`requireNonEmpty` helpers and shared TTL/leeway/retry
+  defaults, all in `src/access-service-config.ts`), `TokenManager`,
+  `Logger`/`noopLogger`, the `AdminAccountRequiredError`/`RateLimitError` base
+  errors, the `requestWithRetry` transport core, the build/test tooling, and the
+  Odyssey UI. Each accessor's config just extends the base: `PeekAccessServiceConfig`
+  adds `gatewayKey`/`mode`/`itemOptionsPageSize`; `CngAccessServiceConfig` adds
+  nothing. So the only real per-accessor difference is the transport built and the
+  services exposed.
+- **Public exports:** `CngAccessService` + `CngAccessServiceConfig`,
+  `CngProductService`, the `Activity`/`ActivityTicket` types, and `CngApiError`
+  (added to the errors export). REST paths and raw response interfaces stay
+  internal.
+
+> ⚠️ **Guessed response shape.** The real `commerce-config/products` payload is
+> not yet confirmed. `ProductNode`, the converter mapping, and the `Activity`
+> field set are best-guess placeholders (snake_case REST fields, defensive
+> defaults). Confirm against a live sample and adjust — touch only
+> `cng/products/product-queries.ts`, `product-converter.ts`, and
+> `models/cng-product.ts`.
 
 ### 6. UI components — the `./ui` subpath
 `src/ui/`

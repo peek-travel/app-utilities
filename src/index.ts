@@ -8,39 +8,45 @@
 export { PeekAccessService } from "./peek-access-service.js";
 export type { PeekAccessServiceConfig } from "./peek-access-service.js";
 
-export { ProductService } from "./internal/products/product-service.js";
-export type { ProductServiceOptions } from "./internal/products/product-service.js";
+// ─── CNG (REST) — sibling accessor sharing this package's auth/transport/UI ──
+export { CngAccessService } from "./cng-access-service.js";
+export type { CngAccessServiceConfig } from "./cng-access-service.js";
+export { CngProductService } from "./internal/cng/products/product-service.js";
+export type { Activity, ActivityTicket } from "./models/cng-product.js";
 
-export { AccountUserService } from "./internal/account-users/account-user-service.js";
-export type { AccountUserServiceOptions } from "./internal/account-users/account-user-service.js";
+export { ProductService } from "./internal/peek/products/product-service.js";
+export type { ProductServiceOptions } from "./internal/peek/products/product-service.js";
 
-export { ResourcePoolService } from "./internal/resource-pools/resource-pool-service.js";
+export { AccountUserService } from "./internal/peek/account-users/account-user-service.js";
+export type { AccountUserServiceOptions } from "./internal/peek/account-users/account-user-service.js";
 
-export { TimeslotService } from "./internal/timeslots/timeslot-service.js";
+export { ResourcePoolService } from "./internal/peek/resource-pools/resource-pool-service.js";
 
-export { ResellerService } from "./internal/resellers/reseller-service.js";
+export { TimeslotService } from "./internal/peek/timeslots/timeslot-service.js";
 
-export { PromoCodeService } from "./internal/promo-codes/promo-code-service.js";
-export type { PromoCodeServiceOptions } from "./internal/promo-codes/promo-code-service.js";
+export { ResellerService } from "./internal/peek/resellers/reseller-service.js";
 
-export { DailyNoteService } from "./internal/daily-notes/daily-note-service.js";
+export { PromoCodeService } from "./internal/peek/promo-codes/promo-code-service.js";
+export type { PromoCodeServiceOptions } from "./internal/peek/promo-codes/promo-code-service.js";
 
-export { AvailabilityService } from "./internal/availability/availability-service.js";
+export { DailyNoteService } from "./internal/peek/daily-notes/daily-note-service.js";
 
-export { MembershipService } from "./internal/memberships/membership-service.js";
+export { AvailabilityService } from "./internal/peek/availability/availability-service.js";
 
-export { BookingService } from "./internal/bookings/booking-service.js";
+export { MembershipService } from "./internal/peek/memberships/membership-service.js";
+
+export { BookingService } from "./internal/peek/bookings/booking-service.js";
 export type {
   AddAddonInput,
   BookingServiceOptions,
   CancelBookingResult,
-} from "./internal/bookings/booking-service.js";
+} from "./internal/peek/bookings/booking-service.js";
 
-export { parseBookingWebhook } from "./internal/bookings/booking-webhook.js";
+export { parseBookingWebhook } from "./internal/peek/bookings/booking-webhook.js";
 
-export { parseWaiverWebhook } from "./internal/waivers/waiver-webhook.js";
+export { parseWaiverWebhook } from "./internal/peek/waivers/waiver-webhook.js";
 
-export { ReviewService } from "./internal/reviews/review-service.js";
+export { ReviewService } from "./internal/peek/reviews/review-service.js";
 
 export { ACTIVITY_PRODUCT_TYPE, ADD_ON_PRODUCT_TYPE, RENTAL_PRODUCT_TYPE } from "./models/product.js";
 export type { Product, ProductTicket } from "./models/product.js";
@@ -122,6 +128,7 @@ export type { Logger } from "./logger.js";
 
 export {
   AdminAccountRequiredError,
+  CngApiError,
   PeekGraphQLError,
   RateLimitError,
 } from "./errors.js";
