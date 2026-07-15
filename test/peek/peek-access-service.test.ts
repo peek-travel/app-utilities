@@ -268,6 +268,7 @@ const SAMPLE_USER_PAYLOAD = {
   is_admin: false,
   locale: "en",
   name: "Admin User",
+  platform: "peek",
 };
 
 function mintRegistryToken(
@@ -310,6 +311,16 @@ describe("PeekAccessService.verifyPeekAuthToken", () => {
     expect(user.isAdmin).toBe(false);
     expect(user.locale).toBe("en");
     expect(user.name).toBe("Admin User");
+    expect(user.platform).toBe("peek");
+  });
+
+  it("propagates the platform claim", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const token = mintRegistryToken(REQUIRED_CONFIG.jwtSecret, {
+      user: { ...SAMPLE_USER_PAYLOAD, platform: "cng" },
+    });
+
+    expect(service.verifyPeekAuthToken(token).user.platform).toBe("cng");
   });
 
   it("maps is_admin: true correctly", () => {

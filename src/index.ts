@@ -121,7 +121,11 @@ export type {
 } from "./models/peek/booking-addon.js";
 export type { Guide, Review } from "./models/peek/review.js";
 export type { Waiver } from "./models/peek/waiver.js";
-export type { PeekAuthTokenClaims, PeekAuthTokenUser } from "./models/peek/auth-token.js";
+export type {
+  PeekAuthTokenClaims,
+  PeekAuthTokenUser,
+  PeekPlatform,
+} from "./models/peek/auth-token.js";
 
 export { noopLogger } from "./logger.js";
 export type { Logger } from "./logger.js";
