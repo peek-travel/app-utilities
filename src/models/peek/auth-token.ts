@@ -4,7 +4,7 @@
  * claim is the single thing that identifies which platform a request came from.
  * New platforms extend this union.
  */
-export type PeekPlatform = "peek" | "cng";
+export type PeekPlatform = "peek" | "cng" | "acme";
 
 /** User context embedded in a Peek auth token. */
 export interface PeekAuthTokenUser {
