@@ -31,7 +31,10 @@ import {
 import { PromoCodeService } from "./internal/peek/promo-codes/promo-code-service.js";
 import { V2_EXTENDABLE_SLUG } from "./internal/peek/gateway-endpoints.js";
 import { noopLogger } from "./logger.js";
-import type { PeekAuthTokenClaims } from "./models/peek/auth-token.js";
+import type {
+  PeekAuthTokenClaims,
+  PeekPlatform,
+} from "./models/peek/auth-token.js";
 import type { AvailabilityTimesQuery } from "./models/peek/availability-time.js";
 import type {
   BookingReadOptions,
@@ -57,7 +60,14 @@ const PEEK_TOKEN_ISSUER = "app_registry_v2";
 interface RawPeekTokenPayload {
   sub: string;
   display_version: string;
-  user: { email: string; id: string; is_admin: boolean; locale: string; name: string };
+  user: {
+    email: string;
+    id: string;
+    is_admin: boolean;
+    locale: string;
+    name: string;
+    platform: PeekPlatform;
+  };
 }
 
 /**
@@ -186,6 +196,7 @@ export class PeekAccessService {
         isAdmin: u.is_admin,
         locale: u.locale,
         name: u.name,
+        platform: u.platform,
       },
     };
   }
