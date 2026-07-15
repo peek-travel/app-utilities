@@ -1,7 +1,10 @@
 /**
  * Typed errors thrown by the package. Each mirrors a failure mode of the Peek
- * GraphQL gateway so callers can branch on the error type rather than parsing
- * messages.
+ * GraphQL gateway (or the CNG REST gateway) so callers can branch on the error
+ * type rather than parsing messages.
+ *
+ * `AdminAccountRequiredError` and `RateLimitError` are shared by both gateways.
+ * `PeekGraphQLError` is Peek-only; `CngApiError` is CNG-only.
  */
 
 /**
@@ -44,5 +47,25 @@ export class PeekGraphQLError extends Error {
     super(message);
     this.name = "PeekGraphQLError";
     this.graphqlErrors = graphqlErrors;
+  }
+}
+
+/**
+ * Thrown when the CNG REST gateway returns a non-2xx response that is not one
+ * of the specifically-handled statuses (418/429). The offending status is
+ * preserved on {@link CngApiError.statusCode}, and the raw response body (parsed
+ * JSON when possible, otherwise the raw text) on {@link CngApiError.body}.
+ */
+export class CngApiError extends Error {
+  /** The HTTP status that triggered this error. */
+  public readonly statusCode: number;
+  /** The raw response body (parsed JSON when possible, otherwise text). */
+  public readonly body: unknown;
+
+  constructor(statusCode: number, body: unknown, message?: string) {
+    super(message ?? `CNG request failed with HTTP ${statusCode}`);
+    this.name = "CngApiError";
+    this.statusCode = statusCode;
+    this.body = body;
   }
 }
