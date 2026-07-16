@@ -11,12 +11,13 @@ call typed methods like `peek.getProductService().getAllProducts()` or directly
 via the top-level short-forms like `peek.getAllProducts()` and
 `peek.getAllActivities()`.
 
-The package also ships a **sibling accessor for the CNG backoffice**,
-`CngAccessService` (REST, not GraphQL). It reuses this package's auth
-(`TokenManager`), retry/backoff loop, `Logger`, base error types, tooling, and
-the Odyssey UI — differing only in transport (REST vs GraphQL) and gateway
-routing (`cng_backoffice_api-v1` vs `peek_backoffice_api-v1`). See
-"CNG accessor" below.
+The package also ships **sibling accessors for other backoffices** —
+`CngAccessService` and `AcmeAccessService` (both REST, not GraphQL). They reuse
+this package's auth (`TokenManager`), retry/backoff loop, `Logger`, base error
+types, tooling, and the Odyssey UI — differing only in transport (REST vs
+GraphQL) and gateway routing (`cng_backoffice_api-v1` /
+`acme_backoffice_api@v1` vs `peek_backoffice_api-v1`). See "CNG accessor" and
+"ACME accessor" below.
 
 ## Layers
 
@@ -234,7 +235,9 @@ Recurring patterns inside services:
 The barrel re-exports only the public contract: `PeekAccessService` + its config,
 each resource service class (and the options/result types callers need), all
 data-model **types** (including `PeekAuthTokenClaims` and `PeekAuthTokenUser`),
-the `Logger` interface + `noopLogger`, and the three typed error classes. Query strings and raw response interfaces are deliberately kept
+the `Logger` interface + `noopLogger`, and the typed error classes
+(`AdminAccountRequiredError`, `RateLimitError`, `PeekGraphQLError`,
+`CngApiError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and
@@ -286,6 +289,40 @@ plumbing rather than forking the package.
 > defaults). Confirm against a live sample and adjust — touch only
 > `cng/products/product-queries.ts`, `product-converter.ts`, and
 > `models/cng/product.ts`.
+
+### 5c. ACME accessor (REST)
+`src/acme-access-service.ts`, `src/internal/acme/`, `src/models/acme/product.ts`
+
+A third, brand-parallel accessor for the **ACME** backoffice, built by cloning
+the CNG accessor. Same auth/transport/tooling reuse as CNG (§5b) — only the
+routing, endpoint, and response shape differ:
+
+- **`AcmeAccessService`** — identical to `CngAccessService`: validates the same
+  four config fields (`installId`, `jwtSecret`, `issuer`, `appId`; no
+  `gatewayKey`), builds the shared `TokenManager` + a `RestClient`, defaults to
+  the app-registry base URL, and exposes `getProductService()` +
+  `getAllActivities()`.
+- **`RestClient`** (`src/internal/acme/rest-client.ts`) — the CNG REST client
+  cloned with `extendableSlug = acme_backoffice_api@v1` (note the `@v1`
+  separator, unlike CNG's `-v1`), logging `"Making ACME request"` and throwing
+  `AcmeApiError` on non-2xx.
+- **Products triad** (`src/internal/acme/products/`) — `product-queries.ts`
+  (raw `TemplateNode`/`TemplatesResponse` for the `{ list: [...] }` envelope,
+  plus the `PUBLISHED_REVIEW_STATE` constant, internal), `product-converter.ts`
+  (pure `fromTemplateNodes` → `AcmeActivity`, **filtering to published
+  templates only** and mapping `colorCategory.backgroundColor` → `color`),
+  `product-service.ts` (`AcmeProductService.getAllActivities()`, tolerating a
+  `{ list: [...] }` envelope or a bare array). Endpoint segments live in
+  `src/internal/acme/endpoints.ts` — the template-names path
+  `v2/b2b/event/templates/names?pageSize=-1&page=1`.
+- **Model** `src/models/acme/product.ts` — `AcmeActivity`/`AcmeActivityTicket`,
+  mirroring the CNG `Activity` shape. ACME exposes no tickets today, so
+  `tickets` is always empty; only `id`/`name`/`color` are populated.
+- **Public exports:** `AcmeAccessService` + `AcmeAccessServiceConfig`,
+  `AcmeProductService`, the `AcmeActivity`/`AcmeActivityTicket` types, and
+  `AcmeApiError` (added to the errors export). Distinct type names avoid the
+  collision with CNG's `Activity`. REST paths and raw response interfaces stay
+  internal.
 
 ### 6. UI components — the `./ui` subpath
 `src/ui/`

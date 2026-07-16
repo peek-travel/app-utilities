@@ -3,8 +3,9 @@
  * GraphQL gateway (or the CNG REST gateway) so callers can branch on the error
  * type rather than parsing messages.
  *
- * `AdminAccountRequiredError` and `RateLimitError` are shared by both gateways.
- * `PeekGraphQLError` is Peek-only; `CngApiError` is CNG-only.
+ * `AdminAccountRequiredError` and `RateLimitError` are shared by all gateways.
+ * `PeekGraphQLError` is Peek-only; `CngApiError` is CNG-only; `AcmeApiError` is
+ * ACME-only.
  */
 
 /**
@@ -65,6 +66,27 @@ export class CngApiError extends Error {
   constructor(statusCode: number, body: unknown, message?: string) {
     super(message ?? `CNG request failed with HTTP ${statusCode}`);
     this.name = "CngApiError";
+    this.statusCode = statusCode;
+    this.body = body;
+  }
+}
+
+/**
+ * Thrown when the ACME REST gateway returns a non-2xx response that is not one
+ * of the specifically-handled statuses (418/429). The offending status is
+ * preserved on {@link AcmeApiError.statusCode}, and the raw response body
+ * (parsed JSON when possible, otherwise the raw text) on
+ * {@link AcmeApiError.body}.
+ */
+export class AcmeApiError extends Error {
+  /** The HTTP status that triggered this error. */
+  public readonly statusCode: number;
+  /** The raw response body (parsed JSON when possible, otherwise text). */
+  public readonly body: unknown;
+
+  constructor(statusCode: number, body: unknown, message?: string) {
+    super(message ?? `ACME request failed with HTTP ${statusCode}`);
+    this.name = "AcmeApiError";
     this.statusCode = statusCode;
     this.body = body;
   }
