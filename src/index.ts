@@ -14,6 +14,12 @@ export type { CngAccessServiceConfig } from "./cng-access-service.js";
 export { CngProductService } from "./internal/cng/products/product-service.js";
 export type { Activity, ActivityTicket } from "./models/cng/product.js";
 
+// ─── ACME (REST) — sibling accessor sharing this package's auth/transport/UI ─
+export { AcmeAccessService } from "./acme-access-service.js";
+export type { AcmeAccessServiceConfig } from "./acme-access-service.js";
+export { AcmeProductService } from "./internal/acme/products/product-service.js";
+export type { AcmeActivity, AcmeActivityTicket } from "./models/acme/product.js";
+
 export { ProductService } from "./internal/peek/products/product-service.js";
 export type { ProductServiceOptions } from "./internal/peek/products/product-service.js";
 
@@ -131,6 +137,7 @@ export { noopLogger } from "./logger.js";
 export type { Logger } from "./logger.js";
 
 export {
+  AcmeApiError,
   AdminAccountRequiredError,
   CngApiError,
   PeekGraphQLError,
