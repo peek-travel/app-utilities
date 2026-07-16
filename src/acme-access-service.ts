@@ -9,7 +9,7 @@
  * Auth and transport mirror the CNG access service: the same app JWT
  * (`X-Peek-Auth: Bearer`) minted from the Peek app credentials via the shared
  * {@link TokenManager}, routed through the app-registry installations API. The
- * only differences are the extendable slug (`acme_backoffice_api@v1`), REST
+ * only differences are the extendable slug (`acme_backoffice_api-v1`), REST
  * rather than GraphQL, and no `pk-api-key` header.
  */
 import {

@@ -61,7 +61,7 @@ describe("AcmeAccessService", () => {
       },
     ]);
     expect(calls[0]).toBe(
-      "https://app-registry.peeklabs.com/installations-api/app-1/acme_backoffice_api@v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
+      "https://app-registry.peeklabs.com/installations-api/app-1/acme_backoffice_api-v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
     );
   });
 
@@ -80,7 +80,7 @@ describe("AcmeAccessService", () => {
     await acme.getAllActivities();
 
     expect(calls[0]).toBe(
-      "https://custom.test/base/app-1/acme_backoffice_api@v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
+      "https://custom.test/base/app-1/acme_backoffice_api-v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
     );
   });
 });

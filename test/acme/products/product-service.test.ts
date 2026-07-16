@@ -45,7 +45,7 @@ function buildClient(
   return new RestClient({
     baseUrl: "https://gw.test/api",
     appId: "app-1",
-    extendableSlug: "acme_backoffice_api@v1",
+    extendableSlug: "acme_backoffice_api-v1",
     getToken: () => "tok-123",
     retryDelaysMs: [],
     logger: noopLogger,
@@ -80,7 +80,7 @@ describe("AcmeProductService.getAllActivities", () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0]!.url).toBe(
-      "https://gw.test/api/app-1/acme_backoffice_api@v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
+      "https://gw.test/api/app-1/acme_backoffice_api-v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
     );
     expect(calls[0]!.init.method).toBe("GET");
     const headers = calls[0]!.init.headers as Record<string, string>;

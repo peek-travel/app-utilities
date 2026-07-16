@@ -16,7 +16,7 @@ The package also ships **sibling accessors for other backoffices** —
 this package's auth (`TokenManager`), retry/backoff loop, `Logger`, base error
 types, tooling, and the Odyssey UI — differing only in transport (REST vs
 GraphQL) and gateway routing (`cng_backoffice_api-v1` /
-`acme_backoffice_api@v1` vs `peek_backoffice_api-v1`). See "CNG accessor" and
+`acme_backoffice_api-v1` vs `peek_backoffice_api-v1`). See "CNG accessor" and
 "ACME accessor" below.
 
 ## Layers
@@ -303,8 +303,8 @@ routing, endpoint, and response shape differ:
   the app-registry base URL, and exposes `getProductService()` +
   `getAllActivities()`.
 - **`RestClient`** (`src/internal/acme/rest-client.ts`) — the CNG REST client
-  cloned with `extendableSlug = acme_backoffice_api@v1` (note the `@v1`
-  separator, unlike CNG's `-v1`), logging `"Making ACME request"` and throwing
+  cloned with `extendableSlug = acme_backoffice_api-v1` (same `-v1` separator
+  as CNG/Peek), logging `"Making ACME request"` and throwing
   `AcmeApiError` on non-2xx.
 - **Products triad** (`src/internal/acme/products/`) — `product-queries.ts`
   (raw `TemplateNode`/`TemplatesResponse` for the `{ list: [...] }` envelope,
