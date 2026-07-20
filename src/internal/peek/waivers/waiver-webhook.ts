@@ -13,6 +13,10 @@
  * `PeekAccessService` (the receiver may not hold gateway credentials).
  */
 import type { Waiver } from "../../../models/peek/waiver.js";
+import {
+  resolveAccessOptions,
+  type AccessOptions,
+} from "../../../access-options.js";
 
 /** The envelope key the webhook delivery wraps the waiver node under. */
 const PAYLOAD_WAIVER_KEY = "waiver";
@@ -37,9 +41,22 @@ interface WaiverNode {
  * Accepts the raw request body — either the `{ waiver: … }` envelope or a bare
  * waiver node, and a JSON string is parsed first. Never throws on malformed
  * input: a missing/garbled body yields a {@link Waiver} with empty fields.
+ *
+ * Because a waiver webhook has no GraphQL selection to trim (Peek delivers a
+ * fixed payload), the PII fields — the participant `guestName` and the signed
+ * document `fileUrl` — are instead redacted here at parse time when `options`
+ * does not enable PII. Pass `{ fullCustomerAccess: true }` to keep them.
  */
-export function parseWaiverWebhook(payload: unknown): Waiver {
-  return fromWaiverNode(extractWaiverNode(payload));
+export function parseWaiverWebhook(
+  payload: unknown,
+  options?: AccessOptions,
+): Waiver {
+  const waiver = fromWaiverNode(extractWaiverNode(payload));
+  if (!resolveAccessOptions(options).fullCustomerAccess) {
+    waiver.guestName = null;
+    waiver.fileUrl = "";
+  }
+  return waiver;
 }
 
 /** Pure mapping of a raw waiver node into the clean {@link Waiver} model. */

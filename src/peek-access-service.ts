@@ -18,6 +18,10 @@ import {
   DEFAULT_RETRY_DELAYS_MS,
   type BaseAccessServiceConfig,
 } from "./access-service-config.js";
+import {
+  resolveAccessOptions,
+  type ResolvedAccessOptions,
+} from "./access-options.js";
 import { GraphQLClient } from "./internal/peek/graphql-client.js";
 import { MembershipService } from "./internal/peek/memberships/membership-service.js";
 import { ResellerService } from "./internal/peek/resellers/reseller-service.js";
@@ -120,6 +124,7 @@ export interface PeekAccessServiceConfig extends BaseAccessServiceConfig {
 export class PeekAccessService {
   private readonly client: GraphQLClient;
   private readonly productServiceOptions: ProductServiceOptions;
+  private readonly accessOptions: ResolvedAccessOptions;
   private readonly jwtSecret: string;
   private productService?: ProductService;
   private accountUserService?: AccountUserService;
@@ -161,6 +166,7 @@ export class PeekAccessService {
     this.productServiceOptions = {
       itemOptionsPageSize: config.itemOptionsPageSize,
     };
+    this.accessOptions = resolveAccessOptions(config.accessOptions);
   }
 
   /**
@@ -313,9 +319,11 @@ export class PeekAccessService {
    */
   getBookingService(): BookingService {
     if (!this.bookingService) {
-      this.bookingService = new BookingService(this.client, {
-        productService: this.getProductService(),
-      });
+      this.bookingService = new BookingService(
+        this.client,
+        { productService: this.getProductService() },
+        { accessOptions: this.accessOptions },
+      );
     }
     return this.bookingService;
   }
@@ -326,7 +334,7 @@ export class PeekAccessService {
    */
   getReviewService(): ReviewService {
     if (!this.reviewService) {
-      this.reviewService = new ReviewService(this.client);
+      this.reviewService = new ReviewService(this.client, this.accessOptions);
     }
     return this.reviewService;
   }

@@ -9,7 +9,13 @@
  * descending `reviewedAt` order; pagination walks backwards in time via the
  * last edge's `cursor` as the next `after`.
  */
-export const REVIEWS_QUERY = `
+/**
+ * Builds the reviews query. Without `fullCustomerAccess`, the reviewer's `name` and
+ * `email` are not requested (they come back absent → `null` in the converter);
+ * the review `comment`, rating, dates, and credited guides are always selected.
+ */
+export function buildReviewsQuery(fullCustomerAccess: boolean): string {
+  return `
   query Reviews($first: Int, $filter: ReviewFilter, $after: String) {
     reviews(first: $first, filter: $filter, after: $after) {
       edges {
@@ -23,8 +29,7 @@ export const REVIEWS_QUERY = `
             name
           }
           id
-          name
-          email
+          ${fullCustomerAccess ? "name\n          email" : ""}
           rating
           comment
           reviewedAt
@@ -35,6 +40,7 @@ export const REVIEWS_QUERY = `
     }
   }
 `;
+}
 
 /** A guide node as returned by the gateway. */
 export interface ReviewGuideNode {
@@ -61,19 +67,19 @@ export interface ReviewEdge {
   cursor: string;
 }
 
-/** `data` payload of {@link REVIEWS_QUERY}. */
+/** `data` payload of {@link buildReviewsQuery}. */
 export interface ReviewsResponse {
   reviews: { edges: ReviewEdge[] } | null;
 }
 
-/** Variables for {@link REVIEWS_QUERY}. */
+/** Variables for {@link buildReviewsQuery}. */
 export interface ReviewsVariables {
   first: number;
   filter: { activityIds: string[] };
   after: string | null;
 }
 
-/** Builds the variables for {@link REVIEWS_QUERY}. */
+/** Builds the variables for {@link buildReviewsQuery}. */
 export function buildReviewsVariables(params: {
   activityId: string;
   first: number;

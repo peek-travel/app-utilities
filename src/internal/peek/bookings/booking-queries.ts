@@ -12,17 +12,14 @@ export function normalizeBookingId(bookingId: string): string {
   return bookingId.toLowerCase().replace(/-/g, "_");
 }
 
-const guestFields = `
-  id
-  name
-  country
-  dateOfBirth
-  email
-  isGdpr
-  isParticipant
-  optinSms
-  optinMarketing
-  phone
+/**
+ * The customer-identity guest fields (name, contact, DOB, postal code, and the
+ * free-text custom field responses). These are PII and are only selected when
+ * `fullCustomerAccess` is set; the trailing group sits after the non-PII flags to keep
+ * the maximal selection order stable for the webhook drift-guard.
+ */
+const GUEST_IDENTITY_PII_FIELDS = "name country dateOfBirth email isGdpr";
+const GUEST_CONTACT_PII_FIELDS = `phone
   postalCode
   fieldResponses {
     id
@@ -32,10 +29,28 @@ const guestFields = `
         name
       }
     }
-  }
-`;
+  }`;
 
-export const bookingGuestsFields = `
+/**
+ * Builds the guest selection. Without `fullCustomerAccess`, only the structural id and
+ * the participation/opt-in flags are requested — the identity fields come back
+ * absent (→ `null` in the converter).
+ */
+export function buildGuestFields(fullCustomerAccess: boolean): string {
+  return `
+  id
+  ${fullCustomerAccess ? GUEST_IDENTITY_PII_FIELDS : ""}
+  isParticipant
+  optinSms
+  optinMarketing
+  ${fullCustomerAccess ? GUEST_CONTACT_PII_FIELDS : ""}
+`;
+}
+
+/** Builds the `bookingGuests` + `primaryGuest` guest sections. */
+export function buildBookingGuestsFields(fullCustomerAccess: boolean): string {
+  const guestFields = buildGuestFields(fullCustomerAccess);
+  return `
   bookingGuests {
     ${guestFields}
   }
@@ -43,11 +58,16 @@ export const bookingGuestsFields = `
     ${guestFields}
   }
 `;
+}
 
-export const bookingQueryFields = `
-  displayId
-  id
-  primaryGuest {
+/** The maximal (PII-included) guest sections — used by the webhook selection. */
+export const bookingGuestsFields = buildBookingGuestsFields(true);
+
+/**
+ * The primary-guest PII block on a booking — drives `customerName`/`email`/
+ * `phone`. Selected only when `fullCustomerAccess` is set.
+ */
+const BOOKING_PRIMARY_GUEST_PII_FIELDS = `primaryGuest {
     name
     email
     phone
@@ -55,7 +75,39 @@ export const bookingQueryFields = `
     optinSms
     isGdpr
     postalCode
+  }`;
+
+/**
+ * Custom question answers captured on the booking and per guest/ticket. These
+ * routinely carry PII (address, DOB, captured location), so they are selected
+ * only when `fullCustomerAccess` is set.
+ */
+const BOOKING_QUESTION_ANSWERS_PII_FIELDS = `questionAnswers {
+    answer
+    questionText
+    questionLocationSnapshot {
+      latitude
+      longitude
+    }
   }
+  tickets {
+    questionAnswers {
+      answer
+      questionText
+    }
+  }`;
+
+/**
+ * Builds the booking selection. Without `fullCustomerAccess` the primary-guest block,
+ * the customer booking-portal URL, and the custom question answers are omitted
+ * entirely (they come back absent → `null`/empty in the converter). The
+ * operator-facing deep link, notes, money, and structural fields always stay.
+ */
+export function buildBookingQueryFields(fullCustomerAccess: boolean): string {
+  return `
+  displayId
+  id
+  ${fullCustomerAccess ? BOOKING_PRIMARY_GUEST_PII_FIELDS : ""}
   activitySnapshot {
     type
     name
@@ -85,7 +137,7 @@ export const bookingQueryFields = `
   endsAt
   endsAtUtc
   availabilityTimeId
-  bookingPortalUrl
+  ${fullCustomerAccess ? "bookingPortalUrl" : ""}
   operatorNotes
   value {
     total {
@@ -127,20 +179,7 @@ export const bookingQueryFields = `
       }
     }
   }
-  questionAnswers {
-    answer
-    questionText
-    questionLocationSnapshot {
-      latitude
-      longitude
-    }
-  }
-  tickets {
-    questionAnswers {
-      answer
-      questionText
-    }
-  }
+  ${fullCustomerAccess ? BOOKING_QUESTION_ANSWERS_PII_FIELDS : ""}
   resourcePoolAssignments {
     quantity
     resourcePool {
@@ -158,6 +197,10 @@ export const bookingQueryFields = `
     }
   }
 `;
+}
+
+/** The maximal (PII-included) booking selection — used by the webhook selection. */
+export const bookingQueryFields = buildBookingQueryFields(true);
 
 export const PRICE_BREAKDOWN_FIELDS = `
   convenienceFee { amount formatted }
@@ -183,20 +226,27 @@ export const TICKET_VALUE_FIELDS = `
   }
 `;
 
-/** Builds the bookings listing query, optionally including guests and price breakdown. */
+/**
+ * Builds the bookings listing query, optionally including guests and price
+ * breakdown. When `fullCustomerAccess` is false (default `true` for the raw builder;
+ * the service passes the resolved access option), customer PII fields are not
+ * requested at all — see {@link buildBookingQueryFields}.
+ */
 export function buildBookingsListingQuery(
   includeGuests: boolean,
   includePriceBreakdown: boolean,
+  fullCustomerAccess = true,
 ): string {
-  const guestsSection = includeGuests ? bookingGuestsFields : "";
+  const guestsSection = includeGuests ? buildBookingGuestsFields(fullCustomerAccess) : "";
   // Inject the booking-level breakdown first: it anchors on the first `value {`,
   // which is the booking node's. The ticket-level `value` (added by the second
   // replace) must go in afterwards, or it would capture that anchor instead.
+  const baseFields = buildBookingQueryFields(fullCustomerAccess);
   const fields = includePriceBreakdown
-    ? bookingQueryFields
+    ? baseFields
         .replace("value {", `value { ${PRICE_BREAKDOWN_FIELDS}`)
         .replace("ticketQuantities {", `ticketQuantities { ${TICKET_VALUE_FIELDS}`)
-    : bookingQueryFields;
+    : baseFields;
 
   return `
     query Sales($after: String, $first: Int, $filter: SalesFilter!, $orderBy: SalesOrdering) {
@@ -215,8 +265,12 @@ export function buildBookingsListingQuery(
   `;
 }
 
-/** Query fetching the guests for a booking. */
-export const BOOKING_GUESTS_QUERY = `
+/**
+ * Builds the query fetching the guests for a booking. Without `fullCustomerAccess` the
+ * guest identity fields are omitted (only ids + participation/opt-in flags).
+ */
+export function buildBookingGuestsQuery(fullCustomerAccess: boolean): string {
+  return `
   query Sales($after: String, $first: Int, $filter: SalesFilter!, $orderBy: SalesOrdering) {
     sales(after: $after, first: $first, filter: $filter, orderBy: $orderBy) {
       pageInfo { endCursor hasNextPage }
@@ -225,13 +279,14 @@ export const BOOKING_GUESTS_QUERY = `
           ... on Booking {
             displayId
             id
-            ${bookingGuestsFields}
+            ${buildBookingGuestsFields(fullCustomerAccess)}
           }
         }
       }
     }
   }
 `;
+}
 
 /** Query fetching a booking's order payments + payment sources. */
 export const BOOKING_PAYMENTS_ON_FILE_QUERY = `

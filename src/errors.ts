@@ -52,6 +52,27 @@ export class PeekGraphQLError extends Error {
 }
 
 /**
+ * Thrown when a payment or booking-modification operation is called on an
+ * access service that was constructed without `fullCustomerAccess` (PII access
+ * disabled). These operations — pulling payment sources, charging/refunding,
+ * creating invoice links, and adding/removing add-ons — touch customer
+ * financial data, so they are gated behind the same flag as customer PII.
+ */
+export class PiiAccessDisabledError extends Error {
+  /** The name of the operation that was blocked (e.g. `"makePayment"`). */
+  public readonly operation: string;
+
+  constructor(operation: string) {
+    super(
+      `"${operation}" is disabled because this access service was created ` +
+        `without "fullCustomerAccess"; enable it to allow payment and booking-modification operations`,
+    );
+    this.name = "PiiAccessDisabledError";
+    this.operation = operation;
+  }
+}
+
+/**
  * Thrown when the CNG REST gateway returns a non-2xx response that is not one
  * of the specifically-handled statuses (418/429). The offending status is
  * preserved on {@link CngApiError.statusCode}, and the raw response body (parsed

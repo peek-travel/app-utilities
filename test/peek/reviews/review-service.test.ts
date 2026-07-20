@@ -184,3 +184,62 @@ describe("ReviewService.getReviews — validation", () => {
     );
   });
 });
+
+describe("ReviewService.getReviews — access options (fullCustomerAccess)", () => {
+  /** Captures the sent query and returns a node with/without reviewer PII. */
+  function capturingService(fullCustomerAccess: boolean, node: Partial<ReviewNode>) {
+    let sentQuery = "";
+    const fetchFn = (async (_url: string, init: RequestInit) => {
+      sentQuery = JSON.parse(init.body as string).query as string;
+      const edge: ReviewEdge = {
+        cursor: "c",
+        node: {
+          activity: { id: ACTIVITY, name: "Tour" },
+          guides: [],
+          id: "r0",
+          name: null,
+          email: null,
+          rating: 5,
+          comment: "Great",
+          reviewedAt: "2025-09-10T12:00:00.000000Z",
+          purchasedFor: "2025-09-10T10:00:00.000000Z",
+          ...node,
+        },
+      };
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({ data: { reviews: { edges: [edge] } } }),
+      } as unknown as Response;
+    }) as unknown as typeof fetch;
+    const service = new ReviewService(buildClient(fetchFn), { fullCustomerAccess });
+    return { service, getQuery: () => sentQuery };
+  }
+
+  it("requests reviewer name/email when fullCustomerAccess is true", async () => {
+    const { service, getQuery } = capturingService(true, {
+      name: "Ada",
+      email: "ada@example.com",
+    });
+    const [review] = await service.getReviews(ACTIVITY);
+    const query = getQuery().replace(/\s+/g, " ");
+    // The reviewer's own id/name/email/rating selection (distinct from the
+    // activity/guides `name` fields).
+    expect(query).toContain("id name email rating");
+    expect(review!.customerName).toBe("Ada");
+    expect(review!.customerEmail).toBe("ada@example.com");
+  });
+
+  it("omits reviewer name/email and nulls them when fullCustomerAccess is false (default)", async () => {
+    const { service, getQuery } = capturingService(false, {});
+    const [review] = await service.getReviews(ACTIVITY);
+    const query = getQuery().replace(/\s+/g, " ");
+    expect(query).toContain("id rating comment");
+    // `email` appears only as the reviewer field, so its absence is unambiguous.
+    expect(query).not.toContain("email");
+    // The review content still comes through.
+    expect(review!.comment).toBe("Great");
+    expect(review!.customerName).toBeNull();
+    expect(review!.customerEmail).toBeNull();
+  });
+});
