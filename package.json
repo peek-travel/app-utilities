@@ -1,6 +1,6 @@
 {
   "name": "@peektravel/app-utilities",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "GraphQL JS mapping utilities extracted from the Peek Pro Autopilot connector.",
   "license": "MIT",
   "repository": {
