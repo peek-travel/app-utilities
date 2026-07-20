@@ -24,7 +24,7 @@ function waiverNode() {
 
 describe("parseWaiverWebhook", () => {
   it("parses the { waiver } envelope into a Waiver", () => {
-    const waiver = parseWaiverWebhook({ waiver: waiverNode() });
+    const waiver = parseWaiverWebhook({ waiver: waiverNode() }, { fullCustomerAccess: true });
     expect(waiver).toEqual({
       templateId: "tpl_1",
       bookingId: "b_1",
@@ -44,8 +44,23 @@ describe("parseWaiverWebhook", () => {
   });
 
   it("parses a JSON string body", () => {
-    const waiver = parseWaiverWebhook(JSON.stringify({ waiver: waiverNode() }));
+    const waiver = parseWaiverWebhook(
+      JSON.stringify({ waiver: waiverNode() }),
+      { fullCustomerAccess: true },
+    );
     expect(waiver.fileUrl).toBe("https://files/waiver.pdf");
+  });
+
+  it("redacts participant name and document URL by default (no PII)", () => {
+    const waiver = parseWaiverWebhook({ waiver: waiverNode() });
+    expect(waiver.guestName).toBeNull();
+    expect(waiver.fileUrl).toBe("");
+    // Non-PII fields still come through.
+    expect(waiver.bookingId).toBe("b_1");
+    expect(waiver.templateId).toBe("tpl_1");
+    expect(waiver.signedAt).toBe("2026-06-26T10:00:00Z");
+    expect(waiver.isSignedByGuardian).toBe(true);
+    expect(waiver.isOptinMarketing).toBe(true);
   });
 
   it("defaults guest fields when waiver_data is absent", () => {

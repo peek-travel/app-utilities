@@ -6,6 +6,8 @@ import {
   type GraphQLClientOptions,
 } from "../../../src/internal/peek/graphql-client.js";
 import type { ProductService } from "../../../src/internal/peek/products/product-service.js";
+import type { AccessOptions } from "../../../src/access-options.js";
+import { PiiAccessDisabledError } from "../../../src/errors.js";
 import { noopLogger } from "../../../src/logger.js";
 import type { Product } from "../../../src/models/peek/product.js";
 
@@ -19,6 +21,7 @@ type Handler = (query: string, variables: Record<string, unknown>) => unknown;
 function makeService(
   handler: Handler,
   addOnProducts: Product[] = [],
+  accessOptions: AccessOptions = { fullCustomerAccess: true },
 ): {
   service: BookingService;
   calls: RecordedCall[];
@@ -43,7 +46,11 @@ function makeService(
     getAllProducts: async () => addOnProducts,
   } as unknown as ProductService;
   return {
-    service: new BookingService(new GraphQLClient(options), { productService }),
+    service: new BookingService(
+      new GraphQLClient(options),
+      { productService },
+      { accessOptions },
+    ),
     calls,
   };
 }
@@ -1053,5 +1060,147 @@ describe("BookingService.create", () => {
   ])("rejects invalid input (%#)", async (input, pattern) => {
     const { service } = makeService(createHandler());
     await expect(service.create(input)).rejects.toThrow(pattern);
+  });
+});
+
+describe("BookingService access options (fullCustomerAccess)", () => {
+  const NO_PII: AccessOptions = { fullCustomerAccess: false };
+
+  it("defaults to PII off when no access options are provided", async () => {
+    // makeService defaults to fullCustomerAccess:true, so construct one directly here.
+    const calls: RecordedCall[] = [];
+    const fetchFn = (async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string);
+      calls.push({ query: body.query as string, variables: body.variables });
+      return { status: 200, ok: true, json: async () => ({}) } as unknown as Response;
+    }) as unknown as typeof fetch;
+    const client = new GraphQLClient({
+      baseUrl: "https://gw.test/gql",
+      appId: "app-1",
+      gatewayKey: "gw-key",
+      getToken: () => "tok",
+      retryDelaysMs: [],
+      logger: noopLogger,
+      fetchFn,
+    });
+    const productService = { getAllProducts: async () => [] } as unknown as ProductService;
+    const service = new BookingService(client, { productService });
+    await expect(service.getPaymentsOnFile("b_1")).rejects.toThrow(PiiAccessDisabledError);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("requests no PII fields and nulls PII on the result for getById", async () => {
+    const { service, calls } = makeService(() => listing([NODE]), [], NO_PII);
+    const booking = await service.getById("b_1");
+    const query = calls[0]!.query;
+    expect(query).not.toContain("bookingPortalUrl");
+    expect(query).not.toContain("primaryGuest { name");
+    expect(query).not.toContain("questionAnswers");
+    expect(booking?.customerName).toBe("");
+    expect(booking?.customerEmail).toBeNull();
+    expect(booking?.portalUrl).toBeNull();
+  });
+
+  it("returns guests without identity fields for getGuests", async () => {
+    const { service, calls } = makeService(
+      () => ({
+        data: {
+          sales: {
+            edges: [
+              {
+                node: {
+                  displayId: "B-1",
+                  id: "b_1",
+                  primaryGuest: { id: "g1" },
+                  bookingGuests: [{ id: "g1", isParticipant: true }],
+                },
+              },
+            ],
+          },
+        },
+      }),
+      [],
+      NO_PII,
+    );
+    const guests = await service.getGuests("b_1");
+    expect(guests[0]!.id).toBe("g1");
+    expect(guests[0]!.name).toBeNull();
+    expect(guests[0]!.email).toBeNull();
+    expect(calls[0]!.query).not.toContain("dateOfBirth");
+    expect(calls[0]!.query).not.toContain("fieldResponses");
+  });
+
+  it.each<[string, (s: BookingService) => Promise<unknown>]>([
+    ["getPaymentsOnFile", (s) => s.getPaymentsOnFile("b_1")],
+    [
+      "makePayment",
+      (s) =>
+        s.makePayment({
+          bookingId: "b_1",
+          paymentSourceId: "ps_1",
+          amount: "1.00",
+          currency: "USD",
+          idempotencyKey: "k",
+        }),
+    ],
+    [
+      "refund",
+      (s) =>
+        s.refund({
+          bookingId: "b_1",
+          paymentId: "pmt_1",
+          amount: "1.00",
+          currency: "USD",
+          idempotencyKey: "k",
+        }),
+    ],
+    ["createInvoiceLink", (s) => s.createInvoiceLink("b_1")],
+    ["addAddon", (s) => s.addAddon("b_1", { addonOptionId: "io_1", quantity: "1" })],
+    ["removeAddon", (s) => s.removeAddon("b_1", { addonOptionId: "io_1", quantity: "1" })],
+  ])("disables %s and makes no network call when fullCustomerAccess is false", async (_op, call) => {
+    const { service, calls } = makeService(() => ({}), [], NO_PII);
+    await expect(call(service)).rejects.toThrow(PiiAccessDisabledError);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("still allows create with markAsPaid when fullCustomerAccess is false", async () => {
+    const handler: Handler = (query) => {
+      if (query.includes("createQuoteV2")) {
+        return { data: { createQuoteV2: { errors: null, quote: { id: "q-1" } } } };
+      }
+      if (query.includes("createOrderFromQuote")) {
+        return {
+          data: {
+            createOrderFromQuote: {
+              errors: null,
+              order: {
+                id: "o_1",
+                sales: [
+                  {
+                    id: "b_1",
+                    displayId: "B-1",
+                    balance: { total: { amount: "100.00", currency: "USD", formatted: "$100.00" } },
+                  },
+                ],
+              },
+            },
+          },
+        };
+      }
+      if (query.includes("applyPaymentToOrder")) {
+        return { data: { applyPaymentToOrder: { transactionId: "tx-1", errors: null } } };
+      }
+      return {};
+    };
+    const { service } = makeService(handler, [], NO_PII);
+    const result = await service.create({
+      activityId: "act-1",
+      availabilityTimeId: "avail-1",
+      tickets: [{ resourceOptionId: "r1", quantity: 1 }],
+      guest: { name: "Ada" },
+      markAsPaid: true,
+      idempotencyKey: "k1",
+    });
+    expect(result.transactionId).toBe("tx-1");
   });
 });

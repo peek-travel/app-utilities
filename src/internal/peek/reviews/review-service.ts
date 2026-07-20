@@ -6,10 +6,14 @@
 import { SALES_ENDPOINT } from "../gateway-endpoints.js";
 import type { GraphQLBody, GraphQLClient } from "../graphql-client.js";
 import type { Review } from "../../../models/peek/review.js";
+import {
+  resolveAccessOptions,
+  type AccessOptions,
+} from "../../../access-options.js";
 import { fromReviewNode } from "./review-converter.js";
 import { encodeCursor } from "./review-cursor.js";
 import {
-  REVIEWS_QUERY,
+  buildReviewsQuery,
   buildReviewsVariables,
   type ReviewsResponse,
 } from "./review-queries.js";
@@ -34,7 +38,15 @@ const ERROR_INVALID_REVIEW_OFFSET = "reviewOffset must be a non-negative integer
  * Obtain an instance via {@link PeekAccessService.getReviewService}.
  */
 export class ReviewService {
-  constructor(private readonly client: GraphQLClient) {}
+  /** Whether reviewer PII (name/email) is requested. */
+  private readonly fullCustomerAccess: boolean;
+
+  constructor(
+    private readonly client: GraphQLClient,
+    accessOptions?: AccessOptions,
+  ) {
+    this.fullCustomerAccess = resolveAccessOptions(accessOptions).fullCustomerAccess;
+  }
 
   /**
    * Returns up to `reviewCount` reviews for an activity in **descending order
@@ -74,7 +86,7 @@ export class ReviewService {
     const body: GraphQLBody<ReviewsResponse> =
       await this.client.request<ReviewsResponse>(
         SALES_ENDPOINT,
-        REVIEWS_QUERY,
+        buildReviewsQuery(this.fullCustomerAccess),
         buildReviewsVariables({ activityId: productId, first: reviewCount, after }),
       );
 

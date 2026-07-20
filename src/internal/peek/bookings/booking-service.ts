@@ -8,6 +8,11 @@ import { randomUUID } from "node:crypto";
 import { SALES_ENDPOINT } from "../gateway-endpoints.js";
 import type { GraphQLBody, GraphQLClient } from "../graphql-client.js";
 import type { ProductService } from "../products/product-service.js";
+import {
+  resolveAccessOptions,
+  type AccessOptions,
+} from "../../../access-options.js";
+import { PiiAccessDisabledError } from "../../../errors.js";
 import type {
   Booking,
   BookingReadOptions,
@@ -49,7 +54,6 @@ import {
   AMEND_ORDER_MUTATION,
   APPLY_PAYMENT_TO_ORDER_MUTATION,
   APPLY_REFUND_TO_ORDER_MUTATION,
-  BOOKING_GUESTS_QUERY,
   BOOKING_PAYMENTS_ON_FILE_QUERY,
   CANCEL_BOOKING_MUTATION,
   CREATE_INVOICE_LINK_MUTATION,
@@ -60,6 +64,7 @@ import {
   UPDATE_BOOKING_CHECKIN_MUTATION,
   UPDATE_OPERATOR_NOTES_MUTATION,
   UPDATE_QUOTE_V2_MUTATION,
+  buildBookingGuestsQuery,
   buildBookingsListingQuery,
   buildBookingsVariables,
   normalizeBookingId,
@@ -110,6 +115,8 @@ interface CancelBookingResponse {
 export interface BookingServiceOptions {
   /** Page size for cursor pagination. Default: 50. */
   pageSize?: number;
+  /** Cross-cutting access options (PII exposure). Default: PII off. */
+  accessOptions?: AccessOptions;
 }
 
 /** Dependencies the {@link BookingService} composes for add-on resolution. */
@@ -147,6 +154,8 @@ const ERROR_AMEND_ORDER_FAILED = "Failed to amend order with add-on";
 
 export class BookingService {
   private readonly pageSize: number;
+  /** Whether customer PII is requested and payment operations are allowed. */
+  private readonly fullCustomerAccess: boolean;
 
   constructor(
     private readonly client: GraphQLClient,
@@ -154,6 +163,18 @@ export class BookingService {
     options: BookingServiceOptions = {},
   ) {
     this.pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
+    this.fullCustomerAccess = resolveAccessOptions(options.accessOptions).fullCustomerAccess;
+  }
+
+  /**
+   * Throws a {@link PiiAccessDisabledError} for `operation` when this service was
+   * created without `fullCustomerAccess` — used to gate payment and booking-modification
+   * operations that touch customer financial data.
+   */
+  private assertPiiEnabled(operation: string): void {
+    if (!this.fullCustomerAccess) {
+      throw new PiiAccessDisabledError(operation);
+    }
   }
 
   /**
@@ -182,7 +203,7 @@ export class BookingService {
     const body: GraphQLBody<BookingsResponse> =
       await this.client.request<BookingsResponse>(
         SALES_ENDPOINT,
-        buildBookingsListingQuery(includeGuests, includePriceBreakdown),
+        buildBookingsListingQuery(includeGuests, includePriceBreakdown, this.fullCustomerAccess),
         buildBookingsVariables({
           pageSize: this.pageSize,
           after: null,
@@ -203,7 +224,7 @@ export class BookingService {
     const includePriceBreakdown = input.includePriceBreakdown ?? false;
 
     return this.fetchPaginated(
-      buildBookingsListingQuery(includeGuests, includePriceBreakdown),
+      buildBookingsListingQuery(includeGuests, includePriceBreakdown, this.fullCustomerAccess),
       {
         startDateTime: input.start,
         endDateTime: input.end,
@@ -226,7 +247,7 @@ export class BookingService {
     const includePriceBreakdown = options.includePriceBreakdown ?? false;
 
     return this.fetchPaginated(
-      buildBookingsListingQuery(includeGuests, includePriceBreakdown),
+      buildBookingsListingQuery(includeGuests, includePriceBreakdown, this.fullCustomerAccess),
       { timeslotId },
       includeGuests,
       includePriceBreakdown,
@@ -239,7 +260,7 @@ export class BookingService {
     const body: GraphQLBody<BookingGuestsResponse> =
       await this.client.request<BookingGuestsResponse>(
         SALES_ENDPOINT,
-        BOOKING_GUESTS_QUERY,
+        buildBookingGuestsQuery(this.fullCustomerAccess),
         buildBookingsVariables({
           pageSize: this.pageSize,
           after: null,
@@ -251,6 +272,7 @@ export class BookingService {
 
   /** Returns the payments on file for a booking, or null when not found. */
   async getPaymentsOnFile(bookingId: string): Promise<BookingPaymentsOnFile | null> {
+    this.assertPiiEnabled("getPaymentsOnFile");
     assertBookingId(bookingId);
     const normalized = normalizeBookingId(bookingId);
     const body: GraphQLBody<BookingPaymentsOnFileResponse> =
@@ -357,6 +379,7 @@ export class BookingService {
    * charge fails.
    */
   async makePayment(input: MakePaymentInput): Promise<MakePaymentResult> {
+    this.assertPiiEnabled("makePayment");
     this.validatePaymentInput(input);
     const normalized = normalizeBookingId(input.bookingId);
 
@@ -408,6 +431,7 @@ export class BookingService {
    * payments-on-file, then applies the refund.
    */
   async refund(input: RefundInput): Promise<RefundResult> {
+    this.assertPiiEnabled("refund");
     this.validateRefundInput(input);
     const normalized = normalizeBookingId(input.bookingId);
 
@@ -454,6 +478,7 @@ export class BookingService {
 
   /** Creates an invoice link for a booking's order. */
   async createInvoiceLink(bookingId: string): Promise<InvoiceLinkResult> {
+    this.assertPiiEnabled("createInvoiceLink");
     assertBookingId(bookingId);
     const normalized = normalizeBookingId(bookingId);
 
@@ -523,6 +548,7 @@ export class BookingService {
     bookingId: string,
     input: AddAddonInput,
   ): Promise<BookingAddonsMutationResult> {
+    this.assertPiiEnabled("addAddon");
     assertBookingId(bookingId);
     const addonOptionId = (input?.addonOptionId || input?.addonId || "").trim();
     if (!addonOptionId) {
@@ -599,6 +625,7 @@ export class BookingService {
     bookingId: string,
     input: AddAddonInput,
   ): Promise<BookingAddonsMutationResult> {
+    this.assertPiiEnabled("removeAddon");
     assertBookingId(bookingId);
     const addonOptionId = (input?.addonOptionId || input?.addonId || "").trim();
     if (!addonOptionId) {

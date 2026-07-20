@@ -70,6 +70,34 @@ add-on pages for you.
 | `logger` | no-op | Inject a `Logger` for diagnostics |
 | `fetch` | global `fetch` | Custom fetch (e.g. for tests) |
 | `itemOptionsPageSize` | `50` | Add-on pagination page size |
+| `accessOptions` | `{ fullCustomerAccess: false }` | PII exposure — see [Access options / PII](#access-options--pii) |
+
+### Access options / PII
+
+Every access service accepts `accessOptions?: AccessOptions` — today a single
+flag, `fullCustomerAccess` (default `false`). It's an object so future cross-cutting
+flags can be added without breaking signatures.
+
+With `fullCustomerAccess` **off** (the default):
+
+- **Customer PII is never requested** (the GraphQL queries omit the fields, so
+  they come back `null`/empty): booking guest identity (name/email/phone/DOB/
+  postal code/GDPR + custom field responses — guests keep only ids and
+  participation/opt-in flags), booking custom question answers, the customer
+  `portalUrl`, and review reviewer `customerName`/`customerEmail`. Waiver
+  webhooks (a fixed payload with no query to trim) instead have `guestName` and
+  `fileUrl` redacted at parse time.
+- **Payment / booking-modification operations are disabled** —
+  `getPaymentsOnFile`, `makePayment`, `refund`, `createInvoiceLink`, `addAddon`,
+  and `removeAddon` throw `PiiAccessDisabledError`. `create` (including
+  `markAsPaid`) and non-payment reads/mutations remain available.
+
+```ts
+const peek = new PeekAccessService({
+  installId, jwtSecret, issuer, appId, gatewayKey,
+  accessOptions: { fullCustomerAccess: true }, // opt into PII + payment operations
+});
+```
 
 ### Errors
 
@@ -83,6 +111,9 @@ Two kinds of failures surface as exceptions:
   exhausted. Carries `.statusCode === 429`.
 - `PeekGraphQLError` — the response contained a GraphQL `errors` array, preserved
   on `.graphqlErrors`.
+- `PiiAccessDisabledError` — a payment / booking-modification operation was
+  called on an access service created without `fullCustomerAccess` (see [Access options
+  / PII](#access-options--pii)). Carries `.operation` (the blocked method name).
 
 **Plain `Error` validation/precondition failures** thrown by the service layer
 *before* any network call — e.g. an empty config field, a `bookingId` that
@@ -216,13 +247,16 @@ app.post("/booking-webhook", (req, res) => {
 });
 
 app.post("/waiver-webhook", (req, res) => {
-  const waiver: Waiver = parseWaiverWebhook(req.body);
+  // guestName/fileUrl are redacted unless you opt into PII:
+  const waiver: Waiver = parseWaiverWebhook(req.body, { fullCustomerAccess: true });
   res.sendStatus(200);
 });
 ```
 
 Both tolerate the delivery envelope / a bare node / a JSON string and never throw
-on malformed input. They differ on registration: a **booking** webhook's payload
+on malformed input. `parseWaiverWebhook` also takes an optional `AccessOptions`
+(`{ fullCustomerAccess }`) and redacts the participant `guestName` + document `fileUrl`
+by default — see [Access options / PII](#access-options--pii) below. They differ on registration: a **booking** webhook's payload
 shape is set by a GraphQL query configured **once in an external system** (the
 App Store `broadcast_to_url` config) — this package documents and drift-guards
 the exact query to paste there — whereas a **waiver** webhook has a fixed payload,

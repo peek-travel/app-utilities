@@ -112,7 +112,8 @@ config. Leave `output_fields_gql_query` null; the `output_format` is
 import { parseWaiverWebhook, type Waiver } from "@peektravel/app-utilities";
 
 app.post("/waiver-webhook", (req, res) => {
-  const waiver: Waiver = parseWaiverWebhook(req.body);
+  // PII (guestName, fileUrl) is redacted unless you opt in:
+  const waiver: Waiver = parseWaiverWebhook(req.body, { fullCustomerAccess: true });
   // waiver.bookingId, waiver.templateId, waiver.fileUrl, waiver.signedAt,
   // waiver.guestName, waiver.isSignedByGuardian, …
   res.sendStatus(200);
@@ -124,6 +125,13 @@ auth/network/`PeekAccessService`), it tolerates the `{ waiver: … }` envelope /
 bare node / a JSON string, maps the raw `snake_case` payload to the clean
 camelCase [`Waiver`](#waiver-webhooks) model, and never throws on malformed input
 (missing fields become `""` / `null` / `false`).
+
+**PII:** `parseWaiverWebhook(body, options?)` takes the same `AccessOptions` as
+the access services. By **default** (`fullCustomerAccess` unset/`false`) the participant
+`guestName` and the signed-document `fileUrl` are redacted (`null`/`""`); pass
+`{ fullCustomerAccess: true }` to keep them. The booking parser
+`parseBookingWebhook(body)` is unaffected — a booking webhook carries whatever
+its registered selection includes.
 
 The resulting `Waiver` is flat:
 

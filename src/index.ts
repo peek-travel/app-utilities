@@ -8,6 +8,9 @@
 export { PeekAccessService } from "./peek-access-service.js";
 export type { PeekAccessServiceConfig } from "./peek-access-service.js";
 
+// ─── Cross-cutting access options (PII exposure, …) ──────────────────────────
+export type { AccessOptions } from "./access-options.js";
+
 // ─── CNG (REST) — sibling accessor sharing this package's auth/transport/UI ──
 export { CngAccessService } from "./cng-access-service.js";
 export type { CngAccessServiceConfig } from "./cng-access-service.js";
@@ -141,5 +144,6 @@ export {
   AdminAccountRequiredError,
   CngApiError,
   PeekGraphQLError,
+  PiiAccessDisabledError,
   RateLimitError,
 } from "./errors.js";

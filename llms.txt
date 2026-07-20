@@ -25,9 +25,20 @@ const peek = new PeekAccessService({
   appId,       // gateway path segment
   gatewayKey,  // pk-api-key header
   // optional: baseUrl, tokenTtlSeconds, tokenRefreshLeewaySeconds,
-  // retryDelaysMs, logger, fetch, itemOptionsPageSize
+  // retryDelaysMs, logger, fetch, itemOptionsPageSize,
+  // accessOptions: { fullCustomerAccess: false }  // default — see "Access options / PII"
 });
 ```
+
+## Access options / PII
+
+Every access service takes `accessOptions?: AccessOptions` (`{ fullCustomerAccess?: boolean }`,
+default `false`). With `fullCustomerAccess` off, customer PII is **not requested** at the
+GraphQL layer (booking guest identity + custom question answers + `portalUrl`,
+review reviewer name/email → `null`/empty), and `BookingService` **disables**
+`getPaymentsOnFile`/`makePayment`/`refund`/`createInvoiceLink`/`addAddon`/
+`removeAddon` (throw `PiiAccessDisabledError`). `create` (incl. `markAsPaid`) and
+non-payment reads/mutations stay available. Pass `{ fullCustomerAccess: true }` to opt in.
 
 ## Resources (accessor → methods)
 
@@ -64,8 +75,9 @@ const peek = new PeekAccessService({
 ## Errors
 
 - `AdminAccountRequiredError` (HTTP 418), `RateLimitError` (HTTP 429 after
-  retries), `PeekGraphQLError` (`.graphqlErrors` holds the raw array) — all
-  importable; branch with `instanceof`.
+  retries), `PeekGraphQLError` (`.graphqlErrors` holds the raw array),
+  `PiiAccessDisabledError` (a payment/booking-modification op was called without
+  `fullCustomerAccess`) — all importable; branch with `instanceof`.
 - Plain `Error` for validation/precondition failures thrown before any request.
 
 ## Webhooks (booking + waiver)
@@ -80,9 +92,11 @@ external system** (App Store config), not from code.
   the canonical maximal selection into `output_fields_gql_query`. That string is
   documented in `docs/webhooks.md` and pinned by a drift-guard test — it is NOT a
   runtime export.
-- `parseWaiverWebhook(body): Waiver` — maps the fixed `snake_case`
+- `parseWaiverWebhook(body, options?): Waiver` — maps the fixed `snake_case`
   `waiver_webhook_data` payload to the clean `Waiver` model. **No query to
-  register** — just subscribe to the `agreement_signature_created` event.
+  register** — just subscribe to the `agreement_signature_created` event. Takes
+  the same `AccessOptions`; by default (`fullCustomerAccess` off) `guestName` and
+  `fileUrl` are redacted — pass `{ fullCustomerAccess: true }` to keep them.
 
 **Full guide + booking query-to-register: `docs/webhooks.md` (shipped).**
 

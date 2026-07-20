@@ -68,7 +68,8 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
     resolution).
 - Optional config: `mode` (`"v2"` — see below), `baseUrl`, `tokenTtlSeconds` (3600), `tokenRefreshLeewaySeconds`
   (60), `retryDelaysMs` (`[1000, 2000, 4000]`), `logger` (no-op default),
-  `fetch` (global default), `itemOptionsPageSize` (50).
+  `fetch` (global default), `itemOptionsPageSize` (50), and `accessOptions`
+  (see "Access options / PII" below).
 - **v2 mode** (`mode: "v2"`): routes requests through the app-registry
   installations API. The endpoint URL becomes
   `baseUrl/appId/peek_backoffice_api-v1/endpointName` and the default `baseUrl`
@@ -229,15 +230,62 @@ Recurring patterns inside services:
   rejected. Validating pre-normalization is deliberate: normalization would
   erase the case/separator distinction the check relies on.
 
+### 4b. Access options / PII
+`src/access-options.ts`
+
+Every access service (`PeekAccessService`, `CngAccessService`, `AcmeAccessService`)
+accepts an optional `accessOptions` config object — the public `AccessOptions`
+type. Today it carries one flag, `fullCustomerAccess` (default `false`); it is an object
+rather than a bare boolean so future cross-cutting flags slot in without changing
+any downstream signatures. Each access service resolves it once
+(`resolveAccessOptions`, which fills defaults) and threads the resolved value
+into the resource services that read customer data.
+
+When `fullCustomerAccess` is `false` (the default), two things happen:
+
+1. **PII is never requested (filtered at the GraphQL layer, not in the
+   converters).** The query *builders* omit the PII fields entirely, so the
+   gateway never returns them and the pure converters map the now-absent fields
+   to `null`/empty — the converters stay PII-agnostic. Affected:
+   - **Bookings** (`booking-queries.ts`): `buildBookingQueryFields` /
+     `buildBookingGuestsFields` / `buildBookingGuestsQuery` /
+     `buildBookingsListingQuery` drop the primary-guest block
+     (`customerName`/`email`/`phone`), the guest identity fields
+     (name/country/DOB/email/phone/postalCode/`isGdpr`/`fieldResponses` — the
+     guest list keeps only ids + participation/opt-in flags), the custom
+     question answers (booking- and ticket-level), and the customer
+     `bookingPortalUrl`. Operator-facing fields (notes, the Peek Pro deep link,
+     money, resources) always stay.
+   - **Reviews** (`buildReviewsQuery`): drops the reviewer `name`/`email`; the
+     review `comment`, rating, dates, and credited guides always stay.
+   - **Waivers** (`parseWaiverWebhook`): the webhook delivers a *fixed* payload
+     with no GraphQL selection to trim, so this is the one place filtering is
+     applied at parse time — the participant `guestName` and the signed-document
+     `fileUrl` are nulled. `parseWaiverWebhook(body, options?)` takes the same
+     `AccessOptions`; `fromWaiverNode` stays a pure full mapping.
+
+2. **Payment / booking-modification operations are disabled.** `BookingService`
+   gates the operations that touch customer financial data —
+   `getPaymentsOnFile`, `makePayment`, `refund`, `createInvoiceLink`,
+   `addAddon`, `removeAddon` — throwing `PiiAccessDisabledError` (an exported
+   typed error) before any network call. Non-payment reads/mutations
+   (`getById`, `getGuests`, `cancel`, `appendNote`, `setCheckinStatus`) and
+   `create` (**including `markAsPaid`**) remain available.
+
+The webhook **registration** query (`BOOKING_WEBHOOK_GQL_QUERY`) is deliberately
+unaffected — it is the maximal selection built from the full field fragments and
+pinned by the drift-guard test; `fullCustomerAccess` governs only the runtime read path.
+
 ### 5. Public API surface
 `src/index.ts`
 
 The barrel re-exports only the public contract: `PeekAccessService` + its config,
-each resource service class (and the options/result types callers need), all
-data-model **types** (including `PeekAuthTokenClaims` and `PeekAuthTokenUser`),
-the `Logger` interface + `noopLogger`, and the typed error classes
-(`AdminAccountRequiredError`, `RateLimitError`, `PeekGraphQLError`,
-`CngApiError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
+the `AccessOptions` type (see §4b), each resource service class (and the
+options/result types callers need), all data-model **types** (including
+`PeekAuthTokenClaims` and `PeekAuthTokenUser`), the `Logger` interface +
+`noopLogger`, and the typed error classes (`AdminAccountRequiredError`,
+`RateLimitError`, `PeekGraphQLError`, `PiiAccessDisabledError`, `CngApiError`,
+`AcmeApiError`). Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and

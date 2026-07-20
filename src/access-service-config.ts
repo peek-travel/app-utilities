@@ -8,6 +8,7 @@
  * plumbing is written once.
  */
 import { TokenManager } from "./internal/token-manager.js";
+import type { AccessOptions } from "./access-options.js";
 import type { Logger } from "./logger.js";
 
 /** Fields common to every access service's config. */
@@ -33,6 +34,13 @@ export interface BaseAccessServiceConfig {
   logger?: Logger;
   /** Custom `fetch` implementation. Default: the global `fetch`. */
   fetch?: typeof fetch;
+
+  /**
+   * Cross-cutting access options (PII exposure, …). When omitted, defaults are
+   * used ({@link AccessOptions.fullCustomerAccess} `false`). Threaded down to the
+   * resource services that read customer data.
+   */
+  accessOptions?: AccessOptions;
 }
 
 /** Default JWT lifetime (1 hour). */

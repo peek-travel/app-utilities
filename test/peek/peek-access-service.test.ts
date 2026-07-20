@@ -13,6 +13,7 @@ import { ReviewService } from "../../src/internal/peek/reviews/review-service.js
 import { ResourcePoolService } from "../../src/internal/peek/resource-pools/resource-pool-service.js";
 import { TimeslotService } from "../../src/internal/peek/timeslots/timeslot-service.js";
 import type { Logger } from "../../src/logger.js";
+import { PiiAccessDisabledError } from "../../src/errors.js";
 import { PeekAccessService } from "../../src/peek-access-service.js";
 
 const REQUIRED_CONFIG = {
@@ -664,5 +665,36 @@ describe("PeekAccessService proxy methods", () => {
     expect(spy).toHaveBeenCalledWith("act-1", undefined, undefined);
     await service.getReviews("act-1", 10, 5);
     expect(spy).toHaveBeenCalledWith("act-1", 10, 5);
+  });
+});
+
+describe("PeekAccessService accessOptions threading", () => {
+  it("defaults to PII off — booking payment operations are disabled", async () => {
+    const { fetchFn } = makeEmptyFetch();
+    const service = new PeekAccessService({ ...REQUIRED_CONFIG, fetch: fetchFn });
+    await expect(service.getBookingPaymentsOnFile("b_1")).rejects.toThrow(
+      PiiAccessDisabledError,
+    );
+  });
+
+  it("enables payment operations and PII reads when fullCustomerAccess is set", async () => {
+    const calls: RecordedCall[] = [];
+    const fetchFn = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return jsonResponse({ data: { sales: { edges: [] } } });
+    }) as unknown as typeof fetch;
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+      accessOptions: { fullCustomerAccess: true },
+    });
+
+    // Payment read is allowed and hits the network (returns null on no match).
+    await expect(service.getBookingPaymentsOnFile("b_1")).resolves.toBeNull();
+    expect(calls).toHaveLength(1);
+
+    // A booking read requests the PII selection.
+    await service.getBookingById("b_1");
+    expect(calls[1]!.init.body as string).toContain("bookingPortalUrl");
   });
 });
