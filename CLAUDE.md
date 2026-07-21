@@ -12,6 +12,11 @@ out, and the clean data models — never raw GraphQL.
 - Before making any changes, review `docs/internal/ARCHITECTURE.md`.
 - Once you've made all the code changes, update `docs/internal/ARCHITECTURE.md` to reflect
   major changes (new resources, new triads, changed public surface).
+- **Keep the external guides in sync.** If you change the pricing engine/override
+  surface (`PricingService`, the `src/models/peek/pricing.ts` models, or the
+  products `currency` field), update `docs/external/pricing-api.md` — it documents
+  that API for consumers and must not drift. Likewise `docs/webhooks.md` for the
+  webhook surface and `llms.txt` for any change to the public entry points.
 - Ensure test coverage remains above 95% (the Vitest gate enforces this on
   lines/functions/branches/statements).
 - Unless told otherwise, after everything is done, run the linter and fix any
@@ -97,3 +102,5 @@ install-script spawn — use `npm install --ignore-scripts`. If the
 - Review the new code for obvious duplication; simplify with helper functions.
 - Run the linter, the type checker, and the unit tests (with coverage).
 - Update `docs/internal/ARCHITECTURE.md` if the public surface, resources, or build changed.
+- Update `docs/external/pricing-api.md` if the pricing surface changed, and
+  `llms.txt` if the public entry points changed.

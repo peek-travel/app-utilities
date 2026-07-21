@@ -38,6 +38,8 @@ export { ResellerService } from "./internal/peek/resellers/reseller-service.js";
 export { PromoCodeService } from "./internal/peek/promo-codes/promo-code-service.js";
 export type { PromoCodeServiceOptions } from "./internal/peek/promo-codes/promo-code-service.js";
 
+export { PricingService } from "./internal/peek/pricing/pricing-service.js";
+
 export { DailyNoteService } from "./internal/peek/daily-notes/daily-note-service.js";
 
 export { AvailabilityService } from "./internal/peek/availability/availability-service.js";
@@ -80,6 +82,25 @@ export type {
   PromoCode,
   PromoCodeFixedAmount,
 } from "./models/peek/promo-code.js";
+export type {
+  ActivityOverrides,
+  ClearOverridesInput,
+  CreateEngineInput,
+  CreatedPricingEngine,
+  PricingActivityContext,
+  PricingEngine,
+  PricingMoney,
+  PricingNamedRef,
+  PricingOverride,
+  PricingOverrideFilter,
+  ResolvedOverride,
+  ResolvedPricingOverride,
+  ResolvedResourceOption,
+  ResourceOptionOverride,
+  UpdateEngineInput,
+  UpsertOverridesInput,
+  UpsertOverridesResult,
+} from "./models/peek/pricing.js";
 export type { DailyNote } from "./models/peek/daily-note.js";
 export type {
   Availability,

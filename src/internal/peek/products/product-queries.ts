@@ -14,6 +14,7 @@ export const PRODUCTS_QUERY = `
       deletedAt
       type
       colorHex
+      currency
       resourceOptions {
         id
         name
@@ -30,6 +31,7 @@ export interface ActivityNode {
   deletedAt?: string | null;
   type: string;
   colorHex: string;
+  currency?: string;
   resourceOptions: Array<{ id: string; name: string }>;
 }
 

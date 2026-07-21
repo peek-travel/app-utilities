@@ -19,6 +19,7 @@ describe("fromActivities", () => {
         legacyId: "legacy-1",
         type: "ACTIVITY",
         colorHex: "#1A2B3C",
+        currency: "USD",
         resourceOptions: [
           { id: "r1", name: "Single" },
           { id: "r2", name: "Double" },
@@ -32,6 +33,7 @@ describe("fromActivities", () => {
         name: "Kayak Tour",
         type: "ACTIVITY",
         color: "#1A2B3C",
+        currency: "USD",
         tickets: [
           { id: "r1", name: "Single" },
           { id: "r2", name: "Double" },
@@ -58,6 +60,7 @@ describe("fromActivities", () => {
         name: "No Primary Id",
         type: "ACTIVITY",
         color: "",
+        currency: "",
         tickets: [],
       },
     ]);
@@ -107,6 +110,7 @@ describe("fromItemOptionNodes", () => {
         name: "Safety Gear",
         type: ADD_ON_PRODUCT_TYPE,
         color: "#FFFFFF",
+        currency: "",
         tickets: [
           { id: "opt-1", name: "Helmet" },
           { id: "opt-2", name: "Life Vest" },
@@ -117,6 +121,7 @@ describe("fromItemOptionNodes", () => {
         name: "Extras",
         type: ADD_ON_PRODUCT_TYPE,
         color: "#FFFFFF",
+        currency: "",
         tickets: [{ id: "opt-3", name: "Photo Package" }],
       },
     ]);

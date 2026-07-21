@@ -33,6 +33,7 @@ import {
   type ProductServiceOptions,
 } from "./internal/peek/products/product-service.js";
 import { PromoCodeService } from "./internal/peek/promo-codes/promo-code-service.js";
+import { PricingService } from "./internal/peek/pricing/pricing-service.js";
 import { V2_EXTENDABLE_SLUG } from "./internal/peek/gateway-endpoints.js";
 import { noopLogger } from "./logger.js";
 import type {
@@ -49,6 +50,12 @@ import type {
 import type { MakePaymentInput, RefundInput } from "./models/peek/booking-payment.js";
 import type { MembershipPurchaseInput } from "./models/peek/membership.js";
 import type { CreatePromoCodeInput } from "./models/peek/promo-code.js";
+import type {
+  ClearOverridesInput,
+  CreateEngineInput,
+  UpdateEngineInput,
+  UpsertOverridesInput,
+} from "./models/peek/pricing.js";
 import type { ResourcePoolMode } from "./models/peek/resource-pool.js";
 import type { GuideAssignment, TimeslotFilter } from "./models/peek/timeslot.js";
 import type { AddAddonInput } from "./internal/peek/bookings/booking-service.js";
@@ -132,6 +139,7 @@ export class PeekAccessService {
   private timeslotService?: TimeslotService;
   private resellerService?: ResellerService;
   private promoCodeService?: PromoCodeService;
+  private pricingService?: PricingService;
   private dailyNoteService?: DailyNoteService;
   private availabilityService?: AvailabilityService;
   private membershipService?: MembershipService;
@@ -281,6 +289,17 @@ export class PeekAccessService {
   }
 
   /**
+   * Returns the {@link PricingService} for this install, bound to the shared
+   * authenticated transport. The instance is created lazily and reused.
+   */
+  getPricingService(): PricingService {
+    if (!this.pricingService) {
+      this.pricingService = new PricingService(this.client);
+    }
+    return this.pricingService;
+  }
+
+  /**
    * Returns the {@link DailyNoteService} for this install, bound to the shared
    * authenticated transport. The instance is created lazily and reused.
    */
@@ -405,6 +424,23 @@ export class PeekAccessService {
 
   /** Create a promo code. Delegates to {@link PromoCodeService.create}. */
   createPromoCode(input: CreatePromoCodeInput) { return this.getPromoCodeService().create(input); }
+
+  // ─── Pricing short-forms ──────────────────────────────────────────────────
+
+  /** Create a pricing engine. Delegates to {@link PricingService.createEngine}. */
+  createPricingEngine(input: CreateEngineInput) { return this.getPricingService().createEngine(input); }
+
+  /** Update a pricing engine. Delegates to {@link PricingService.updateEngine}. */
+  updatePricingEngine(input: UpdateEngineInput) { return this.getPricingService().updateEngine(input); }
+
+  /** Delete a pricing engine (idempotent). Delegates to {@link PricingService.deleteEngine}. */
+  deletePricingEngine(engineId: string) { return this.getPricingService().deleteEngine(engineId); }
+
+  /** Upsert pricing overrides. Delegates to {@link PricingService.upsertOverrides}. */
+  upsertPricingOverrides(input: UpsertOverridesInput) { return this.getPricingService().upsertOverrides(input); }
+
+  /** Clear pricing overrides for a set of activities. Delegates to {@link PricingService.clearOverrides}. */
+  clearPricingOverrides(input: ClearOverridesInput) { return this.getPricingService().clearOverrides(input); }
 
   // ─── Daily-note short-forms ───────────────────────────────────────────────
 
