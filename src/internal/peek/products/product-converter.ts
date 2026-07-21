@@ -21,6 +21,7 @@ function fromActivity(activity: ActivityNode): Product {
     name: activity.name,
     type: activity.type,
     color: activity.colorHex || "",
+    currency: activity.currency || "",
     tickets: (activity.resourceOptions ?? []).map((option) => ({
       id: option.id,
       name: option.name,
@@ -48,6 +49,7 @@ export function fromItemOptionNodes(nodes: ItemOptionNode[]): Product[] {
         name: node.item.name,
         type: ADD_ON_PRODUCT_TYPE,
         color: ADD_ON_COLOR,
+        currency: "",
         tickets: [],
       };
       grouped.set(itemId, product);

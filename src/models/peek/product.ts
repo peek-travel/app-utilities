@@ -47,6 +47,15 @@ export interface Product {
   color: string;
 
   /**
+   * ISO 4217 currency code the activity prices in (e.g. `"USD"`).
+   *
+   * Populated for activities and rentals; empty string for add-ons (which carry
+   * no currency of their own) and when Peek reports none. Consumers building
+   * pricing overrides use this to set the currency on fixed-price adjustments.
+   */
+  currency: string;
+
+  /**
    * The bookable sub-options of this product.
    *
    * - Activities: the activity's resource options.

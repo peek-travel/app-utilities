@@ -61,6 +61,7 @@ const ACTIVITY = {
   id: "act-1",
   type: "ACTIVITY",
   colorHex: "#1A2B3C",
+  currency: "USD",
   resourceOptions: [{ id: "r1", name: "Single" }],
 };
 
@@ -120,6 +121,7 @@ describe("ProductService.getAllProducts", () => {
         name: "Kayak Tour",
         type: "ACTIVITY",
         color: "#1A2B3C",
+        currency: "USD",
         tickets: [{ id: "r1", name: "Single" }],
       },
       {
@@ -127,6 +129,7 @@ describe("ProductService.getAllProducts", () => {
         name: "Safety Gear",
         type: "ADD-ON",
         color: "#FFFFFF",
+        currency: "",
         tickets: [
           { id: "opt-1", name: "Helmet" },
           { id: "opt-2", name: "Life Vest" },
@@ -243,6 +246,7 @@ const RENTAL = {
   id: "rental-1",
   type: "RENTAL",
   colorHex: "#1EC6CE",
+  currency: "USD",
   resourceOptions: [{ id: "r2", name: "Bikes" }],
 };
 
@@ -262,6 +266,7 @@ describe("ProductService.getAllActivities", () => {
         name: "Kayak Tour",
         type: "ACTIVITY",
         color: "#1A2B3C",
+        currency: "USD",
         tickets: [{ id: "r1", name: "Single" }],
       },
     ]);
@@ -293,6 +298,7 @@ describe("ProductService.getAllRentals", () => {
         name: "Test Rental",
         type: "RENTAL",
         color: "#1EC6CE",
+        currency: "USD",
         tickets: [{ id: "r2", name: "Bikes" }],
       },
     ]);
@@ -336,6 +342,7 @@ describe("ProductService.getAllAddons", () => {
         name: "Safety Gear",
         type: "ADD-ON",
         color: "#FFFFFF",
+        currency: "",
         tickets: [{ id: "opt-1", name: "Helmet" }],
       },
     ]);

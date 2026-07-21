@@ -127,13 +127,37 @@ Each resource follows the same **three-file triad**:
 | `*-service.ts` | Public class holding the business logic; calls the shared client, then runs the converter. |
 
 Resources: `products`, `account-users`, `resource-pools`, `timeslots`,
-`resellers`, `promo-codes`, `daily-notes`, `availability`, `memberships`,
-`bookings`, `reviews`. Clean data shapes are split by brand: Peek models in
-`src/models/peek/`, CNG models in `src/models/cng/`.
+`resellers`, `promo-codes`, `pricing`, `daily-notes`, `availability`,
+`memberships`, `bookings`, `reviews`. Clean data shapes are split by brand: Peek
+models in `src/models/peek/`, CNG models in `src/models/cng/`.
 
 `ProductService` exposes three top-level product filters in addition to the combined `getAllProducts()`:
 - `getAllActivities()` — fetches only the `activities` connection (one request, no add-on pagination).
 - `getAllAddons()` — fetches only the `itemOptions` connection, paginated.
+
+`ProductService` also surfaces each activity's `currency` on the clean
+`Product` (empty string for add-ons, which have none) — the field pricing
+consumers need to set the currency on fixed-price overrides.
+
+`pricing` is a **write-only, primitives-only** triad
+(`src/internal/peek/pricing/`, model `src/models/peek/pricing.ts`). It wraps the
+four Peek pricing mutations — `createPricingEngine`, `updatePricingEngine`,
+`deletePricingEngine`, and `upsertPricingOverridesActivityContexts` (used for
+both upsert and clear) — behind `PricingService`
+(`createEngine`/`updateEngine`/`deleteEngine`/`upsertOverrides`/`clearOverrides`).
+It deliberately does **not** own the domain logic that decides *what* the
+overrides are (segmenting an activity across time windows, ordering tiers,
+computing `spotsTaken` bounds, sunrise/sunset resolution): callers build a clean
+`UpsertOverridesInput` and the service sends it faithfully. The only transforms
+it applies are strip-the-`mode`-tag on each resource-option override (clean
+`{mode:"fixed",price}` / `{mode:"percentage",percentageAdjustment}` → the bare
+`price` / `percentageAdjustment` wire key, in `pricing-queries.ts`) and, on the
+response, the inverse plus filter-`__typename` normalization (in
+`pricing-converter.ts`). `deleteEngine` is idempotent — a `NotFoundError`
+resolves. Validation (engine/date-range presence, currency format, numeric
+amounts, `percentageAdjustment > -100`) lives in the service. The consumer-facing
+guide is `docs/external/pricing-api.md` — **keep it in sync** whenever this
+surface changes.
 
 `waivers` is a **webhook-only resource**: it has no GraphQL reads (so no
 queries/service/converter triad), just `src/internal/peek/waivers/waiver-webhook.ts`

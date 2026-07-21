@@ -8,6 +8,7 @@ import { BookingService } from "../../src/internal/peek/bookings/booking-service
 import { DailyNoteService } from "../../src/internal/peek/daily-notes/daily-note-service.js";
 import { MembershipService } from "../../src/internal/peek/memberships/membership-service.js";
 import { PromoCodeService } from "../../src/internal/peek/promo-codes/promo-code-service.js";
+import { PricingService } from "../../src/internal/peek/pricing/pricing-service.js";
 import { ResellerService } from "../../src/internal/peek/resellers/reseller-service.js";
 import { ReviewService } from "../../src/internal/peek/reviews/review-service.js";
 import { ResourcePoolService } from "../../src/internal/peek/resource-pools/resource-pool-service.js";
@@ -156,6 +157,18 @@ describe("PeekAccessService.getProductService", () => {
     const promoCodeService = service.getPromoCodeService();
     expect(promoCodeService).toBeInstanceOf(PromoCodeService);
     expect(service.getPromoCodeService()).toBe(promoCodeService);
+  });
+
+  it("returns a PricingService and memoizes the instance", () => {
+    const { fetchFn } = makeEmptyFetch();
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
+
+    const pricingService = service.getPricingService();
+    expect(pricingService).toBeInstanceOf(PricingService);
+    expect(service.getPricingService()).toBe(pricingService);
   });
 
   it("returns a DailyNoteService and memoizes the instance", () => {
@@ -521,6 +534,40 @@ describe("PeekAccessService proxy methods", () => {
     const input = { name: "SAVE10", code: "SAVE10", amount: "10", discountType: "percent" as const };
     const spy = vi.spyOn(service.getPromoCodeService(), "create").mockResolvedValue({ id: "", code: "", name: "", discountType: "percent", amount: 0 });
     await service.createPromoCode(input);
+    expect(spy).toHaveBeenCalledWith(input);
+  });
+
+  it("createPricingEngine delegates to PricingService.createEngine", async () => {
+    const input = { name: "Schedule" };
+    const spy = vi.spyOn(service.getPricingService(), "createEngine").mockResolvedValue({ id: "eng-1" });
+    await service.createPricingEngine(input);
+    expect(spy).toHaveBeenCalledWith(input);
+  });
+
+  it("updatePricingEngine delegates to PricingService.updateEngine", async () => {
+    const input = { engineId: "eng-1", name: "Renamed" };
+    const spy = vi.spyOn(service.getPricingService(), "updateEngine").mockResolvedValue({ id: "eng-1", name: "Renamed" });
+    await service.updatePricingEngine(input);
+    expect(spy).toHaveBeenCalledWith(input);
+  });
+
+  it("deletePricingEngine delegates to PricingService.deleteEngine", async () => {
+    const spy = vi.spyOn(service.getPricingService(), "deleteEngine").mockResolvedValue();
+    await service.deletePricingEngine("eng-1");
+    expect(spy).toHaveBeenCalledWith("eng-1");
+  });
+
+  it("upsertPricingOverrides delegates to PricingService.upsertOverrides", async () => {
+    const input = { engineId: "eng-1", dateRange: "[d,d]", activities: [] };
+    const spy = vi.spyOn(service.getPricingService(), "upsertOverrides").mockResolvedValue({ activityContexts: [] });
+    await service.upsertPricingOverrides(input);
+    expect(spy).toHaveBeenCalledWith(input);
+  });
+
+  it("clearPricingOverrides delegates to PricingService.clearOverrides", async () => {
+    const input = { engineId: "eng-1", dateRange: "[d,d]", activityIds: ["act-1"] };
+    const spy = vi.spyOn(service.getPricingService(), "clearOverrides").mockResolvedValue({ activityContexts: [] });
+    await service.clearPricingOverrides(input);
     expect(spy).toHaveBeenCalledWith(input);
   });
 

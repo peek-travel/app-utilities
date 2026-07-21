@@ -43,13 +43,19 @@ non-payment reads/mutations stay available. Pass `{ fullCustomerAccess: true }` 
 ## Resources (accessor → methods)
 
 - `getProductService()` — `getAllProducts()` (flat list of activities + add-ons;
-  add-ons have `type === ADD_ON_PRODUCT_TYPE`)
+  add-ons have `type === ADD_ON_PRODUCT_TYPE`); `Product.currency` carries the
+  activity's ISO currency (empty for add-ons)
 - `getAccountUserService()` — `getAll()`, `getById(userId)`
 - `getResourcePoolService()` — `getAll(mode?)`
 - `getTimeslotService()` — `getForDay(productId, date, filter?)`, `getById(id)`,
   `setAvailability(...)`, `setNotes(...)`, `assignGuide({timeslotIds, guideIds, action})`
 - `getResellerService()` — `getAllChannels(agentsPerChannel?)`
 - `getPromoCodeService()` — `getAll()`, `create(input)`
+- `getPricingService()` — `createEngine(input)`, `updateEngine(input)`,
+  `deleteEngine(id)` (idempotent), `upsertOverrides(input)`, `clearOverrides(input)`.
+  Primitives-only: caller builds the `UpsertOverridesInput` (segmentation,
+  override `order`, `spotsTaken` bounds are the caller's job); service sends it
+  as-is and returns the resolved `activityContexts`.
 - `getDailyNoteService()` — `getToday()`, `update(note)`
 - `getAvailabilityService()` — `getAvailabilityTimes({activityId, date, resourceOptionQuantities})`
 - `getMembershipService()` — `getAll()`, `purchase(input)`
@@ -59,6 +65,24 @@ non-payment reads/mutations stay available. Pass `{ fullCustomerAccess: true }` 
   `makePayment(input)`, `refund(input)`, `createInvoiceLink(id)`,
   `listAddons(id)`, `addAddon(id, {addonOptionId, quantity})`,
   `removeAddon(id, {addonOptionId, quantity})`, `create(input)`
+
+## Sibling accessors (CNG, ACME — REST, not GraphQL)
+
+Two brand-parallel accessors sit alongside `PeekAccessService` and share the same
+auth/transport/UI plumbing. Both are **REST** and deliberately minimal today
+(products only). Construct one per install, same config shape **minus `gatewayKey`**
+(`installId`, `jwtSecret`, `issuer`, `appId`); both default the base URL to the
+app-registry installations API.
+
+- `CngAccessService` — `getProductService().getAllActivities()` (short-form
+  `getAllActivities()`) → `Activity[]` (`Activity`/`ActivityTicket` models).
+  Errors surface as `CngApiError`.
+- `AcmeAccessService` — `getProductService().getAllActivities()` (short-form
+  `getAllActivities()`) → `AcmeActivity[]` (`AcmeActivity`/`AcmeActivityTicket`
+  models). Errors surface as `AcmeApiError`.
+
+All are exported from the package root `.`; REST paths and raw response shapes
+stay internal.
 
 ## Input conventions (enforced in the service layer; violations throw plain Error)
 
@@ -77,7 +101,8 @@ non-payment reads/mutations stay available. Pass `{ fullCustomerAccess: true }` 
 - `AdminAccountRequiredError` (HTTP 418), `RateLimitError` (HTTP 429 after
   retries), `PeekGraphQLError` (`.graphqlErrors` holds the raw array),
   `PiiAccessDisabledError` (a payment/booking-modification op was called without
-  `fullCustomerAccess`) — all importable; branch with `instanceof`.
+  `fullCustomerAccess`), and the REST-sibling `CngApiError` / `AcmeApiError` —
+  all importable; branch with `instanceof`.
 - Plain `Error` for validation/precondition failures thrown before any request.
 
 ## Webhooks (booking + waiver)
