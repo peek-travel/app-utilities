@@ -30,15 +30,61 @@ const peek = new PeekAccessService({
 });
 ```
 
-## Access options / PII
+## Access options / PII — `fullCustomerAccess`
 
-Every access service takes `accessOptions?: AccessOptions` (`{ fullCustomerAccess?: boolean }`,
-default `false`). With `fullCustomerAccess` off, customer PII is **not requested** at the
-GraphQL layer (booking guest identity + custom question answers + `portalUrl`,
-review reviewer name/email → `null`/empty), and `BookingService` **disables**
-`getPaymentsOnFile`/`makePayment`/`refund`/`createInvoiceLink`/`addAddon`/
-`removeAddon` (throw `PiiAccessDisabledError`). `create` (incl. `markAsPaid`) and
-non-payment reads/mutations stay available. Pass `{ fullCustomerAccess: true }` to opt in.
+**The most commonly-misunderstood option in this package. Read this before
+debugging "why is `customerName` null?" or "why did `makePayment` throw?".**
+
+Every access service takes `accessOptions?: AccessOptions`
+(`{ fullCustomerAccess?: boolean }`). It is passed **once at construction**, not
+per call, and applies to every service that access service hands out.
+
+```ts
+const peek = new PeekAccessService({
+  installId, jwtSecret, issuer, appId, gatewayKey,
+  accessOptions: { fullCustomerAccess: true },  // opt in to PII + payment ops
+});
+```
+
+- **Default is `false` (PII off).** Omitting `accessOptions`, passing `{}`, or
+  passing `undefined` are all identical to `{ fullCustomerAccess: false }`.
+- There is **no per-call override** by design — an install either has customer-
+  data entitlement or it doesn't. Need both modes? Construct two access services.
+- Consumed by `BookingService` and `ReviewService`; `parseWaiverWebhook(body,
+  options?)` takes the same object directly. `CngAccessService` /
+  `AcmeAccessService` accept the field but have no PII surface (inert).
+
+### With `fullCustomerAccess: false` (default) — two distinct effects
+
+**1. PII is never requested.** Filtering happens in the GraphQL selection, so the
+data never leaves the gateway; the fields simply arrive as `null`/empty in the
+clean models. There is no error and no warning — a missing name looks exactly
+like a customer who didn't provide one.
+
+| Surface | Redacted (→ `null`/empty) | Always present |
+| --- | --- | --- |
+| Booking | primary-guest `customerName`/`email`/`phone`/`postalCode`/`isGdpr`/opt-ins; per-guest identity (name, country, DOB, email, phone, postal code, `isGdpr`, custom `fieldResponses`) — guests keep only ids + participation/opt-in flags; booking- and ticket-level custom `questionAnswers`; the customer `portalUrl` | notes, Peek Pro operator deep link, money/price breakdown, resources, timeslot + structural ids |
+| Review | reviewer `customerName` / `customerEmail` | comment, rating, dates, credited guides |
+| Waiver webhook | participant `guestName`, signed-document `fileUrl` (redacted at parse time — the payload is fixed, so there is no selection to trim) | signature/agreement ids, timestamps, booking linkage |
+
+**2. Payment & booking-modification operations are disabled.** These throw
+`PiiAccessDisabledError` (exported; `.operation` names the blocked method)
+**before any network call**:
+
+`getPaymentsOnFile`, `makePayment`, `refund`, `createInvoiceLink`, `addAddon`,
+`removeAddon`.
+
+Still available without the flag: `create` (**including `markAsPaid`**),
+`getById`, `getGuests`, `searchByTimeRange`, `searchByTimeslot`, `listAddons`,
+`cancel`, `appendNote`, `setCheckinStatus`, and every other resource service.
+
+### Choosing a value
+
+Leave it `false` for operations/logistics tooling (manifests, check-in, guide
+assignment, notes, availability) — that surface is fully functional without PII.
+Set it `true` only when the app genuinely needs to contact customers or move
+money, and only when the install is entitled to that data; the gateway is the
+final authority and may still reject the request.
 
 ## Resources (accessor → methods)
 
