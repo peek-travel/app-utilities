@@ -90,7 +90,10 @@ final authority and may still reject the request.
 
 - `getProductService()` — `getAllProducts()` (flat list of activities + add-ons;
   add-ons have `type === ADD_ON_PRODUCT_TYPE`); `Product.currency` carries the
-  activity's ISO currency (empty for add-ons)
+  activity's ISO currency (empty for add-ons). Each `Product.tickets[]` entry
+  carries `minPrice`/`maxPrice` (`PricingMoney | null`, `null` for add-ons and
+  when Peek reports no range); every `PricingMoney` includes a `displayPrice`
+  string (e.g. `"$50.00"`) on values read back from the gateway.
 - `getAccountUserService()` — `getAll()`, `getById(userId)`
 - `getResourcePoolService()` — `getAll(mode?)`
 - `getTimeslotService()` — `getForDay(productId, date, filter?)`, `getById(id)`,

@@ -139,6 +139,15 @@ models in `src/models/peek/`, CNG models in `src/models/cng/`.
 `Product` (empty string for add-ons, which have none) — the field pricing
 consumers need to set the currency on fixed-price overrides.
 
+Each `Product.tickets[]` (a `ProductTicket`) additionally carries `minPrice`
+and `maxPrice` (`PricingMoney | null`), mapped from the resourceOption's
+`priceRange { min max }`. They are `null` for add-on options (no range) and
+when Peek reports none. The shared, internal `toPricingMoney` helper
+(`src/internal/peek/money.ts`) maps a raw gateway money node
+(`{ amount, currency, formatted }`) into `PricingMoney`, carrying `formatted`
+across as the optional `displayPrice` display string; both the products and
+pricing converters reuse it so that mapping lives in one place.
+
 `pricing` is a **write-only, primitives-only** triad
 (`src/internal/peek/pricing/`, model `src/models/peek/pricing.ts`). It wraps the
 four Peek pricing mutations — `createPricingEngine`, `updatePricingEngine`,

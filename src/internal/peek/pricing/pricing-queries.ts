@@ -103,6 +103,7 @@ export const UPSERT_PRICING_OVERRIDES_MUTATION = `
                   price {
                     amount
                     currency
+                    formatted
                   }
                 }
                 ... on PricingOverridesActivityContextResourceOptionPercentageAdjustmentOverride {
@@ -206,7 +207,7 @@ export interface UpsertOverridesVariables {
 
 /** A single resolved resource-option override as returned by the API. */
 export type RawResolvedOverride =
-  | { price: { amount: string; currency: string } }
+  | { price: { amount: string; currency: string; formatted?: string } }
   | { percentageAdjustment: string };
 
 /** A single resolved filter as returned by the API (tagged by `__typename`). */
@@ -278,7 +279,11 @@ export function buildUpsertInput(input: UpsertOverridesInput): RawUpsertInput {
         order: override.order,
         resourceOptions: override.resourceOptions.map((option) =>
           option.mode === "fixed"
-            ? { id: option.id, price: option.price }
+            ? {
+                id: option.id,
+                // Send only the wire fields — `displayPrice` is read-only.
+                price: { amount: option.price.amount, currency: option.price.currency },
+              }
             : { id: option.id, percentageAdjustment: option.percentageAdjustment },
         ),
         filters: override.filters,

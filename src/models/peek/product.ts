@@ -5,6 +5,7 @@
  * decoupled from the underlying Peek GraphQL schema — the raw GraphQL types and
  * the conversion logic live inside the package and are never exposed here.
  */
+import type { PricingMoney } from "./pricing.js";
 
 /**
  * A bookable product in a Peek Pro account.
@@ -70,6 +71,20 @@ export interface ProductTicket {
   id: string;
   /** Human-readable name of the ticket / option. */
   name: string;
+  /**
+   * Lowest price this ticket can be sold at, across its price range.
+   *
+   * Populated for activity/rental resource options that expose a price range;
+   * `null` for add-on options (which carry no range) and when Peek reports none.
+   */
+  minPrice: PricingMoney | null;
+  /**
+   * Highest price this ticket can be sold at, across its price range.
+   *
+   * Populated for activity/rental resource options that expose a price range;
+   * `null` for add-on options (which carry no range) and when Peek reports none.
+   */
+  maxPrice: PricingMoney | null;
 }
 
 /** {@link Product.type} for standard bookable activities. */

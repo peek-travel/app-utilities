@@ -18,10 +18,29 @@ export const PRODUCTS_QUERY = `
       resourceOptions {
         id
         name
+        priceRange {
+          min {
+            currency
+            amount
+            formatted
+          }
+          max {
+            currency
+            amount
+            formatted
+          }
+        }
       }
     }
   }
 `;
+
+/** A raw monetary value on the wire (a `PricingMoney` before conversion). */
+export interface RawMoneyNode {
+  currency: string;
+  amount: string;
+  formatted?: string;
+}
 
 /** A single activity node as returned by {@link PRODUCTS_QUERY}. */
 export interface ActivityNode {
@@ -32,7 +51,11 @@ export interface ActivityNode {
   type: string;
   colorHex: string;
   currency?: string;
-  resourceOptions: Array<{ id: string; name: string }>;
+  resourceOptions: Array<{
+    id: string;
+    name: string;
+    priceRange?: { min?: RawMoneyNode | null; max?: RawMoneyNode | null } | null;
+  }>;
 }
 
 /** The `data` payload of {@link PRODUCTS_QUERY}. */

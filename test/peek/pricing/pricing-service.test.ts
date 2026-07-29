@@ -312,6 +312,41 @@ describe("PricingService.upsertOverrides", () => {
     });
   });
 
+  it("strips a caller-supplied displayPrice from the fixed-price wire input", async () => {
+    const { fetchFn, calls } = makeFetch(() => upsertSuccess());
+
+    await new PricingService(buildClient(fetchFn)).upsertOverrides({
+      engineId: "eng-1",
+      dateRange: "[2025-07-04,2025-07-04]",
+      activities: [
+        {
+          activityId: "act-1",
+          overrides: [
+            {
+              order: 0,
+              resourceOptions: [
+                {
+                  id: "r1",
+                  mode: "fixed",
+                  price: { amount: "80.00", currency: "USD", displayPrice: "$80.00" },
+                },
+              ],
+              filters: [],
+            },
+          ],
+        },
+      ],
+    });
+
+    const sent = sentInput(calls) as {
+      activities: Array<{ overrides: Array<{ resourceOptions: unknown[] }> }>;
+    };
+    expect(sent.activities[0]!.overrides[0]!.resourceOptions[0]).toEqual({
+      id: "r1",
+      price: { amount: "80.00", currency: "USD" },
+    });
+  });
+
   it("returns the resolved activity contexts", async () => {
     const { fetchFn } = makeFetch(() =>
       upsertSuccess([
