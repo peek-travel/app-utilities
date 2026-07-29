@@ -21,7 +21,14 @@ describe("fromActivities", () => {
         colorHex: "#1A2B3C",
         currency: "USD",
         resourceOptions: [
-          { id: "r1", name: "Single" },
+          {
+            id: "r1",
+            name: "Single",
+            priceRange: {
+              min: { currency: "USD", amount: "50.00", formatted: "$50.00" },
+              max: { currency: "USD", amount: "80.00", formatted: "$80.00" },
+            },
+          },
           { id: "r2", name: "Double" },
         ],
       },
@@ -35,9 +42,42 @@ describe("fromActivities", () => {
         color: "#1A2B3C",
         currency: "USD",
         tickets: [
-          { id: "r1", name: "Single" },
-          { id: "r2", name: "Double" },
+          {
+            id: "r1",
+            name: "Single",
+            minPrice: { amount: "50.00", currency: "USD", displayPrice: "$50.00" },
+            maxPrice: { amount: "80.00", currency: "USD", displayPrice: "$80.00" },
+          },
+          { id: "r2", name: "Double", minPrice: null, maxPrice: null },
         ],
+      },
+    ]);
+  });
+
+  it("maps a price range with no formatted string, omitting displayPrice", () => {
+    const activities: ActivityNode[] = [
+      {
+        name: "Kayak Tour",
+        id: "act-1",
+        type: "ACTIVITY",
+        colorHex: "#000000",
+        currency: "USD",
+        resourceOptions: [
+          {
+            id: "r1",
+            name: "Single",
+            priceRange: { min: { currency: "USD", amount: "50.00" }, max: null },
+          },
+        ],
+      },
+    ];
+
+    expect(fromActivities(activities)[0]?.tickets).toEqual([
+      {
+        id: "r1",
+        name: "Single",
+        minPrice: { amount: "50.00", currency: "USD" },
+        maxPrice: null,
       },
     ]);
   });
@@ -112,8 +152,8 @@ describe("fromItemOptionNodes", () => {
         color: "#FFFFFF",
         currency: "",
         tickets: [
-          { id: "opt-1", name: "Helmet" },
-          { id: "opt-2", name: "Life Vest" },
+          { id: "opt-1", name: "Helmet", minPrice: null, maxPrice: null },
+          { id: "opt-2", name: "Life Vest", minPrice: null, maxPrice: null },
         ],
       },
       {
@@ -122,7 +162,7 @@ describe("fromItemOptionNodes", () => {
         type: ADD_ON_PRODUCT_TYPE,
         color: "#FFFFFF",
         currency: "",
-        tickets: [{ id: "opt-3", name: "Photo Package" }],
+        tickets: [{ id: "opt-3", name: "Photo Package", minPrice: null, maxPrice: null }],
       },
     ]);
   });

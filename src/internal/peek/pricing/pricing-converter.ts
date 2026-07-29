@@ -16,6 +16,7 @@ import type {
   ResolvedPricingOverride,
   ResolvedResourceOption,
 } from "../../../models/peek/pricing.js";
+import { toPricingMoney } from "../money.js";
 import {
   SPOTS_TAKEN_FILTER_TYPENAME,
   type RawActivityContext,
@@ -63,7 +64,7 @@ function fromResourceOption(
 
 function fromResolvedOverride(override: RawResolvedOverride): ResolvedOverride {
   return "price" in override
-    ? { mode: "fixed", price: override.price }
+    ? { mode: "fixed", price: toPricingMoney(override.price)! }
     : { mode: "percentage", percentageAdjustment: override.percentageAdjustment };
 }
 

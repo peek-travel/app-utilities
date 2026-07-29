@@ -62,7 +62,23 @@ const ACTIVITY = {
   type: "ACTIVITY",
   colorHex: "#1A2B3C",
   currency: "USD",
-  resourceOptions: [{ id: "r1", name: "Single" }],
+  resourceOptions: [
+    {
+      id: "r1",
+      name: "Single",
+      priceRange: {
+        min: { currency: "USD", amount: "50.00", formatted: "$50.00" },
+        max: { currency: "USD", amount: "80.00", formatted: "$80.00" },
+      },
+    },
+  ],
+};
+
+const ACTIVITY_TICKET = {
+  id: "r1",
+  name: "Single",
+  minPrice: { amount: "50.00", currency: "USD", displayPrice: "$50.00" },
+  maxPrice: { amount: "80.00", currency: "USD", displayPrice: "$80.00" },
 };
 
 function addOnNode(optionId: string, optionName: string) {
@@ -122,7 +138,7 @@ describe("ProductService.getAllProducts", () => {
         type: "ACTIVITY",
         color: "#1A2B3C",
         currency: "USD",
-        tickets: [{ id: "r1", name: "Single" }],
+        tickets: [ACTIVITY_TICKET],
       },
       {
         productId: "item-1",
@@ -131,8 +147,8 @@ describe("ProductService.getAllProducts", () => {
         color: "#FFFFFF",
         currency: "",
         tickets: [
-          { id: "opt-1", name: "Helmet" },
-          { id: "opt-2", name: "Life Vest" },
+          { id: "opt-1", name: "Helmet", minPrice: null, maxPrice: null },
+          { id: "opt-2", name: "Life Vest", minPrice: null, maxPrice: null },
         ],
       },
     ]);
@@ -267,7 +283,7 @@ describe("ProductService.getAllActivities", () => {
         type: "ACTIVITY",
         color: "#1A2B3C",
         currency: "USD",
-        tickets: [{ id: "r1", name: "Single" }],
+        tickets: [ACTIVITY_TICKET],
       },
     ]);
     expect(calls).toHaveLength(1);
@@ -299,7 +315,7 @@ describe("ProductService.getAllRentals", () => {
         type: "RENTAL",
         color: "#1EC6CE",
         currency: "USD",
-        tickets: [{ id: "r2", name: "Bikes" }],
+        tickets: [{ id: "r2", name: "Bikes", minPrice: null, maxPrice: null }],
       },
     ]);
     expect(calls).toHaveLength(1);
@@ -343,7 +359,7 @@ describe("ProductService.getAllAddons", () => {
         type: "ADD-ON",
         color: "#FFFFFF",
         currency: "",
-        tickets: [{ id: "opt-1", name: "Helmet" }],
+        tickets: [{ id: "opt-1", name: "Helmet", minPrice: null, maxPrice: null }],
       },
     ]);
     expect(calls).toHaveLength(2);

@@ -58,9 +58,16 @@ const peek = new PeekAccessService({ /* installId, jwtSecret, issuer, appId, gat
 const activities = await peek.getProductService().getAllActivities();
 const activity = activities[0]!;
 // activity.productId → the activityId
-// activity.tickets   → [{ id, name }, ...]  (the resourceOption ids)
+// activity.tickets   → [{ id, name, minPrice, maxPrice }, ...]  (resourceOptions)
 // activity.currency  → "USD"  (use this for fixed-price overrides)
 ```
+
+Each ticket also carries its current price range as `minPrice` / `maxPrice`
+(a `PricingMoney`, or `null` when Peek reports no range) — handy for seeding a
+fixed-price override or showing "from $X". Every `PricingMoney` read back from
+the gateway includes a `displayPrice` string (e.g. `"$50.00"`) alongside the raw
+`amount`/`currency`; it is display-only, so you never set it when *building* an
+override.
 
 > **Money and percentages are strings, not numbers.** `"80.00"`, `"-25"` — never
 > `80` or `-25`. The API rejects floats, and strings avoid precision loss.

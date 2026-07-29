@@ -20,7 +20,9 @@ describe("fromActivityContexts", () => {
             resourceOptions: [
               {
                 resourceOption: { id: "r1", name: "Adult" },
-                override: { price: { amount: "80.00", currency: "USD" } },
+                override: {
+                  price: { amount: "80.00", currency: "USD", formatted: "$80.00" },
+                },
               },
             ],
             filters: [
@@ -60,7 +62,10 @@ describe("fromActivityContexts", () => {
             resourceOptions: [
               {
                 resourceOption: { id: "r1", name: "Adult" },
-                override: { mode: "fixed", price: { amount: "80.00", currency: "USD" } },
+                override: {
+                  mode: "fixed",
+                  price: { amount: "80.00", currency: "USD", displayPrice: "$80.00" },
+                },
               },
             ],
             filters: [

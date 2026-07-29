@@ -3,6 +3,7 @@
  * model. No I/O — straightforward, testable transformations.
  */
 import { ADD_ON_PRODUCT_TYPE, type Product } from "../../../models/peek/product.js";
+import { toPricingMoney } from "../money.js";
 import type { ActivityNode, ItemOptionNode } from "./product-queries.js";
 
 /** Default display color applied to add-on products. */
@@ -25,6 +26,8 @@ function fromActivity(activity: ActivityNode): Product {
     tickets: (activity.resourceOptions ?? []).map((option) => ({
       id: option.id,
       name: option.name,
+      minPrice: toPricingMoney(option.priceRange?.min),
+      maxPrice: toPricingMoney(option.priceRange?.max),
     })),
   };
 }
@@ -54,7 +57,12 @@ export function fromItemOptionNodes(nodes: ItemOptionNode[]): Product[] {
       };
       grouped.set(itemId, product);
     }
-    product.tickets.push({ id: node.id, name: node.name });
+    product.tickets.push({
+      id: node.id,
+      name: node.name,
+      minPrice: null,
+      maxPrice: null,
+    });
   }
 
   return Array.from(grouped.values());

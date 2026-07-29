@@ -28,6 +28,16 @@ export interface PricingMoney {
   amount: string;
   /** ISO 4217 currency code (e.g. `"USD"`). */
   currency: string;
+  /**
+   * Human-formatted display string for the amount (e.g. `"$50.00"`), as
+   * rendered by the Peek gateway.
+   *
+   * Populated on values **read back** from the gateway (resolved overrides,
+   * product ticket price ranges). It is optional and purely informational —
+   * omit it when *building* an override input; the gateway derives it from
+   * `amount`/`currency`.
+   */
+  displayPrice?: string;
 }
 
 /** An `{ id, name }` reference to a Peek entity echoed back in a response. */
