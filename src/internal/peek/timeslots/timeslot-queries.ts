@@ -21,9 +21,24 @@ export const TIMESLOTS_QUERY = `
           status
           date
           inheritedResourceAllocations {
+            id
+            status
+            quantity
+            resourcePool {
+              id
+              name
+              category
+              capacity
+              accountUser {
+                id
+              }
+            }
+          }
+          resourceAllocations {
             quantity
             status
             resourcePool {
+              id
               name
               category
               capacity
@@ -61,9 +76,24 @@ export const TIMESLOT_BY_ID_QUERY = `
           status
           date
           inheritedResourceAllocations {
+            id
+            status
+            quantity
+            resourcePool {
+              id
+              name
+              category
+              capacity
+              accountUser {
+                id
+              }
+            }
+          }
+          resourceAllocations {
             quantity
             status
             resourcePool {
+              id
               name
               category
               capacity
@@ -99,11 +129,17 @@ export const UPDATE_TIMESLOT_MUTATION = `
   }
 `;
 
-/** A single inherited resource allocation on a timeslot node. */
+/**
+ * A single resource allocation on a timeslot node. Shared by both the
+ * `inheritedResourceAllocations` and `resourceAllocations` selections; the
+ * allocation-level `id` is only present on the inherited variant.
+ */
 export interface TimeslotResourceAllocationNode {
+  id?: string | null;
   quantity: number | null;
   status: string | null;
   resourcePool: {
+    id: string;
     name: string;
     category: string;
     capacity: number | null;
@@ -125,6 +161,7 @@ export interface TimeslotNode {
   date: string | null;
   start?: string | null;
   inheritedResourceAllocations: TimeslotResourceAllocationNode[] | null;
+  resourceAllocations: TimeslotResourceAllocationNode[] | null;
 }
 
 /** `data` payload of {@link TIMESLOTS_QUERY}. */

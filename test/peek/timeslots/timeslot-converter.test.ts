@@ -23,6 +23,7 @@ const fullNode: TimeslotNode = {
       quantity: 1,
       status: "ACTIVE",
       resourcePool: {
+        id: "rp-1",
         name: "Ada",
         category: "guide",
         capacity: 5,
@@ -30,6 +31,7 @@ const fullNode: TimeslotNode = {
       },
     },
   ],
+  resourceAllocations: null,
 };
 
 describe("fromTimeslotNode", () => {
@@ -114,6 +116,74 @@ describe("fromTimeslotNode", () => {
   it("treats missing inheritedResourceAllocations as no assigned resources", () => {
     const node = { ...fullNode, inheritedResourceAllocations: null } as unknown as TimeslotNode;
     expect(fromTimeslotNode(node, "act-1").assignedResources).toEqual([]);
+  });
+
+  it("falls back to resourceAllocations when inherited is null", () => {
+    const node = {
+      ...fullNode,
+      inheritedResourceAllocations: null,
+      resourceAllocations: [
+        {
+          quantity: 2,
+          status: "ACTIVE",
+          resourcePool: {
+            id: "rp-2",
+            name: "Bob",
+            category: "guide",
+            capacity: 3,
+            accountUser: { id: "u2" },
+          },
+        },
+      ],
+    } as unknown as TimeslotNode;
+    const { assignedResources } = fromTimeslotNode(node, "act-1");
+    expect(assignedResources).toEqual([
+      { name: "Bob", capacity: 3, category: "guide", quantity: 2, accountUserId: "u2" },
+    ]);
+  });
+
+  it("falls back to resourceAllocations when inherited is an empty array", () => {
+    const node = {
+      ...fullNode,
+      inheritedResourceAllocations: [],
+      resourceAllocations: [
+        {
+          quantity: 1,
+          status: "ACTIVE",
+          resourcePool: {
+            id: "rp-2",
+            name: "Bob",
+            category: "guide",
+            capacity: 3,
+            accountUser: { id: "u2" },
+          },
+        },
+      ],
+    } as unknown as TimeslotNode;
+    expect(fromTimeslotNode(node, "act-1").assignedResources).toHaveLength(1);
+    expect(fromTimeslotNode(node, "act-1").assignedResources[0].name).toBe("Bob");
+  });
+
+  it("prefers inherited over regular resourceAllocations when both are present", () => {
+    const node = {
+      ...fullNode,
+      resourceAllocations: [
+        {
+          quantity: 9,
+          status: "ACTIVE",
+          resourcePool: {
+            id: "rp-2",
+            name: "Bob",
+            category: "guide",
+            capacity: 3,
+            accountUser: { id: "u2" },
+          },
+        },
+      ],
+    } as unknown as TimeslotNode;
+    const { assignedResources } = fromTimeslotNode(node, "act-1");
+    expect(assignedResources).toHaveLength(1);
+    expect(assignedResources[0].name).toBe("Ada");
   });
 
   it("filters out allocations whose status is not ACTIVE", () => {

@@ -55,12 +55,27 @@ export function fromTimeslotNode(
     durationMin: node.minuteLength ?? 0,
     date: node.date || "",
     startTime: node.start ?? null,
-    assignedResources: mapAssignedResources(node.inheritedResourceAllocations),
+    assignedResources: mapAssignedResources(selectResourceAllocations(node)),
   };
 }
 
 /** Only allocations with this status are considered assigned. */
 const ACTIVE_ALLOCATION_STATUS = "ACTIVE";
+
+/**
+ * Timeslots may carry both inherited (schedule-level) and directly-assigned
+ * resource allocations. Prefer inherited; fall back to the regular allocations
+ * only when the inherited field is absent or empty.
+ */
+function selectResourceAllocations(
+  node: TimeslotNode,
+): TimeslotResourceAllocationNode[] | null | undefined {
+  const inherited = node.inheritedResourceAllocations;
+  if (Array.isArray(inherited) && inherited.length > 0) {
+    return inherited;
+  }
+  return node.resourceAllocations;
+}
 
 function mapAssignedResources(
   allocations: TimeslotResourceAllocationNode[] | null | undefined,
