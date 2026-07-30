@@ -31,3 +31,35 @@ export interface PeekAuthTokenClaims {
   /** Authenticated user context. */
   user: PeekAuthTokenUser;
 }
+
+/** The Peek account an install belongs to, as reported on an install webhook. */
+export interface InstallWebhookAccount {
+  /** Peek account ID that owns the install. */
+  id: string;
+}
+
+/**
+ * Claims returned by `verifyInstallWebhook` — the decoded, signature-verified
+ * install-status webhook token.
+ *
+ * Shares the `app_registry_v2` token family with {@link PeekAuthTokenClaims},
+ * but is emitted by the app registry itself for install lifecycle events
+ * (installed / uninstalled / status changed) rather than for a user session —
+ * so {@link InstallWebhookClaims.user} is `null` for system-initiated events
+ * that no user triggered.
+ */
+export interface InstallWebhookClaims {
+  /** Install ID — the JWT subject (`sub`). Peek-assigned UUID. */
+  installId: string;
+  /** The account the install belongs to. */
+  account: InstallWebhookAccount;
+  /** Install lifecycle status (e.g. `"installed"`, `"uninstalled"`). */
+  status: string;
+  /** App display version at time of issuance. Empty string when absent. */
+  displayVersion: string;
+  /**
+   * The user that triggered the event, or `null` for system-initiated events
+   * (the whole point of a distinct type from {@link PeekAuthTokenClaims}).
+   */
+  user: PeekAuthTokenUser | null;
+}

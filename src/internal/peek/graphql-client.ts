@@ -4,8 +4,8 @@
  * GraphQL-specific response handling. The shared retry/backoff loop and 418/429
  * mapping live in `./http-transport.ts` (used by the CNG REST transport too).
  */
-import { PeekGraphQLError } from "../../errors.js";
-import { requestWithRetry } from "../http-transport.js";
+import { PeekGraphQLError, PeekHttpError } from "../../errors.js";
+import { parseBody, requestWithRetry } from "../http-transport.js";
 import type { Logger } from "../../logger.js";
 
 /** The raw body of a GraphQL HTTP response. */
@@ -13,6 +13,10 @@ export interface GraphQLBody<T> {
   data?: T;
   errors?: unknown[];
 }
+
+/** Narrows an unknown parsed body to an inspectable object (not a string/null). */
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
 
 export interface GraphQLClientOptions {
   /** Base URL of the backoffice GraphQL gateway (no trailing slash). */
@@ -65,7 +69,11 @@ export class GraphQLClient {
       },
       endpointName,
       async (response) => {
-        const body = (await response.json()) as GraphQLBody<T>;
+        // Parse the body defensively *before* branching on status: a non-JSON
+        // error page (e.g. a `404` with a "Not Found" text body) must surface
+        // as a typed HTTP error, not a `SyntaxError` that hides the real status.
+        const raw = await parseBody(response);
+        const body = (isObject(raw) ? raw : {}) as GraphQLBody<T>;
 
         if (body.errors) {
           logger.error(`GraphQL errors for ${endpointName}`, {
@@ -77,7 +85,7 @@ export class GraphQLClient {
 
         if (!response.ok) {
           logger.error(`GraphQL request failed with HTTP ${response.status}`, { url });
-          throw new Error(`GraphQL request failed with HTTP ${response.status}`);
+          throw new PeekHttpError(response.status, url, raw);
         }
 
         return body;

@@ -1,0 +1,55 @@
+/**
+ * Shared verification core for the `app_registry_v2` JWT family.
+ *
+ * Every token Peek's app registry mints — the per-session **peek-auth token**
+ * (see {@link PeekAccessService.verifyPeekAuthToken}) and the **install-status
+ * webhook token** (see {@link verifyInstallWebhook}) — is signed with the app's
+ * HMAC secret and carries the same `issuer`/`audience` and the same snake_case
+ * `user` block. This module owns those shared constants and the signature check
+ * so the two entry points can't drift apart.
+ *
+ * Internal only — never re-exported from `src/index.ts`.
+ */
+import * as jwt from "jsonwebtoken";
+import type { PeekAuthTokenUser, PeekPlatform } from "../../models/peek/auth-token.js";
+
+/** JWT issuer set by the Peek app registry on all tokens it issues. */
+export const PEEK_TOKEN_ISSUER = "app_registry_v2";
+/** JWT audience set by the Peek app registry on all tokens it issues. */
+export const PEEK_TOKEN_AUDIENCE = "Joken";
+
+/** The raw, snake_case user block embedded in an `app_registry_v2` token. */
+export interface RawPeekTokenUser {
+  email: string;
+  id: string;
+  is_admin: boolean;
+  locale: string;
+  name: string;
+  platform: PeekPlatform;
+}
+
+/**
+ * Verifies an `app_registry_v2` token's HMAC signature (with `secret`), its
+ * expiry, the `"app_registry_v2"` issuer, and the `"Joken"` audience, then
+ * returns the decoded payload cast to `T`. Throws from the `jsonwebtoken`
+ * library on any failure (`JsonWebTokenError` / `TokenExpiredError` /
+ * `NotBeforeError`).
+ */
+export function verifyPeekJwt<T>(token: string, secret: string): T {
+  return jwt.verify(token, secret, {
+    issuer: PEEK_TOKEN_ISSUER,
+    audience: PEEK_TOKEN_AUDIENCE,
+  }) as T;
+}
+
+/** Maps the raw snake_case user block to the clean {@link PeekAuthTokenUser}. */
+export function mapPeekTokenUser(u: RawPeekTokenUser): PeekAuthTokenUser {
+  return {
+    email: u.email,
+    id: u.id,
+    isAdmin: u.is_admin,
+    locale: u.locale,
+    name: u.name,
+    platform: u.platform,
+  };
+}

@@ -57,10 +57,13 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
 - Exposes **top-level short-form methods** that delegate directly to the
   underlying service, e.g. `peek.getAllProducts()` → `peek.getProductService().getAllProducts()`. Every public service method has a named proxy on `PeekAccessService`; the names are prefixed with the resource noun where disambiguation is needed (e.g. `getBookingById`, `getTimeslotById`).
 - Exposes `verifyPeekAuthToken(token)` to verify HMAC-signed JWTs issued by
-  the Peek app registry (`iss: "app_registry_v2"`), returning
+  the Peek app registry (`iss: "app_registry_v2"`, `aud: "Joken"`), returning
   a fully typed `PeekAuthTokenClaims` (including the nested `PeekAuthTokenUser`
   object). Throws `JsonWebTokenError` / `TokenExpiredError` / `NotBeforeError`
-  from `jsonwebtoken` on failure.
+  from `jsonwebtoken` on failure. The signature-check core (issuer + audience +
+  user mapping) lives in the internal `peek-auth-token.ts` module, shared with
+  the standalone `verifyInstallWebhook` (§ install webhooks) so the two can't
+  drift apart.
 - Composes dependencies between services where needed:
   - `TimeslotService` receives the resource-pool and account-user services (for
     guide resolution).
@@ -104,12 +107,16 @@ Responsibilities:
 - Collapses query whitespace (`\s+` → single space) before sending.
 - Retries HTTP 429 using the configured backoff delays, then throws
   `RateLimitError`.
+- Reads the response body via the shared `parseBody` helper (`text()` → try
+  `JSON.parse`, falling back to raw text) *before* branching on status, so a
+  non-JSON error page never throws a `SyntaxError` that hides the real status.
 - Maps known failures to typed errors:
   - HTTP 418 → `AdminAccountRequiredError`
   - HTTP 429 (after retries) → `RateLimitError`
   - GraphQL `errors` array present → `PeekGraphQLError` (raw errors preserved on
     `.graphqlErrors`)
-  - other non-2xx → generic `Error` with the status.
+  - other non-2xx → `PeekHttpError` (carries `.statusCode`, `.url`, and raw
+    `.body`).
 
 ### 4. Per-resource services
 `src/internal/peek/<resource>/`
@@ -213,7 +220,20 @@ pure `fromWaiverNode` converter, which maps the fixed `snake_case` payload to th
 flat clean `Waiver` model (defaulting missing fields to `""`/`null`/`false`, so
 it never throws). Same standalone-pure-function rationale as bookings. Because
 there are no reads, `waivers` carries no queries/service triad — just the
-webhook module and the model. The detailed `AddonItem`
+webhook module and the model.
+
+The **install-status** webhook (`installs/install-webhook.ts`) is the third and
+most distinct: its payload is not a data node but a **signed `app_registry_v2`
+JWT**, so `verifyInstallWebhook(token, secret)` *verifies* it (signature +
+expiry + issuer + `Joken` audience, via the shared `peek-auth-token.ts` core)
+before mapping to the clean `InstallWebhookClaims` (`installId`, `account.id`,
+`status`, `displayVersion`, and a **nullable** `user` — install lifecycle events
+are often system-initiated). Standalone-function rationale as above, with an
+extra reason: the receiver has no per-install service to inherit a secret from
+yet (the webhook can precede the first session or describe a tear-down), so the
+app secret is passed directly. Like `waivers`, `installs` carries no
+queries/service triad — just the verifier and the (shared `auth-token.ts`) model.
+The detailed `AddonItem`
 model (refids + reservation statuses) is **internal only** — consumers see just
 the grouped `BookingAddons`; the internal model exists solely so add/remove can
 build their mutation payloads.
@@ -315,14 +335,16 @@ pinned by the drift-guard test; `fullCustomerAccess` governs only the runtime re
 The barrel re-exports only the public contract: `PeekAccessService` + its config,
 the `AccessOptions` type (see §4b), each resource service class (and the
 options/result types callers need), all data-model **types** (including
-`PeekAuthTokenClaims` and `PeekAuthTokenUser`), the `Logger` interface +
+`PeekAuthTokenClaims`, `PeekAuthTokenUser`, and the install-webhook
+`InstallWebhookClaims`/`InstallWebhookAccount`), the `Logger` interface +
 `noopLogger`, and the typed error classes (`AdminAccountRequiredError`,
-`RateLimitError`, `PeekGraphQLError`, `PiiAccessDisabledError`, `CngApiError`,
-`AcmeApiError`). Query strings and raw response interfaces are deliberately kept
+`RateLimitError`, `PeekGraphQLError`, `PeekHttpError`, `PiiAccessDisabledError`,
+`CngApiError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and
-`parseWaiverWebhook` (plus the `Waiver` model type; see the webhook notes above).
+`parseWaiverWebhook` plus the install-status verifier `verifyInstallWebhook`
+(and the `Waiver` / `InstallWebhookClaims` model types; see the webhook notes above).
 
 ### 5b. CNG accessor (REST)
 `src/cng-access-service.ts`, `src/internal/cng/`, `src/models/cng/product.ts`
@@ -340,8 +362,10 @@ plumbing rather than forking the package.
   `GraphQLClient`. Builds `${baseUrl}/${appId}/${extendableSlug}/${path}` with
   `extendableSlug = cng_backoffice_api-v1`, GETs it with `X-Peek-Auth: Bearer`
   (no `pk-api-key`, no `{query,variables}` body), and runs through the shared
-  `requestWithRetry` loop. Parses the body as JSON, falling back to raw text
-  when unparseable; non-2xx (other than 418/429) → `CngApiError` (status + body).
+  `requestWithRetry` loop. Reads the body with the shared `parseBody` helper
+  (`http-transport.ts`) — JSON with a raw-text fallback when unparseable — the
+  same helper the Peek `GraphQLClient` and ACME `RestClient` use; non-2xx (other
+  than 418/429) → `CngApiError` (status + body).
 - **Products triad** (`src/internal/cng/products/`) — same shape as every Peek
   resource: `product-queries.ts` (raw REST `ProductNode`/`ProductsResponse`
   interfaces, internal), `product-converter.ts` (pure `fromProductNodes` →
@@ -465,6 +489,17 @@ Load-bearing rules:
   component file). `package.json` `"sideEffects"` is therefore an allow-list
   (`**/ui/**`, `**/*.css`) rather than `false`, so bundlers don't tree-shake the
   registrations away.
+- **React 19 safety at registration.** `define()` (in `base.ts`) runs
+  `addReactSafeSetters` on the class before `customElements.define`: it walks the
+  component's own prototypes (up to `OdyElement`) and gives every getter-only
+  accessor a setter, so React 19 — which assigns JSX props as DOM *properties*
+  (`el.searchable = true`) — can't throw `only a getter`. When the property name
+  maps to an `observedAttribute` the setter **reflects** the value onto that
+  attribute (booleans as presence, objects as JSON, scalars as strings) so the
+  prop takes effect; otherwise it is a no-op for derived/imperative state
+  (`isOpen`). The static `.d.ts` types keep these accessors read-only — the
+  setters are a runtime-only safety net. Documented for consumers in `docs/ui.md`
+  §3.5 and the README.
 - **Dependency-free & token-based.** No `ember-power-select`/`-calendar`,
   `svg-jar`, or bootstrap. Colours/spacing reference the `tokens.css` custom
   properties; icons are inlined; button variant colours (which live in a

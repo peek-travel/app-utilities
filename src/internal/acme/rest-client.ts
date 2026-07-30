@@ -11,7 +11,7 @@
  * `Logger`, base error types, and retry loop.
  */
 import { AcmeApiError } from "../../errors.js";
-import { requestWithRetry } from "../http-transport.js";
+import { parseBody, requestWithRetry } from "../http-transport.js";
 import type { Logger } from "../../logger.js";
 
 export interface RestClientOptions {
@@ -55,7 +55,7 @@ export class RestClient {
       { method: "GET", headers: this.buildHeaders() },
       path,
       async (response) => {
-        const body = await this.parseBody(response);
+        const body = await parseBody(response);
 
         if (!response.ok) {
           logger.error(`ACME request failed with HTTP ${response.status}`, { url });
@@ -65,16 +65,6 @@ export class RestClient {
         return body as T;
       },
     );
-  }
-
-  /** Reads the response body as JSON, falling back to raw text when unparseable. */
-  private async parseBody(response: Response): Promise<unknown> {
-    const text = await response.text();
-    try {
-      return JSON.parse(text);
-    } catch {
-      return text;
-    }
   }
 
   private endpoint(path: string): string {

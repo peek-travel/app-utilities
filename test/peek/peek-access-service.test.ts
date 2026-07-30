@@ -29,7 +29,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   return {
     status,
     ok: status >= 200 && status < 300,
-    json: async () => body,
+    text: async () => JSON.stringify(body),
   } as unknown as Response;
 }
 
@@ -358,6 +358,17 @@ describe("PeekAccessService.verifyPeekAuthToken", () => {
     const token = jwt.sign({ user: SAMPLE_USER_PAYLOAD }, REQUIRED_CONFIG.jwtSecret, {
       issuer: "wrong-issuer",
       audience: PEEK_REGISTRY_AUDIENCE,
+      expiresIn: 60,
+    });
+
+    expect(() => service.verifyPeekAuthToken(token)).toThrow();
+  });
+
+  it("throws on a token with a different audience", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const token = jwt.sign({ user: SAMPLE_USER_PAYLOAD }, REQUIRED_CONFIG.jwtSecret, {
+      issuer: PEEK_REGISTRY_ISSUER,
+      audience: "wrong-audience",
       expiresIn: 60,
     });
 

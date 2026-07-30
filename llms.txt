@@ -148,18 +148,21 @@ stay internal.
 ## Errors
 
 - `AdminAccountRequiredError` (HTTP 418), `RateLimitError` (HTTP 429 after
-  retries), `PeekGraphQLError` (`.graphqlErrors` holds the raw array),
-  `PiiAccessDisabledError` (a payment/booking-modification op was called without
-  `fullCustomerAccess`), and the REST-sibling `CngApiError` / `AcmeApiError` —
-  all importable; branch with `instanceof`.
+  retries), `PeekGraphQLError` (`.graphqlErrors` holds the raw array — a
+  resolver-level failure), `PeekHttpError` (a non-2xx HTTP status other than
+  418/429 with no GraphQL `errors` — e.g. 401/404/5xx; carries `.statusCode`,
+  `.url`, and raw `.body`; surfaced before JSON parsing so non-JSON error pages
+  keep their status), `PiiAccessDisabledError` (a payment/booking-modification op
+  was called without `fullCustomerAccess`), and the REST-sibling `CngApiError` /
+  `AcmeApiError` — all importable; branch with `instanceof`.
 - Plain `Error` for validation/precondition failures thrown before any request.
 
-## Webhooks (booking + waiver)
+## Webhooks (booking + waiver + install-status)
 
-Two webhook parsers, each a pure transform — needs no auth/network/
-`PeekAccessService`; accepts the `{<key>:…}` envelope, a bare node, or a JSON
-string; never throws on malformed input. Registration is done **once in an
-external system** (App Store config), not from code.
+Two pure-transform parsers plus one signature-verifier. The parsers need no
+auth/network/`PeekAccessService`; accept the `{<key>:…}` envelope, a bare node,
+or a JSON string; never throw on malformed input. Registration is done **once in
+an external system** (App Store config), not from code.
 
 - `parseBookingWebhook(body): Booking` — auto-detects guests/breakdown. Booking
   payload shape is defined by a GraphQL selection registered externally; paste
@@ -171,6 +174,15 @@ external system** (App Store config), not from code.
   register** — just subscribe to the `agreement_signature_created` event. Takes
   the same `AccessOptions`; by default (`fullCustomerAccess` off) `guestName` and
   `fileUrl` are redacted — pass `{ fullCustomerAccess: true }` to keep them.
+- `verifyInstallWebhook(token, secret): InstallWebhookClaims` — for install
+  lifecycle events (installed/uninstalled/status changed). The payload *is* a
+  signed `app_registry_v2` JWT, so this **verifies** it (HMAC signature + expiry +
+  `app_registry_v2` issuer + `Joken` audience — same checks as
+  `verifyPeekAuthToken`) rather than just parsing. Returns clean claims
+  (`installId`, `account.id`, `status`, `displayVersion`, and `user` which is
+  **nullable** for system-initiated events). Throws the underlying `jsonwebtoken`
+  error on any failure — one `try/catch` → `401`. `secret` is the app's
+  `jwtSecret`. No query to register; just subscribe to the event.
 
 **Full guide + booking query-to-register: `docs/webhooks.md` (shipped).**
 
@@ -193,6 +205,13 @@ Conventions: scalar config = HTML **attributes**; rich data = JS **properties**
 (`el.columns`/`el.data`, `el.formatDate`, `el.isDateDisallowed`; composites also
 accept JSON-string attrs like `options='[…]'` / `tabs='[…]'`); output = bubbling
 **`CustomEvent`s** (read `event.detail`); content = light-DOM children.
+
+React 19: JSX props are set as DOM **properties**. Safe by design — every
+getter-only accessor accepts assignment (registration adds a setter): reflected
+props (`searchable`/`disabled`/`options`) reflect onto the attribute and take
+effect; read-only state props (`isOpen`/`isVisible`) ignore the write (drive them
+via a `ref`'s imperative methods). No `only a getter` crash. TS still types them
+read-only — the setters are a runtime safety net.
 
 Tags by tier (see `docs/ui.md` for attributes/events/examples per component):
 - display: `ody-button`, `ody-tag`, `ody-alert`, `ody-card`, `ody-divider`,

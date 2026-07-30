@@ -52,6 +52,36 @@ export class PeekGraphQLError extends Error {
 }
 
 /**
+ * Thrown when the Peek GraphQL gateway returns a non-2xx HTTP response that is
+ * not one of the specifically-handled statuses (418/429) and does not carry a
+ * GraphQL `errors` array. This is the transport-level failure — a `401`
+ * (auth/secret wrong), `404` (wrong app id / not provisioned), `5xx`, etc. —
+ * as opposed to {@link PeekGraphQLError}, which is a resolver-level failure
+ * reported inside an otherwise-successful HTTP response.
+ *
+ * The offending status is preserved on {@link PeekHttpError.statusCode}, the
+ * request URL on {@link PeekHttpError.url}, and the raw response body (parsed
+ * JSON when possible, otherwise the raw text) on {@link PeekHttpError.body} — so
+ * callers can tell "which config is wrong" without disassembling the bundle.
+ */
+export class PeekHttpError extends Error {
+  /** The HTTP status that triggered this error. */
+  public readonly statusCode: number;
+  /** The request URL that produced the failing response. */
+  public readonly url: string;
+  /** The raw response body (parsed JSON when possible, otherwise text). */
+  public readonly body: unknown;
+
+  constructor(statusCode: number, url: string, body: unknown, message?: string) {
+    super(message ?? `Peek request failed with HTTP ${statusCode}`);
+    this.name = "PeekHttpError";
+    this.statusCode = statusCode;
+    this.url = url;
+    this.body = body;
+  }
+}
+
+/**
  * Thrown when a payment or booking-modification operation is called on an
  * access service that was constructed without `fullCustomerAccess` (PII access
  * disabled). These operations — pulling payment sources, charging/refunding,

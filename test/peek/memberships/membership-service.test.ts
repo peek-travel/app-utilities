@@ -9,7 +9,7 @@ import { noopLogger } from "../../../src/logger.js";
 
 function makeFetch(body: unknown): typeof fetch {
   return (async () =>
-    ({ status: 200, ok: true, json: async () => body }) as unknown as Response) as unknown as typeof fetch;
+    ({ status: 200, ok: true, text: async () => JSON.stringify(body) }) as unknown as Response) as unknown as typeof fetch;
 }
 
 function buildClient(fetchFn: typeof fetch, overrides: Partial<GraphQLClientOptions> = {}): GraphQLClient {
@@ -82,7 +82,7 @@ function makeRoutingService(handler: RoutingHandler): {
   const fetchFn = (async (_url: string, init: RequestInit) => {
     const body = JSON.parse(init.body as string);
     calls.push({ query: body.query as string, variables: body.variables });
-    return { status: 200, ok: true, json: async () => handler(body.query as string) } as unknown as Response;
+    return { status: 200, ok: true, text: async () => JSON.stringify(handler(body.query as string)) } as unknown as Response;
   }) as unknown as typeof fetch;
   return { service: new MembershipService(buildClient(fetchFn)), calls };
 }

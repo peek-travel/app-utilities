@@ -57,6 +57,8 @@ export { parseBookingWebhook } from "./internal/peek/bookings/booking-webhook.js
 
 export { parseWaiverWebhook } from "./internal/peek/waivers/waiver-webhook.js";
 
+export { verifyInstallWebhook } from "./internal/peek/installs/install-webhook.js";
+
 export { ReviewService } from "./internal/peek/reviews/review-service.js";
 
 export { ACTIVITY_PRODUCT_TYPE, ADD_ON_PRODUCT_TYPE, RENTAL_PRODUCT_TYPE } from "./models/peek/product.js";
@@ -152,6 +154,8 @@ export type {
 export type { Guide, Review } from "./models/peek/review.js";
 export type { Waiver } from "./models/peek/waiver.js";
 export type {
+  InstallWebhookAccount,
+  InstallWebhookClaims,
   PeekAuthTokenClaims,
   PeekAuthTokenUser,
   PeekPlatform,
@@ -165,6 +169,7 @@ export {
   AdminAccountRequiredError,
   CngApiError,
   PeekGraphQLError,
+  PeekHttpError,
   PiiAccessDisabledError,
   RateLimitError,
 } from "./errors.js";

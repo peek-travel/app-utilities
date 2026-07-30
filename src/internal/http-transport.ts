@@ -27,6 +27,24 @@ const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Reads a response body as JSON, falling back to the raw text when it is not
+ * valid JSON. Never throws — a non-JSON error page (e.g. a gateway `404` with a
+ * plain-text body) is returned verbatim as a string rather than blowing up the
+ * caller with a `SyntaxError` that hides the real HTTP status.
+ *
+ * Shared by all three transports (Peek GraphQL, CNG REST, ACME REST) so their
+ * error paths can carry the raw body regardless of its content type.
+ */
+export async function parseBody(response: Response): Promise<unknown> {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+/**
  * Runs a request through the shared retry loop. Maps HTTP 418 →
  * {@link AdminAccountRequiredError} and HTTP 429 → retry then
  * {@link RateLimitError}; delegates every other response to `onResponse`.

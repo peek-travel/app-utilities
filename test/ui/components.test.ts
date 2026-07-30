@@ -44,6 +44,61 @@ describe('base helpers', () => {
     const el = await mount<OdyElement>('<ody-card clickable="false"></ody-card>');
     expect(el.querySelector('.ody-card--clickable')).toBeNull();
   });
+
+  // React 19 sets JSX props as element *properties* (`el.searchable = true`);
+  // a getter-only accessor would throw on that assignment and crash the render.
+  describe('React-safe property setters', () => {
+    it('reflects an assigned boolean prop onto its observed attribute', async () => {
+      const el = await mount<OdyElement>('<ody-dropdown-single></ody-dropdown-single>');
+      const asProps = el as unknown as { searchable: boolean };
+
+      expect(() => (asProps.searchable = true)).not.toThrow();
+      expect(el.hasAttribute('searchable')).toBe(true);
+
+      asProps.searchable = false;
+      expect(el.hasAttribute('searchable')).toBe(false);
+    });
+
+    it('reflects an assigned object prop as JSON onto its observed attribute', async () => {
+      const el = await mount<{ options: unknown }>('<ody-checkbox-group></ody-checkbox-group>');
+      const options = [{ value: 'a', label: 'A' }];
+
+      expect(() => (el.options = options)).not.toThrow();
+      expect((el as unknown as Element).getAttribute('options')).toBe(JSON.stringify(options));
+      // The getter round-trips the reflected attribute back to the parsed value.
+      expect(el.options).toEqual(options);
+    });
+
+    it('reflects an assigned scalar prop as a string onto its observed attribute', async () => {
+      class OdyReflectScalarTest extends OdyElement {
+        static observedAttributes = ['level'];
+        get level(): number {
+          return Number(this.getAttribute('level') ?? 0);
+        }
+        protected render(): void {
+          this.mount('<span></span>');
+        }
+      }
+      define('ody-reflect-scalar-test', OdyReflectScalarTest);
+      const el = await mount<{ level: number }>(
+        '<ody-reflect-scalar-test></ody-reflect-scalar-test>',
+      );
+
+      el.level = 3;
+      expect((el as unknown as Element).getAttribute('level')).toBe('3');
+      expect(el.level).toBe(3);
+    });
+
+    it('ignores assignment to a non-attribute state prop without throwing', async () => {
+      const el = await mount<OdyElement>('<ody-datepicker></ody-datepicker>');
+      const asProps = el as unknown as { isOpen: boolean };
+
+      expect(() => (asProps.isOpen = true)).not.toThrow();
+      // Read-only derived state: the no-op setter neither throws nor takes effect.
+      expect(el.hasAttribute('is-open')).toBe(false);
+      expect(asProps.isOpen).toBe(false);
+    });
+  });
 });
 
 describe('icons', () => {

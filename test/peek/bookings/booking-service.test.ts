@@ -30,7 +30,7 @@ function makeService(
   const fetchFn = (async (_url: string, init: RequestInit) => {
     const body = JSON.parse(init.body as string);
     calls.push({ query: body.query as string, variables: body.variables });
-    return { status: 200, ok: true, json: async () => handler(body.query, body.variables) } as unknown as Response;
+    return { status: 200, ok: true, text: async () => JSON.stringify(handler(body.query, body.variables)) } as unknown as Response;
   }) as unknown as typeof fetch;
 
   const options: GraphQLClientOptions = {
@@ -1072,7 +1072,7 @@ describe("BookingService access options (fullCustomerAccess)", () => {
     const fetchFn = (async (_url: string, init: RequestInit) => {
       const body = JSON.parse(init.body as string);
       calls.push({ query: body.query as string, variables: body.variables });
-      return { status: 200, ok: true, json: async () => ({}) } as unknown as Response;
+      return { status: 200, ok: true, text: async () => JSON.stringify({}) } as unknown as Response;
     }) as unknown as typeof fetch;
     const client = new GraphQLClient({
       baseUrl: "https://gw.test/gql",

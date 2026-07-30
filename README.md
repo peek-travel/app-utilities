@@ -109,8 +109,14 @@ Two kinds of failures surface as exceptions:
   rights). Carries `.statusCode === 418`.
 - `RateLimitError` — HTTP 429 after the configured `retryDelaysMs` backoff was
   exhausted. Carries `.statusCode === 429`.
-- `PeekGraphQLError` — the response contained a GraphQL `errors` array, preserved
-  on `.graphqlErrors`.
+- `PeekGraphQLError` — the response contained a GraphQL `errors` array (a
+  resolver-level failure), preserved on `.graphqlErrors`.
+- `PeekHttpError` — the gateway returned a non-2xx HTTP status (other than
+  418/429) with no GraphQL `errors` array — a transport-level failure such as
+  `401` (auth/secret wrong), `404` (wrong app id / not provisioned), or `5xx`.
+  Carries `.statusCode`, `.url`, and the raw `.body` (parsed JSON when possible,
+  otherwise the response text). Surfaced *before* the body is parsed as JSON, so
+  a non-JSON error page reports its real status instead of a JSON parse error.
 - `PiiAccessDisabledError` — a payment / booking-modification operation was
   called on an access service created without `fullCustomerAccess` (see [Access options
   / PII](#access-options--pii)). Carries `.operation` (the blocked method name).
@@ -127,6 +133,7 @@ import {
   RateLimitError,
   AdminAccountRequiredError,
   PeekGraphQLError,
+  PeekHttpError,
 } from '@peektravel/app-utilities';
 
 try {
@@ -136,6 +143,8 @@ try {
     // back off and retry later
   } else if (err instanceof AdminAccountRequiredError) {
     // this install can't perform admin-only operations
+  } else if (err instanceof PeekHttpError) {
+    console.error(err.statusCode, err.url, err.body); // which config is wrong
   } else if (err instanceof PeekGraphQLError) {
     console.error(err.graphqlErrors); // raw gateway errors
   } else {
@@ -229,16 +238,20 @@ Functions runtime) resolve correctly. Its only runtime dependency is
 
 ## Webhooks
 
-Receiver apps can consume Peek **booking** and **waiver** webhooks without
-hand-writing a payload parser. Each has a pure parser (construct nothing — no
-auth/network) that returns a clean model:
+Receiver apps can consume Peek **booking**, **waiver**, and **install-status**
+webhooks without hand-writing the payload handling. The booking and waiver
+webhooks have a pure parser (construct nothing — no auth/network) that returns a
+clean model; the install-status webhook delivers a signed token, so its helper
+**verifies** it:
 
 ```ts
 import {
   parseBookingWebhook,
   parseWaiverWebhook,
+  verifyInstallWebhook,
   type Booking,
   type Waiver,
+  type InstallWebhookClaims,
 } from "@peektravel/app-utilities";
 
 app.post("/booking-webhook", (req, res) => {
@@ -251,17 +264,38 @@ app.post("/waiver-webhook", (req, res) => {
   const waiver: Waiver = parseWaiverWebhook(req.body, { fullCustomerAccess: true });
   res.sendStatus(200);
 });
+
+app.post("/install-webhook", (req, res) => {
+  try {
+    // The payload IS a signed JWT — verify signature/issuer/audience/expiry:
+    const claims: InstallWebhookClaims = verifyInstallWebhook(req.body, process.env.PEEK_INTERNAL_SECRET!);
+    if (claims.status === "uninstalled") {
+      /* tear down this install */
+    }
+    res.sendStatus(200);
+  } catch {
+    res.sendStatus(401); // bad signature / issuer / audience / expired
+  }
+});
 ```
 
-Both tolerate the delivery envelope / a bare node / a JSON string and never throw
-on malformed input. `parseWaiverWebhook` also takes an optional `AccessOptions`
-(`{ fullCustomerAccess }`) and redacts the participant `guestName` + document `fileUrl`
-by default — see [Access options / PII](#access-options--pii) below. They differ on registration: a **booking** webhook's payload
-shape is set by a GraphQL query configured **once in an external system** (the
-App Store `broadcast_to_url` config) — this package documents and drift-guards
-the exact query to paste there — whereas a **waiver** webhook has a fixed payload,
-so you just subscribe to its event with no query. **The query to register and the
-full guide: [`docs/webhooks.md`](docs/webhooks.md) (shipped).**
+The booking and waiver parsers tolerate the delivery envelope / a bare node / a
+JSON string and never throw on malformed input; **authenticating those deliveries
+is the receiver's job**. `parseWaiverWebhook` also takes an optional
+`AccessOptions` (`{ fullCustomerAccess }`) and redacts the participant `guestName`
++ document `fileUrl` by default — see [Access options / PII](#access-options--pii)
+below. `verifyInstallWebhook(token, secret)` is different: the payload is a signed
+`app_registry_v2` JWT, so it validates the HMAC signature, expiry, issuer, and
+`"Joken"` audience (the same checks as `verifyPeekAuthToken`) and returns typed
+claims (`installId`, `account.id`, `status`, `displayVersion`, and a **nullable**
+`user` for system-initiated events), throwing the underlying `jsonwebtoken` error
+on any failure. The booking and waiver webhooks differ on registration: a
+**booking** webhook's payload shape is set by a GraphQL query configured **once in
+an external system** (the App Store `broadcast_to_url` config) — this package
+documents and drift-guards the exact query to paste there — whereas the **waiver**
+and **install-status** webhooks have fixed payloads, so you just subscribe to
+their event with no query. **The query to register and the full guide:
+[`docs/webhooks.md`](docs/webhooks.md) (shipped).**
 
 ## UI components (`/ui`)
 
@@ -298,6 +332,27 @@ Interactive components reflect state and emit `CustomEvent`s; grouped components
 attribute. Exported classes/types and helpers (`iconSvg`, `registerIcon`,
 `portal`, `position`, `toast`) are available from `@peektravel/app-utilities/ui`
 for subclassing or typing.
+
+### Using the components from React 19
+
+React 19 sets JSX props on a custom element as DOM **properties**
+(`el.searchable = true`), not attributes. That's handled for you: every
+reflected/read-only accessor accepts assignment, so `<ody-dropdown-single
+searchable options={items} />` and friends work without the
+`Cannot set property … which has only a getter` crash that a getter-only
+property would otherwise cause. Two things worth knowing:
+
+- **Boolean and data props reflect to the attribute**, so they take effect as
+  expected. Pass booleans as real booleans (`searchable={true}`) and rich data
+  as values (`options={items}`) — the object is reflected as a JSON attribute.
+- **Read-only state accessors are inert to assignment.** Props that mirror live
+  internal state (`isOpen`, `isVisible`) ignore writes — drive them through the
+  imperative methods on a `ref` (`ref.current.openPopover()`, `.show()`) and read
+  them back through the component's `CustomEvent`s, not by setting the prop.
+
+TypeScript still types these accessors as read-only, so a direct
+`el.isOpen = true` in TS is flagged — the setters are a runtime safety net for
+framework-driven assignment, not an invitation to write to derived state.
 
 **Try the gallery:** `npm run sample` builds the package and serves
 `examples/ui-gallery.html`, which shows every component with its variants.

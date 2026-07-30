@@ -109,8 +109,8 @@ placeholder. So the element's children become its body/label content:
 **Vanilla HTML / JS** — declarative; set rich data and add listeners via the
 element reference.
 
-**React** (especially < 19) does not set DOM properties or bind custom events
-from JSX attributes. Use lowercase tag names, a `ref` to set properties, and
+**React < 19** does not set DOM properties or bind custom events from JSX
+attributes. Use lowercase tag names, a `ref` to set properties, and
 `addEventListener` for events:
 
 ```jsx
@@ -127,6 +127,30 @@ function Guests({ columns, rows, onSort }) {
   return <ody-table ref={ref} selectable sortable />;
 }
 ```
+
+**React 19** sets JSX props on a custom element as DOM **properties**
+(`el.searchable = true`), not attributes. The components are built for this: every
+reflected/read-only accessor accepts assignment, so passing props directly works
+and does **not** throw the `Cannot set property … which has only a getter` error
+a getter-only property would otherwise raise. Concretely:
+
+- **Reflected props (booleans, and rich data) take effect.** `searchable`,
+  `disabled`, `options`, etc. reflect the assigned value onto the backing
+  attribute — booleans as presence, objects/arrays as a JSON string:
+
+  ```jsx
+  <ody-dropdown-single searchable options={items} value={value} />
+  ```
+
+- **Read-only state accessors ignore assignment.** Props that mirror live
+  internal state (`isOpen`, `isVisible`) are inert to writes — they are not
+  controlled by re-render. Drive them imperatively through a `ref`
+  (`ref.current.openPopover()` / `.show()`) and observe changes via the
+  component's `CustomEvent`s.
+
+TypeScript still types these accessors as read-only (the setters are a runtime
+safety net for framework-driven assignment), so `el.isOpen = true` in TS code is
+flagged — assign only via JSX props / refs as above.
 
 **Vue / Angular** support custom elements natively: bind properties with
 `:prop` / `[prop]` and events with `@event` / `(event)`. (Configure Vue's
