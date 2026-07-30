@@ -7,7 +7,6 @@
  * service objects — e.g. {@link PeekAccessService.getProductService} — that
  * carry the resource-specific business logic.
  */
-import * as jwt from "jsonwebtoken";
 import { AccountUserService } from "./internal/peek/account-users/account-user-service.js";
 import { AvailabilityService } from "./internal/peek/availability/availability-service.js";
 import { BookingService } from "./internal/peek/bookings/booking-service.js";
@@ -23,6 +22,11 @@ import {
   type ResolvedAccessOptions,
 } from "./access-options.js";
 import { GraphQLClient } from "./internal/peek/graphql-client.js";
+import {
+  mapPeekTokenUser,
+  verifyPeekJwt,
+  type RawPeekTokenUser,
+} from "./internal/peek/peek-auth-token.js";
 import { MembershipService } from "./internal/peek/memberships/membership-service.js";
 import { ResellerService } from "./internal/peek/resellers/reseller-service.js";
 import { ResourcePoolService } from "./internal/peek/resource-pools/resource-pool-service.js";
@@ -36,10 +40,7 @@ import { PromoCodeService } from "./internal/peek/promo-codes/promo-code-service
 import { PricingService } from "./internal/peek/pricing/pricing-service.js";
 import { V2_EXTENDABLE_SLUG } from "./internal/peek/gateway-endpoints.js";
 import { noopLogger } from "./logger.js";
-import type {
-  PeekAuthTokenClaims,
-  PeekPlatform,
-} from "./models/peek/auth-token.js";
+import type { PeekAuthTokenClaims } from "./models/peek/auth-token.js";
 import type { AvailabilityTimesQuery } from "./models/peek/availability-time.js";
 import type {
   BookingReadOptions,
@@ -65,20 +66,10 @@ const DEFAULT_BASE_URL = "https://apps.peekapis.com/backoffice-gql";
 /** Default gateway base URL when operating in v2 mode. */
 const DEFAULT_V2_BASE_URL =
   "https://app-registry.peeklabs.com/installations-api";
-/** JWT issuer set by the Peek app registry on all tokens it issues. */
-const PEEK_TOKEN_ISSUER = "app_registry_v2";
-
 interface RawPeekTokenPayload {
   sub: string;
   display_version: string;
-  user: {
-    email: string;
-    id: string;
-    is_admin: boolean;
-    locale: string;
-    name: string;
-    platform: PeekPlatform;
-  };
+  user: RawPeekTokenUser;
 }
 
 /**
@@ -196,22 +187,11 @@ export class PeekAccessService {
    * @throws {NotBeforeError} token not yet valid
    */
   verifyPeekAuthToken(token: string): PeekAuthTokenClaims {
-    const payload = jwt.verify(token, this.jwtSecret, {
-      issuer: PEEK_TOKEN_ISSUER,
-    }) as RawPeekTokenPayload;
-
-    const { user: u } = payload;
+    const payload = verifyPeekJwt<RawPeekTokenPayload>(token, this.jwtSecret);
     return {
       installId: payload.sub,
       displayVersion: payload.display_version,
-      user: {
-        email: u.email,
-        id: u.id,
-        isAdmin: u.is_admin,
-        locale: u.locale,
-        name: u.name,
-        platform: u.platform,
-      },
+      user: mapPeekTokenUser(payload.user),
     };
   }
 

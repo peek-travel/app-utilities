@@ -19,7 +19,7 @@ function makeFetch(body: unknown): {
   const calls: RecordedCall[] = [];
   const fetchFn = (async (url: string, init: RequestInit) => {
     calls.push({ url, init });
-    return { status: 200, ok: true, json: async () => body } as unknown as Response;
+    return { status: 200, ok: true, text: async () => JSON.stringify(body) } as unknown as Response;
   }) as unknown as typeof fetch;
   return { fetchFn, calls };
 }

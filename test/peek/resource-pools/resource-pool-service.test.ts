@@ -22,7 +22,7 @@ function makeFetch(body: unknown): {
     return {
       status: 200,
       ok: true,
-      json: async () => body,
+      text: async () => JSON.stringify(body),
     } as unknown as Response;
   }) as unknown as typeof fetch;
   return { fetchFn, calls };

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   AdminAccountRequiredError,
   PeekGraphQLError,
+  PeekHttpError,
   RateLimitError,
 } from "../../../src/errors.js";
 import {
@@ -16,7 +17,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   return {
     status,
     ok: status >= 200 && status < 300,
-    json: async () => body,
+    text: async () => JSON.stringify(body),
   } as unknown as Response;
 }
 
@@ -247,13 +248,38 @@ describe("ProductService.getAllProducts", () => {
     );
   });
 
-  it("throws a generic error for other non-2xx responses", async () => {
+  it("throws a typed PeekHttpError for other non-2xx responses", async () => {
     const { fetchFn } = makeFetch((query) =>
-      query.includes("activities") ? jsonResponse({}, 500) : jsonResponse(emptyItemOptions),
+      query.includes("activities") ? jsonResponse({ oops: true }, 500) : jsonResponse(emptyItemOptions),
     );
     const service = new ProductService(buildClient(fetchFn));
 
-    await expect(service.getAllProducts()).rejects.toThrow(/HTTP 500/);
+    const error = await service.getAllProducts().catch((e) => e);
+    expect(error).toBeInstanceOf(PeekHttpError);
+    expect(error).toMatchObject({
+      name: "PeekHttpError",
+      statusCode: 500,
+      body: { oops: true },
+    });
+    expect(error.url).toBe("https://gw.test/gql/app-1/sales");
+  });
+
+  it("surfaces the HTTP status for a non-JSON error page instead of a JSON parse error", async () => {
+    // Regression: a 404 with a plain-text body must not throw `SyntaxError:
+    // … is not valid JSON` while parsing the body before the status is read.
+    const notFound = {
+      status: 404,
+      ok: false,
+      text: async () => "Not Found",
+    } as unknown as Response;
+    const { fetchFn } = makeFetch((query) =>
+      query.includes("activities") ? notFound : jsonResponse(emptyItemOptions),
+    );
+    const service = new ProductService(buildClient(fetchFn));
+
+    const error = await service.getAllProducts().catch((e) => e);
+    expect(error).toBeInstanceOf(PeekHttpError);
+    expect(error).toMatchObject({ statusCode: 404, body: "Not Found" });
   });
 });
 

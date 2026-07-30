@@ -71,7 +71,7 @@ class FakeGateway {
     return {
       status: 200,
       ok: true,
-      json: async () => ({ data: { reviews: { edges } } }),
+      text: async () => JSON.stringify({ data: { reviews: { edges } } }),
     } as unknown as Response;
   }) as unknown as typeof fetch;
 }
@@ -209,7 +209,7 @@ describe("ReviewService.getReviews — access options (fullCustomerAccess)", () 
       return {
         status: 200,
         ok: true,
-        json: async () => ({ data: { reviews: { edges: [edge] } } }),
+        text: async () => JSON.stringify({ data: { reviews: { edges: [edge] } } }),
       } as unknown as Response;
     }) as unknown as typeof fetch;
     const service = new ReviewService(buildClient(fetchFn), { fullCustomerAccess });

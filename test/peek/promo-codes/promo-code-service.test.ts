@@ -26,7 +26,7 @@ function makeFetch(handler: Handler): {
     return {
       status: 200,
       ok: true,
-      json: async () => handler(body.query as string, body.variables),
+      text: async () => JSON.stringify(handler(body.query as string, body.variables)),
     } as unknown as Response;
   }) as unknown as typeof fetch;
   return { fetchFn, calls };

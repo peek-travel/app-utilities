@@ -181,11 +181,83 @@ export function reflectControlValue(
   if (control && control.value !== value) control.value = value;
 }
 
+/** camelCase → kebab-case, mapping a property name to its attribute name. */
+function attrNameFor(propName: string): string {
+  return propName.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+}
+
+/** Reflect a property value assigned from a framework onto its backing attribute. */
+function reflectToAttribute(el: HTMLElement, attr: string, value: unknown): void {
+  if (value === null || value === undefined || value === false) {
+    el.removeAttribute(attr);
+  } else if (value === true) {
+    el.setAttribute(attr, '');
+  } else if (typeof value === 'object') {
+    el.setAttribute(attr, JSON.stringify(value));
+  } else {
+    el.setAttribute(attr, String(value));
+  }
+}
+
+/**
+ * Make a component's getter-only accessors safe to *assign* to.
+ *
+ * React 19 (and other frameworks that bind to the DOM property, not the
+ * attribute) set a JSX prop as an element **property** — `el.searchable = true`
+ * — whenever a property of that name exists on the element. Our components
+ * expose getter-only accessors for reflected attributes (`searchable`,
+ * `disabled`, `options`) and for read-only state (`isOpen`, `isVisible`), and
+ * assigning to a getter-only accessor throws `Cannot set property … which has
+ * only a getter`, crashing the render.
+ *
+ * So before registering a component we give every getter-only accessor a setter:
+ *
+ * - when the property maps to one of the element's `observedAttributes`, the
+ *   setter **reflects** the value onto that attribute, so the prop actually
+ *   takes effect (`<ody-dropdown-single searchable />` enables search);
+ * - otherwise it is a **no-op** — the accessor exposes derived or imperative
+ *   state (e.g. `isOpen`), which is driven by methods/refs, not by assignment.
+ *
+ * Runs once per registered class; the added setter makes the second pass over a
+ * shared base prototype a no-op (the accessor then already has a setter). The
+ * static TypeScript types are unchanged — the setter is a runtime safety net, so
+ * a TS consumer still sees these as read-only. See the README "Using the
+ * components from React 19" note.
+ */
+function addReactSafeSetters(ctor: CustomElementConstructor): void {
+  const observed = new Set<string>(
+    (ctor as unknown as { observedAttributes?: string[] }).observedAttributes ?? [],
+  );
+  let proto: object | null = ctor.prototype;
+  while (
+    proto &&
+    proto !== OdyElement.prototype &&
+    proto !== HTMLElement.prototype &&
+    proto !== Object.prototype
+  ) {
+    for (const [name, desc] of Object.entries(Object.getOwnPropertyDescriptors(proto))) {
+      if (typeof desc.get !== 'function' || desc.set) continue;
+      const attr = attrNameFor(name);
+      const set = observed.has(attr)
+        ? function reflectingSetter(this: HTMLElement, value: unknown): void {
+            reflectToAttribute(this, attr, value);
+          }
+        : function ignoringSetter(): void {
+            /* derived / imperative state — assignment is intentionally ignored */
+          };
+      Object.defineProperty(proto, name, { ...desc, set });
+    }
+    proto = Object.getPrototypeOf(proto);
+  }
+}
+
 /**
  * Register a custom element under `tag`, guarding against double registration
  * (and against running in a non-DOM environment such as a Node import).
  */
 export function define(tag: string, ctor: CustomElementConstructor): void {
   if (typeof customElements === 'undefined') return;
-  if (!customElements.get(tag)) customElements.define(tag, ctor);
+  if (customElements.get(tag)) return;
+  addReactSafeSetters(ctor);
+  customElements.define(tag, ctor);
 }

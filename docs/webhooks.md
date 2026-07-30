@@ -1,19 +1,25 @@
 # Webhooks
 
 A guide for wiring a receiver app up to Peek "backoffice" webhooks using
-`@peektravel/app-utilities`. Two webhook types are supported today — **booking**
-and **waiver** — and each has a parser that turns the delivered payload into a
-clean data model. They differ in one important way: a booking webhook is
-configured with a GraphQL query (so the package documents the exact query to
-register), while a waiver webhook has a fixed payload (so there's nothing to
-register beyond subscribing to the event).
+`@peektravel/app-utilities`. Three webhook types are supported today —
+**booking**, **waiver**, and **install-status** — and each has a helper that
+turns the delivered payload into a clean data model. They differ in one important
+way: a booking webhook is configured with a GraphQL query (so the package
+documents the exact query to register), a waiver webhook has a fixed payload (so
+there's nothing to register beyond subscribing to the event), and an
+install-status webhook delivers a **signed token** (so the helper *verifies* it
+rather than just parsing it).
 
-| Webhook | Register | Parse the delivery |
+| Webhook | Register | Handle the delivery |
 | --- | --- | --- |
 | Booking | paste a GraphQL query into the external config (below) | `parseBookingWebhook(body)` → `Booking` |
 | Waiver | subscribe to the event — **no query needed** | `parseWaiverWebhook(body)` → `Waiver` |
+| Install-status | subscribe to the event — **no query needed** | `verifyInstallWebhook(token, secret)` → `InstallWebhookClaims` |
 
-Both parsers are pure transforms — no auth, no network, construct nothing.
+The booking and waiver parsers are pure transforms — no auth, no network,
+construct nothing; **authenticating those deliveries is the receiver's job**. The
+install-status webhook is different: its payload *is* a signed JWT, so
+`verifyInstallWebhook` checks the signature for you.
 
 # Booking webhooks
 
@@ -147,3 +153,68 @@ The resulting `Waiver` is flat:
 | `isOptinSms` | `boolean` | `waiver_data.participant_optin_sms` |
 
 Authenticating the delivery is the receiver's responsibility, as with bookings.
+
+# Install-status webhooks
+
+## The problem this solves
+
+Peek's app registry notifies your app of install lifecycle changes — installed,
+uninstalled, status changed — by POSTing a **signed `app_registry_v2` JWT**.
+Unlike a booking or waiver webhook, the whole payload *is* the token, so
+verifying its signature is the point: it proves the notification really came from
+Peek before your app acts on it (for example, de-provisioning an uninstall).
+Hand-rolling that check (issuer, audience, expiry, HMAC) is exactly the
+security-critical boilerplate `verifyInstallWebhook` removes.
+
+## Step 1 — subscribe to the event (external, one-time)
+
+Nothing to register in code: subscribe your endpoint to the install-status event
+in the App Store config. There is no GraphQL selection to paste.
+
+## Step 2 — verify the delivered token
+
+Extract the JWT from the delivery (the request body, or the `Authorization`
+header with the `Bearer ` prefix stripped) and pass it — plus your app's signing
+secret (the same `jwtSecret` you construct `PeekAccessService` with) — to
+`verifyInstallWebhook`:
+
+```ts
+import { verifyInstallWebhook, type InstallWebhookClaims } from "@peektravel/app-utilities";
+
+app.post("/webhooks/install", (req, res) => {
+  let claims: InstallWebhookClaims;
+  try {
+    claims = verifyInstallWebhook(req.body /* raw JWT string */, process.env.PEEK_INTERNAL_SECRET!);
+  } catch {
+    return res.sendStatus(401); // signature/issuer/audience/expiry failed
+  }
+
+  if (claims.status === "uninstalled") {
+    // tear down this install's resources
+  }
+  res.sendStatus(200);
+});
+```
+
+`verifyInstallWebhook` validates the HMAC signature, the token expiry, the
+`"app_registry_v2"` issuer, and the `"Joken"` audience — the same checks as
+[`PeekAccessService.verifyPeekAuthToken`](../README.md#access-options--pii) — then
+maps the payload to the clean `InstallWebhookClaims`. It throws the underlying
+`jsonwebtoken` error (`JsonWebTokenError` / `TokenExpiredError` /
+`NotBeforeError`) on any verification failure, so a single `try/catch` → `401`
+covers every bad-token case.
+
+The signature checks are strict (they are the security boundary); claim
+*extraction* is defensive, so a validly-signed token that omits an optional field
+yields an empty value rather than throwing. The resulting `InstallWebhookClaims`:
+
+| Field | Type | From | Notes |
+| --- | --- | --- | --- |
+| `installId` | `string` | `sub` | Peek-assigned install UUID |
+| `account.id` | `string` | `account.id` | account that owns the install |
+| `status` | `string` | `status` | e.g. `"installed"`, `"uninstalled"` |
+| `displayVersion` | `string` | `display_version` | `""` when absent |
+| `user` | `PeekAuthTokenUser \| null` | `user` | `null` for system-initiated events |
+
+Unlike `verifyPeekAuthToken`, `user` is nullable: install lifecycle events are
+often system-initiated (no acting user), so the verifier tolerates `user: null`.
