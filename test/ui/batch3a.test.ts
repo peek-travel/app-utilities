@@ -8,6 +8,7 @@ import '../../src/ui/components/percentage-input.js';
 import '../../src/ui/components/checkbox.js';
 import '../../src/ui/components/radio-button-group.js';
 import '../../src/ui/components/checkbox-group.js';
+import type { OdyCheckboxOption } from '../../src/ui/components/checkbox-group.js';
 
 /** Render HTML, flush the deferred first render, and return the first element. */
 async function mount<T extends Element = Element>(html: string): Promise<T> {
@@ -536,5 +537,26 @@ describe('ody-checkbox-group', () => {
   it('falls back to value for a missing label', async () => {
     const el = await mount('<ody-checkbox-group options=\'[{"value":"x"}]\'></ody-checkbox-group>');
     expect(el.querySelector('.ody-checkbox-group__item .ody-checkbox__label')!.textContent).toBe('x');
+  });
+
+  it('accepts options as a settable JS property and renders + round-trips', async () => {
+    const el = await mount<HTMLElement & { options: OdyCheckboxOption[] }>('<ody-checkbox-group></ody-checkbox-group>');
+    expect(() => (el.options = [{ label: 'A', value: 'a' }])).not.toThrow();
+    const items = el.querySelectorAll<HTMLInputElement>('.ody-checkbox-group__item .ody-checkbox__input');
+    expect(items.length).toBe(1);
+    expect(el.querySelector('.ody-checkbox-group__item .ody-checkbox__label')!.textContent).toBe('A');
+    // The getter round-trips the reflected attribute back to the parsed value.
+    expect(el.options).toEqual([{ label: 'A', value: 'a' }]);
+  });
+
+  it('renders no items when options is set to an empty or non-array value', async () => {
+    const el = await mount<HTMLElement & { options: OdyCheckboxOption[] }>(`<ody-checkbox-group options='${OPTIONS}'></ody-checkbox-group>`);
+    expect(el.querySelectorAll('.ody-checkbox-group__item').length).toBe(3);
+    el.options = [];
+    expect(el.querySelectorAll('.ody-checkbox-group__item').length).toBe(0);
+    // A non-array assignment is coerced to an empty list rather than throwing.
+    expect(() => ((el as unknown as { options: unknown }).options = null)).not.toThrow();
+    expect(el.querySelectorAll('.ody-checkbox-group__item').length).toBe(0);
+    expect(el.options).toEqual([]);
   });
 });

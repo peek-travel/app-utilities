@@ -79,10 +79,10 @@ they work declaratively in plain HTML:
 
 | Component | JS property | JSON attribute fallback |
 |---|---|---|
-| `ody-dropdown-single` / `ody-dropdown-multi` | `el.options = [...]` | `options='[{"value":"a","label":"A"}]'` |
+| `ody-dropdown-single` / `ody-dropdown-multi` / `ody-checkbox-group` | `el.options = [...]` | `options='[{"value":"a","label":"A"}]'` |
 | `ody-tabs` | — | `tabs='[{"id":"a","label":"A"}]'` |
 | `ody-toggle-button` | — | `options='[{"value":"a","label":"A"}]'` |
-| `ody-radio-button-group` / `ody-checkbox-group` | `el.options` (getter) | `options='[{"value":"a","label":"A"}]'` |
+| `ody-radio-button-group` | `el.options` (getter) | `options='[{"value":"a","label":"A"}]'` |
 | `ody-datepicker` | — | `presets='[{"label":"…","value":"…"}]'` |
 | `ody-table` | `el.columns`, `el.data` | none — JS only |
 
@@ -640,12 +640,12 @@ are blocked; on blur the value is clamped/normalised.
 **Use when** several toggles, optionally with a "select all" parent (checked
 when all selected, indeterminate when some).
 **Attributes**
-- `options` — JSON array of `{ label, value }`.
+- `options` — JSON array of `{ label, value }` (also a JS property, below).
 - `value` — comma-separated selected values.
 - `select-all-label` — when present, renders the parent select-all row.
 - `size` — `base` | `small` (default `small`).
 - `disabled` — boolean.
-**Properties (JS)** — `value: string[]` (get returns array, set takes array); `options: OdyCheckboxOption[]` (read-only getter).
+**Properties (JS)** — `value: string[]` (get returns array, set takes array); `options: OdyCheckboxOption[]` (get parses the attribute, set writes the JSON attribute — assign `el.options = [...]` as with `<ody-dropdown-*>`).
 **Events** — `change` → `{ value: string[] }`.
 **Example**
 ```html

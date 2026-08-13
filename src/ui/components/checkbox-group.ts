@@ -18,7 +18,9 @@ export interface OdyCheckboxOption {
  * indeterminate when some are, and toggling it selects/clears every child.
  *
  * Attributes:
- * - `options` — JSON array, e.g. `options='[{"label":"A","value":"a"}]'`.
+ * - `options` — JSON array, e.g. `options='[{"label":"A","value":"a"}]'`. Also
+ *   a settable JS property ({@link options}): `el.options = [...]` mirrors
+ *   `<ody-dropdown-*>` and writes the JSON attribute.
  * - `value` — comma-separated selected values (also a JS array property,
  *   {@link value}).
  * - `select-all-label` — when present, renders the parent select-all row.
@@ -43,6 +45,16 @@ export class OdyCheckboxGroup extends OdyElement {
   /** Parsed `options`; malformed JSON yields an empty list. */
   get options(): OdyCheckboxOption[] {
     return parseOptions(this.attr('options'));
+  }
+
+  /**
+   * Accepts an array of `{ label, value }` and stores it as the JSON `options`
+   * attribute. Mirrors `<ody-dropdown-*>` so `el.options = [...]` works across
+   * the data-driven elements. `options` is observed, so this triggers a
+   * re-render via `attributeChangedCallback`.
+   */
+  set options(next: OdyCheckboxOption[]) {
+    this.setAttribute('options', JSON.stringify(Array.isArray(next) ? next : []));
   }
 
   protected render(): void {
