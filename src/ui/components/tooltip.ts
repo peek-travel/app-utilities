@@ -60,7 +60,7 @@ export class OdyTooltip extends OdyElement {
     // content (which lives in the bubble's inner slot). The trigger lives in a
     // separate slot, so push it back into the slot too.
     if (this.#bubble) {
-      this.appendChild(this.#bubble);
+      this.adopt(this.#bubble);
       this.#bubble.classList.remove('ody-tooltip--visible');
     }
     const slotted = this.querySelector('[data-ody-tooltip-trigger-slot]')?.firstElementChild;
@@ -112,6 +112,9 @@ export class OdyTooltip extends OdyElement {
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     this.#unbind();
+    // The slotted content lives inside the bubble; reclaim it before the bubble
+    // is destroyed so it survives a reparent (re-slotted on reconnect).
+    this.reclaimPortaledSlot(this.#bubble);
     if (this.#bubble) removePortal(this.#bubble);
     this.#bubble = null;
     this.#trigger = null;

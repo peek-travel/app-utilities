@@ -20,6 +20,11 @@ describe("fromActivities", () => {
         type: "ACTIVITY",
         colorHex: "#1A2B3C",
         currency: "USD",
+        imageUrl: "https://img.peek.com/act-1.jpg",
+        description: "<p>Paddle the bay.</p>",
+        meetingLocationFormattedAddress: "1 Dock St, Bay City",
+        meetingLocationUrl: "https://maps.example.com/dock",
+        infoMeetingLocation: "Meet at the boathouse.",
         resourceOptions: [
           {
             id: "r1",
@@ -41,6 +46,13 @@ describe("fromActivities", () => {
         type: "ACTIVITY",
         color: "#1A2B3C",
         currency: "USD",
+        imageUrl: "https://img.peek.com/act-1.jpg",
+        description: "<p>Paddle the bay.</p>",
+        meetingLocation: {
+          summary: "Meet at the boathouse.",
+          address: "1 Dock St, Bay City",
+          url: "https://maps.example.com/dock",
+        },
         tickets: [
           {
             id: "r1",
@@ -101,9 +113,50 @@ describe("fromActivities", () => {
         type: "ACTIVITY",
         color: "",
         currency: "",
+        imageUrl: null,
+        description: null,
+        meetingLocation: null,
         tickets: [],
       },
     ]);
+  });
+
+  it("maps catalog fields to null when Peek reports none", () => {
+    const activities: ActivityNode[] = [
+      {
+        name: "Bare",
+        id: "act-2",
+        type: "ACTIVITY",
+        colorHex: "#000000",
+        currency: "USD",
+        resourceOptions: [],
+      },
+    ];
+
+    const product = fromActivities(activities)[0];
+    expect(product?.imageUrl).toBeNull();
+    expect(product?.description).toBeNull();
+    expect(product?.meetingLocation).toBeNull();
+  });
+
+  it("keeps a partial meeting location, filling absent fields with null", () => {
+    const activities: ActivityNode[] = [
+      {
+        name: "Partial Location",
+        id: "act-3",
+        type: "ACTIVITY",
+        colorHex: "#000000",
+        currency: "USD",
+        infoMeetingLocation: "Lobby",
+        resourceOptions: [],
+      },
+    ];
+
+    expect(fromActivities(activities)[0]?.meetingLocation).toEqual({
+      summary: "Lobby",
+      address: null,
+      url: null,
+    });
   });
 
   it("falls back to empty productId when neither id is present", () => {
@@ -151,6 +204,9 @@ describe("fromItemOptionNodes", () => {
         type: ADD_ON_PRODUCT_TYPE,
         color: "#FFFFFF",
         currency: "",
+        imageUrl: null,
+        description: null,
+        meetingLocation: null,
         tickets: [
           { id: "opt-1", name: "Helmet", minPrice: null, maxPrice: null },
           { id: "opt-2", name: "Life Vest", minPrice: null, maxPrice: null },
@@ -162,6 +218,9 @@ describe("fromItemOptionNodes", () => {
         type: ADD_ON_PRODUCT_TYPE,
         color: "#FFFFFF",
         currency: "",
+        imageUrl: null,
+        description: null,
+        meetingLocation: null,
         tickets: [{ id: "opt-3", name: "Photo Package", minPrice: null, maxPrice: null }],
       },
     ]);

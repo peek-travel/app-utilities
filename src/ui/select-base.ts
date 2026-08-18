@@ -90,6 +90,13 @@ export abstract class OdySelectBase extends OdyElement {
   /** ARIA `aria-multiselectable` value for the listbox (`'true'`/`'false'`). */
   protected abstract get multiselectable(): boolean;
 
+  override connectedCallback(): void {
+    super.connectedCallback();
+    // If the element is reconnected (moved in the DOM) while the panel is open,
+    // restore the outside-click dismissal that disconnectedCallback removed.
+    if (this.open) document.addEventListener('click', this.#onOutsideClick, true);
+  }
+
   // ---- Rendering -----------------------------------------------------------
 
   protected render(): void {

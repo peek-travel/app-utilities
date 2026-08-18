@@ -28,6 +28,9 @@ export class OdyRadioButtonGroup extends OdyElement {
 
   readonly #name = `ody-radio-button-group-${(groupSeq += 1)}`;
 
+  /** Options set via the JS property; when set it wins over the attribute. */
+  #options: OdyRadioOption[] | null = null;
+
   /** The selected option value. */
   get value(): string {
     return this.attr('value');
@@ -37,9 +40,31 @@ export class OdyRadioButtonGroup extends OdyElement {
     this.setAttribute('value', next);
   }
 
-  /** Parsed `options`; malformed JSON yields an empty list. */
+  /** Options: the JS property wins, else the JSON `options` attribute. */
   get options(): OdyRadioOption[] {
-    return parseOptions(this.attr('options'));
+    return this.#options ?? parseOptions(this.attr('options'));
+  }
+
+  set options(next: OdyRadioOption[] | string) {
+    this.#options = coerceOptions(next);
+    if (this.querySelector('.ody-radio-button-group')) this.render();
+  }
+
+  /**
+   * Reflect a `value` change by re-checking the matching radio in place instead
+   * of rebuilding the fieldset — a full re-render would replace the focused
+   * radio and break keyboard (arrow-key) navigation between options.
+   */
+  override attributeChangedCallback(name?: string, oldValue?: string | null, newValue?: string | null): void {
+    if (name === 'value' && this.querySelector('.ody-radio-button-input__field')) {
+      if (oldValue === newValue) return;
+      const selected = this.value;
+      for (const input of this.querySelectorAll<HTMLInputElement>('.ody-radio-button-input__field')) {
+        input.checked = input.value === selected;
+      }
+      return;
+    }
+    super.attributeChangedCallback();
   }
 
   protected render(): void {
@@ -77,6 +102,13 @@ export class OdyRadioButtonGroup extends OdyElement {
     this.value = value;
     this.dispatchEvent(new CustomEvent('change', { detail: { value }, bubbles: true }));
   };
+}
+
+/** Coerce a property assignment (array or JSON string) into a typed list. */
+function coerceOptions(next: OdyRadioOption[] | string | null | undefined): OdyRadioOption[] {
+  if (Array.isArray(next)) return next;
+  if (typeof next === 'string') return parseOptions(next);
+  return [];
 }
 
 /** Parse a JSON options string into a typed list, tolerating bad input. */

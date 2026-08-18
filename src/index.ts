@@ -62,7 +62,7 @@ export { verifyInstallWebhook } from "./internal/peek/installs/install-webhook.j
 export { ReviewService } from "./internal/peek/reviews/review-service.js";
 
 export { ACTIVITY_PRODUCT_TYPE, ADD_ON_PRODUCT_TYPE, RENTAL_PRODUCT_TYPE } from "./models/peek/product.js";
-export type { Product, ProductTicket } from "./models/peek/product.js";
+export type { Product, ProductMeetingLocation, ProductTicket } from "./models/peek/product.js";
 export type { AccountUser, AssignedActivity } from "./models/peek/account-user.js";
 export type {
   ResourcePool,

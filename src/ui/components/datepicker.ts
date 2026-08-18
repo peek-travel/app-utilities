@@ -93,7 +93,8 @@ function addMonths(date: Date, months: number): Date {
  * - `range` — boolean; enables start/end range selection.
  * - `first-day-of-week` — `0`–`6` (0 = Sunday, default `0`).
  * - `placeholder` — trigger text shown when no value is selected.
- * - `presets` — JSON `[{ "label", "value" }]` shortcut buttons.
+ * - `presets` — JSON `[{ "label", "value" }]` shortcut buttons. Also settable
+ *   as a JS **property** (`el.presets = [...]`) — accepts an array or JSON string.
  * - `display-format` — how the selected date is shown to the user:
  *   `short` | `medium` (default) | `long` | `full`. The displayed text is
  *   localized via `Intl.DateTimeFormat` for the element's `lang`; the `value`
@@ -114,11 +115,40 @@ export class OdyDatePicker extends OdyElement {
     'display-format',
   ];
 
+  /** Presets set via the JS property; when set it wins over the attribute. */
+  #presets: OdyDatePreset[] | null = null;
+  #isDateDisallowed?: OdyDateDisallowed;
+  #formatDate?: OdyDateFormatter;
+
+  /** Preset list: the JS property wins, else the JSON `presets` attribute. */
+  get presets(): OdyDatePreset[] {
+    return this.#presets ?? this.#parsePresets();
+  }
+
+  set presets(next: OdyDatePreset[] | string) {
+    this.#presets = coerceDatePresets(next);
+    if (this.querySelector('.ody-datepicker__trigger')) this.render();
+  }
+
   /** Disable arbitrary days; not an attribute (functions can't serialize). */
-  isDateDisallowed?: OdyDateDisallowed;
+  get isDateDisallowed(): OdyDateDisallowed | undefined {
+    return this.#isDateDisallowed;
+  }
+
+  set isDateDisallowed(fn: OdyDateDisallowed | undefined) {
+    this.#isDateDisallowed = fn;
+    if (this.querySelector('.ody-datepicker__trigger')) this.render();
+  }
 
   /** Custom trigger-label formatter; wins over `display-format`/`Intl`. */
-  formatDate?: OdyDateFormatter;
+  get formatDate(): OdyDateFormatter | undefined {
+    return this.#formatDate;
+  }
+
+  set formatDate(fn: OdyDateFormatter | undefined) {
+    this.#formatDate = fn;
+    if (this.querySelector('.ody-datepicker__trigger')) this.render();
+  }
 
   #open = false;
   /** First day of the currently displayed month (local). */
@@ -496,7 +526,7 @@ export class OdyDatePicker extends OdyElement {
   }
 
   #renderPresets(): string {
-    const presets = this.#parsePresets();
+    const presets = this.presets;
     if (presets.length === 0) return '';
     const buttons = presets
       .map(
@@ -576,6 +606,20 @@ export class OdyDatePicker extends OdyElement {
     super.disconnectedCallback();
     document.removeEventListener('click', this.#onOutsideClick, true);
   }
+}
+
+/** Coerce a `presets` property assignment (array or JSON string) into a list. */
+function coerceDatePresets(next: OdyDatePreset[] | string | null | undefined): OdyDatePreset[] {
+  if (Array.isArray(next)) return next;
+  if (typeof next === 'string' && next) {
+    try {
+      const parsed: unknown = JSON.parse(next);
+      return Array.isArray(parsed) ? (parsed as OdyDatePreset[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 define('ody-datepicker', OdyDatePicker);

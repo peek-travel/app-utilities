@@ -57,12 +57,41 @@ export interface Product {
   currency: string;
 
   /**
+   * URL of the product's primary display image, or `null` when Peek reports
+   * none. Populated for activities/rentals; always `null` for add-ons.
+   */
+  imageUrl: string | null;
+
+  /**
+   * Long-form product description (may contain HTML), or `null` when Peek
+   * reports none. Populated for activities/rentals; always `null` for add-ons.
+   */
+  description: string | null;
+
+  /**
+   * Where the experience meets, or `null` when Peek reports no location detail.
+   * Populated for activities/rentals; always `null` for add-ons. Each field
+   * inside is independently nullable.
+   */
+  meetingLocation: ProductMeetingLocation | null;
+
+  /**
    * The bookable sub-options of this product.
    *
    * - Activities: the activity's resource options.
    * - Add-ons: each individual item option grouped under the parent item.
    */
   tickets: ProductTicket[];
+}
+
+/** The meeting point for a bookable experience. Every field is nullable. */
+export interface ProductMeetingLocation {
+  /** Free-text summary / instructions for the meeting point. */
+  summary: string | null;
+  /** Formatted postal address of the meeting point. */
+  address: string | null;
+  /** Map/link URL for the meeting point. */
+  url: string | null;
 }
 
 /** A single bookable sub-option (resource option or add-on item option). */

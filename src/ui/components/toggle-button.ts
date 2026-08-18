@@ -27,12 +27,27 @@ export interface OdyToggleOption {
  * Attributes:
  * - `options` — JSON array of {@link OdyToggleOption} (e.g.
  *   `options='[{"value":"day","label":"Day"},{"value":"week","label":"Week"}]'`).
+ *   Also settable as a JS **property** (`el.options = [...]`) — accepts an array
+ *   or a JSON string, so a framework binding (`options={items}`) works directly.
  * - `selected` — the currently-selected option value.
  * - `size` — `base` | `small` (default `base`).
  * - `disabled` — disables the whole group.
  */
 export class OdyToggleButton extends OdyElement {
   static observedAttributes = ['options', 'selected', 'size', 'disabled'];
+
+  /** Options set via the JS property; when set it wins over the attribute. */
+  #options: OdyToggleOption[] | null = null;
+
+  /** Options: the JS property wins, else the JSON `options` attribute. */
+  get options(): OdyToggleOption[] {
+    return this.#options ?? this.#parseOptions();
+  }
+
+  set options(next: OdyToggleOption[] | string) {
+    this.#options = coerceToggleOptions(next);
+    if (this.querySelector('.ody-toggle-button')) this.render();
+  }
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -70,7 +85,7 @@ export class OdyToggleButton extends OdyElement {
     const selected = this.attr('selected');
     const groupDisabled = this.flag('disabled');
 
-    const buttons = this.#parseOptions()
+    const buttons = this.options
       .map((opt) => {
         const isSelected = selected !== '' && selected === opt.value;
         const isDisabled = groupDisabled || Boolean(opt.disabled);
@@ -99,6 +114,20 @@ export class OdyToggleButton extends OdyElement {
 
     this.mount(`<div class="ody-toggle-button" aria-label="${this.localized('aria-label', 'toggleGroup')}">${buttons}</div>`);
   }
+}
+
+/** Coerce a property assignment (array or JSON string) into a typed list. */
+function coerceToggleOptions(next: OdyToggleOption[] | string | null | undefined): OdyToggleOption[] {
+  if (Array.isArray(next)) return next;
+  if (typeof next === 'string' && next) {
+    try {
+      const parsed: unknown = JSON.parse(next);
+      return Array.isArray(parsed) ? (parsed as OdyToggleOption[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 define('ody-toggle-button', OdyToggleButton);

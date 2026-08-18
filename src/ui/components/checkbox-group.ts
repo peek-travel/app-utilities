@@ -1,4 +1,5 @@
 import { OdyElement, classes, define } from '../base.js';
+import { applyCheckboxState } from '../checkbox-state.js';
 import { iconSvg } from '../icons.js';
 
 export type OdyCheckboxGroupSize = 'base' | 'small';
@@ -19,10 +20,12 @@ export interface OdyCheckboxOption {
  *
  * Attributes:
  * - `options` — JSON array, e.g. `options='[{"label":"A","value":"a"}]'`. Also
- *   a settable JS property ({@link options}): `el.options = [...]` mirrors
- *   `<ody-dropdown-*>` and writes the JSON attribute.
- * - `value` — comma-separated selected values (also a JS array property,
- *   {@link value}).
+ *   a settable JS property ({@link options}): `el.options = [...]` (array or JSON
+ *   string) mirrors `<ody-dropdown-*>`; the property is the source of truth and
+ *   is not reflected back onto the attribute.
+ * - `value` — selected values (also a JS array property, {@link value}). The
+ *   reflected attribute is a JSON array (values with commas round-trip); a
+ *   legacy comma-separated attribute is still accepted when read.
  * - `select-all-label` — when present, renders the parent select-all row.
  * - `size` — `base` | `small` (default `small`).
  * - `disabled` — boolean flag applied to every checkbox.
@@ -32,29 +35,70 @@ export interface OdyCheckboxOption {
 export class OdyCheckboxGroup extends OdyElement {
   static observedAttributes = ['options', 'value', 'select-all-label', 'size', 'disabled'];
 
-  /** The selected option values. */
+  /** Options set via the JS property; when set it wins over the attribute. */
+  #options: OdyCheckboxOption[] | null = null;
+
+  /**
+   * The selected option values. The reflected `value` attribute is serialized
+   * as a JSON array so values containing commas round-trip; a legacy
+   * comma-separated attribute is still read for backwards compatibility.
+   */
   get value(): string[] {
     const raw = this.attr('value');
-    return raw ? raw.split(',').filter(Boolean) : [];
+    if (!raw) return [];
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(String);
+    } catch {
+      /* fall through to the legacy comma format */
+    }
+    return raw.split(',').filter(Boolean);
   }
 
   set value(next: string[]) {
-    this.setAttribute('value', next.join(','));
+    this.setAttribute('value', JSON.stringify(Array.isArray(next) ? next : []));
   }
 
-  /** Parsed `options`; malformed JSON yields an empty list. */
+  /** Options: the JS property wins, else the JSON `options` attribute. */
   get options(): OdyCheckboxOption[] {
-    return parseOptions(this.attr('options'));
+    return this.#options ?? parseOptions(this.attr('options'));
   }
 
   /**
-   * Accepts an array of `{ label, value }` and stores it as the JSON `options`
-   * attribute. Mirrors `<ody-dropdown-*>` so `el.options = [...]` works across
-   * the data-driven elements. `options` is observed, so this triggers a
-   * re-render via `attributeChangedCallback`.
+   * Accepts an array of `{ label, value }` (or a JSON string) and stores it as
+   * the source of truth. Mirrors `<ody-dropdown-*>` so `el.options = [...]`
+   * works, without reflecting a large JSON blob onto the DOM attribute.
    */
-  set options(next: OdyCheckboxOption[]) {
-    this.setAttribute('options', JSON.stringify(Array.isArray(next) ? next : []));
+  set options(next: OdyCheckboxOption[] | string) {
+    this.#options = coerceOptions(next);
+    if (this.querySelector('.ody-checkbox-group')) this.render();
+  }
+
+  /**
+   * Reflect a `value` change by updating each checkbox (and the select-all
+   * parent) in place, so toggling an option keeps focus instead of rebuilding
+   * the group. Other observed attributes still re-render via the base.
+   */
+  override attributeChangedCallback(name?: string, oldValue?: string | null, newValue?: string | null): void {
+    if (name === 'value' && this.querySelector('.ody-checkbox-group')) {
+      if (oldValue === newValue) return;
+      this.#syncSelection();
+      return;
+    }
+    super.attributeChangedCallback();
+  }
+
+  /** Recompute checked/indeterminate state for every checkbox in place. */
+  #syncSelection(): void {
+    const options = this.options;
+    const selected = new Set(this.value);
+    const allChecked = options.length > 0 && options.every((o) => selected.has(o.value));
+    const someChecked = !allChecked && options.some((o) => selected.has(o.value));
+    for (const cb of this.querySelectorAll('.ody-checkbox-group__item .ody-checkbox')) {
+      const input = cb.querySelector<HTMLInputElement>('.ody-checkbox__input');
+      applyCheckboxState(cb, input ? selected.has(input.value) : false, false);
+    }
+    applyCheckboxState(this.querySelector('.ody-checkbox-group__select-all'), allChecked, someChecked);
   }
 
   protected render(): void {
@@ -165,6 +209,13 @@ export class OdyCheckboxGroup extends OdyElement {
   #emit(): void {
     this.dispatchEvent(new CustomEvent('change', { detail: { value: this.value }, bubbles: true }));
   }
+}
+
+/** Coerce a property assignment (array or JSON string) into a typed list. */
+function coerceOptions(next: OdyCheckboxOption[] | string | null | undefined): OdyCheckboxOption[] {
+  if (Array.isArray(next)) return next;
+  if (typeof next === 'string') return parseOptions(next);
+  return [];
 }
 
 /** Parse a JSON options string into a typed list, tolerating bad input. */

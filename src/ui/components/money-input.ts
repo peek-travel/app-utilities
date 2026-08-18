@@ -1,4 +1,4 @@
-import { OdyElement, classes, define } from '../base.js';
+import { OdyElement, classes, define, reflectControlValue } from '../base.js';
 
 export type OdyMoneyInputSize = 'base' | 'small';
 
@@ -53,6 +53,21 @@ export class OdyMoneyInput extends OdyElement {
     return CURRENCY_PRECISION[this.attr('currency', 'USD')] ?? DEFAULT_PRECISION;
   }
 
+  /**
+   * Reflect a `value` change into the live control in place instead of a full
+   * re-render, so a framework-controlled `value` binding never drops focus or
+   * caret while the user is typing. Other observed attributes change the chrome
+   * and still re-render via the base implementation.
+   */
+  override attributeChangedCallback(name?: string, oldValue?: string | null, newValue?: string | null): void {
+    if (name === 'value') {
+      if (oldValue === newValue) return;
+      reflectControlValue(this.querySelector<HTMLInputElement>('.ody-input__field'), newValue ?? '');
+      return;
+    }
+    super.attributeChangedCallback();
+  }
+
   protected render(): void {
     const size = this.attr('size', 'base');
     const isReadonly = this.flag('readonly');
@@ -93,12 +108,21 @@ export class OdyMoneyInput extends OdyElement {
     const input = this.querySelector<HTMLInputElement>('.ody-input__field');
     input?.addEventListener('input', this.#onInput);
     input?.addEventListener('blur', this.#onBlur);
+    // Swallow the native `change` so it doesn't bubble alongside our own
+    // `change` CustomEvent (that would deliver a second, detail-less event).
+    input?.addEventListener('change', this.#onNativeChange);
   }
+
+  #onNativeChange = (event: Event): void => {
+    event.stopPropagation();
+  };
 
   #onInput = (event: Event): void => {
     event.stopPropagation();
     const value = (event.target as HTMLInputElement).value;
-    this.#value = value;
+    // In-place via the `value` setter — attributeChangedCallback reflects it
+    // without a re-render, and the `value` getter stays current while typing.
+    this.value = value;
     this.dispatchEvent(new CustomEvent('input', { detail: { value }, bubbles: true }));
   };
 

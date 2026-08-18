@@ -28,6 +28,24 @@ describe('base helpers', () => {
     expect(classes(false, null)).toBe('');
   });
 
+  it('classes escapes fragments so a raw attribute cannot break out of class="..."', () => {
+    // Legitimate class tokens are unaffected (no special characters).
+    expect(classes('ody-tag', 'ody-tag--primary')).toBe('ody-tag ody-tag--primary');
+    // A malicious enum-attribute value is neutralised (no unescaped quote/angle).
+    expect(classes('ody-tag', 'ody-tag--"><img src=x onerror=alert(1)>')).toBe(
+      'ody-tag ody-tag--&quot;&gt;&lt;img src=x onerror=alert(1)&gt;',
+    );
+  });
+
+  it('a hostile class-driving attribute does not inject markup (DOM XSS)', async () => {
+    const el = await mount<OdyElement>(
+      `<ody-tag color='"><img src=x onerror="window.__xss=1">'>Label</ody-tag>`,
+    );
+    // No <img> smuggled into the DOM, and the payload stayed inside the class attr.
+    expect(el.querySelector('img')).toBeNull();
+    expect((globalThis as Record<string, unknown>).__xss).toBeUndefined();
+  });
+
   it('define is a no-op when the tag is already registered', () => {
     const ctor = customElements.get('ody-button')!;
     expect(() => define('ody-button', ctor)).not.toThrow();
@@ -60,13 +78,26 @@ describe('base helpers', () => {
     });
 
     it('reflects an assigned object prop as JSON onto its observed attribute', async () => {
-      const el = await mount<{ options: unknown }>('<ody-checkbox-group></ody-checkbox-group>');
-      const options = [{ value: 'a', label: 'A' }];
+      // A getter-only object accessor whose name is an observed attribute: the
+      // React-safe setter JSON-stringifies the assignment onto the attribute.
+      class OdyReflectObjectTest extends OdyElement {
+        static observedAttributes = ['data'];
+        get data(): unknown[] {
+          const raw = this.getAttribute('data');
+          return raw ? (JSON.parse(raw) as unknown[]) : [];
+        }
+        protected render(): void {
+          this.mount('<span></span>');
+        }
+      }
+      define('ody-reflect-object-test', OdyReflectObjectTest);
+      const el = await mount<{ data: unknown }>('<ody-reflect-object-test></ody-reflect-object-test>');
+      const data = [{ value: 'a', label: 'A' }];
 
-      expect(() => (el.options = options)).not.toThrow();
-      expect((el as unknown as Element).getAttribute('options')).toBe(JSON.stringify(options));
+      expect(() => (el.data = data)).not.toThrow();
+      expect((el as unknown as Element).getAttribute('data')).toBe(JSON.stringify(data));
       // The getter round-trips the reflected attribute back to the parsed value.
-      expect(el.options).toEqual(options);
+      expect(el.data).toEqual(data);
     });
 
     it('reflects an assigned scalar prop as a string onto its observed attribute', async () => {
@@ -222,6 +253,124 @@ describe('ody-card', () => {
     expect(el.querySelector('.ody-card--no-bar')).not.toBeNull();
     expect(el.querySelector('.ody-card__container__bar')).toBeNull();
     expect(el.querySelector('.ody-card__container__content')!.textContent).toBe('Body');
+  });
+});
+
+describe('OdyElement child mutations (framework reconcilers)', () => {
+  it('removeChild delegates to the slot for a slotted child (no NotFoundError)', async () => {
+    const card = await mount<OdyElement>('<ody-card><span id="a">A</span></ody-card>');
+    const slot = card.querySelector('[data-ody-slot]')!;
+    const a = card.querySelector('#a')!;
+    expect(a.parentNode).toBe(slot); // relocated into the slot, not the host
+    expect(() => card.removeChild(a)).not.toThrow();
+    expect(card.querySelector('#a')).toBeNull();
+    expect(slot.contains(a)).toBe(false);
+  });
+
+  it('appendChild adds into the slot', async () => {
+    const card = await mount<OdyElement>('<ody-card><span id="a">A</span></ody-card>');
+    const slot = card.querySelector('[data-ody-slot]')!;
+    const b = document.createElement('span');
+    b.id = 'b';
+    card.appendChild(b);
+    expect(b.parentNode).toBe(slot);
+    expect(slot.lastElementChild).toBe(b);
+  });
+
+  it('insertBefore inserts into the slot at the reference position', async () => {
+    const card = await mount<OdyElement>('<ody-card><span id="a">A</span></ody-card>');
+    const slot = card.querySelector('[data-ody-slot]')!;
+    const a = card.querySelector('#a')!;
+    const b = document.createElement('span');
+    b.id = 'b';
+    card.insertBefore(b, a);
+    expect(b.parentNode).toBe(slot);
+    expect(Array.from(slot.children).map((c) => c.id)).toEqual(['b', 'a']);
+  });
+
+  it('replaceChild swaps a slotted child in place', async () => {
+    const card = await mount<OdyElement>('<ody-card><span id="a">A</span></ody-card>');
+    const slot = card.querySelector('[data-ody-slot]')!;
+    const a = card.querySelector('#a')!;
+    const b = document.createElement('span');
+    b.id = 'b';
+    card.replaceChild(b, a);
+    expect(card.querySelector('#a')).toBeNull();
+    expect(slot.firstElementChild).toBe(b);
+  });
+
+  it('survives a conditional direct child swapped across renders (regression)', async () => {
+    // Mirrors a framework reusing <ody-card> and swapping its single child.
+    const card = await mount<OdyElement>(
+      '<ody-card no-bar><div id="empty">Empty</div></ody-card>',
+    );
+    const empty = card.querySelector('#empty')!;
+    const table = document.createElement('div');
+    table.id = 'table';
+    expect(() => {
+      card.removeChild(empty); // reconciler removes old branch...
+      card.appendChild(table); // ...and mounts the new one in its place
+    }).not.toThrow();
+    expect(card.querySelector('#empty')).toBeNull();
+    expect(card.querySelector('#table')).not.toBeNull();
+  });
+
+  it('keeps slotted children present and ordered across an attribute re-render', async () => {
+    const card = await mount<OdyElement>(
+      '<ody-card><span id="a">A</span><span id="b">B</span></ody-card>',
+    );
+    card.setAttribute('bar-color', '#123456'); // observed → synchronous re-render
+    const slot = card.querySelector('[data-ody-slot]')!;
+    expect(Array.from(slot.children).map((c) => c.id)).toEqual(['a', 'b']);
+    expect(
+      card.querySelector('.ody-card__container__bar')!.getAttribute('style'),
+    ).toContain('#123456');
+  });
+
+  it('leaves the internal chrome markup unchanged (slot is the content container)', async () => {
+    const card = await mount<OdyElement>('<ody-card>Body</ody-card>');
+    const slot = card.querySelector('[data-ody-slot]')!;
+    expect(slot.classList.contains('ody-card__container__content')).toBe(true);
+    expect(slot).not.toBe(card);
+  });
+
+  it('does not forward mutations before the first render (children land on the host)', () => {
+    const card = document.createElement('ody-card');
+    const child = document.createElement('span');
+    card.appendChild(child); // no slot captured yet → targets the host
+    expect(child.parentNode).toBe(card);
+  });
+
+  it('removeChild/replaceChild fall back to the host for a direct child', () => {
+    const card = document.createElement('ody-card');
+    const a = document.createElement('span');
+    card.appendChild(a); // pre-mount: a is a direct host child
+    const b = document.createElement('span');
+    b.id = 'b';
+    expect(() => card.replaceChild(b, a)).not.toThrow();
+    expect(b.parentNode).toBe(card);
+    expect(a.parentNode).toBeNull();
+    expect(() => card.removeChild(b)).not.toThrow();
+    expect(b.parentNode).toBeNull();
+  });
+
+  it('removeChild delegates correctly when the slot is portaled (modal open)', async () => {
+    const modal = await mount<OdyElement>('<ody-modal open><span id="c">C</span></ody-modal>');
+    // The dialog (carrying the slot) is portaled to document.body.
+    const c = document.body.querySelector('#c')!;
+    expect(c.parentNode).not.toBe(modal);
+    expect(() => modal.removeChild(c)).not.toThrow();
+    expect(document.body.querySelector('#c')).toBeNull();
+  });
+
+  it('re-renders a never-opened popover without nesting its own chrome (adopt regression)', async () => {
+    const pop = await mount<OdyElement>(
+      '<ody-popover><button data-ody-popover-trigger>Open</button><p>Body</p></ody-popover>',
+    );
+    // The panel must be re-homed via adopt(), not routed into its own slot
+    // (which would throw a HierarchyRequestError).
+    expect(() => pop.setAttribute('placement', 'bottom')).not.toThrow();
+    expect(pop.querySelector('.ody-popover__container')).not.toBeNull();
   });
 });
 
