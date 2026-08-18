@@ -14,7 +14,7 @@ import { ReviewService } from "../../src/internal/peek/reviews/review-service.js
 import { ResourcePoolService } from "../../src/internal/peek/resource-pools/resource-pool-service.js";
 import { TimeslotService } from "../../src/internal/peek/timeslots/timeslot-service.js";
 import type { Logger } from "../../src/logger.js";
-import { PiiAccessDisabledError } from "../../src/errors.js";
+import { InvalidPeekTokenError, PiiAccessDisabledError } from "../../src/errors.js";
 import { PeekAccessService } from "../../src/peek-access-service.js";
 
 const REQUIRED_CONFIG = {
@@ -395,6 +395,32 @@ describe("PeekAccessService.verifyPeekAuthToken", () => {
     const service = new PeekAccessService(REQUIRED_CONFIG);
 
     expect(() => service.verifyPeekAuthToken("not.a.jwt")).toThrow();
+  });
+
+  it("throws InvalidPeekTokenError when the verified user block has an empty id", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const token = mintRegistryToken(REQUIRED_CONFIG.jwtSecret, {
+      user: { ...SAMPLE_USER_PAYLOAD, id: "" },
+    });
+
+    expect(() => service.verifyPeekAuthToken(token)).toThrow(InvalidPeekTokenError);
+    expect(() => service.verifyPeekAuthToken(token)).toThrow(/user\.id/);
+  });
+
+  it("throws InvalidPeekTokenError when the verified user block omits id", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const userWithoutId = {
+      email: SAMPLE_USER_PAYLOAD.email,
+      is_admin: SAMPLE_USER_PAYLOAD.is_admin,
+      locale: SAMPLE_USER_PAYLOAD.locale,
+      name: SAMPLE_USER_PAYLOAD.name,
+      platform: SAMPLE_USER_PAYLOAD.platform,
+    };
+    const token = mintRegistryToken(REQUIRED_CONFIG.jwtSecret, {
+      user: userWithoutId,
+    });
+
+    expect(() => service.verifyPeekAuthToken(token)).toThrow(InvalidPeekTokenError);
   });
 });
 

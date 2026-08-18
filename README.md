@@ -124,6 +124,9 @@ Two kinds of failures surface as exceptions:
 - `PiiAccessDisabledError` — a payment / booking-modification operation was
   called on an access service created without `fullCustomerAccess` (see [Access options
   / PII](#access-options--pii)). Carries `.operation` (the blocked method name).
+- `InvalidPeekTokenError` — `verifyPeekAuthToken` (or `verifyInstallWebhook`)
+  received a token whose signature is valid but whose `user` block has no `id`.
+  Carries `.field` (`"user.id"`). Thrown alongside the `jsonwebtoken` errors.
 
 **Plain `Error` validation/precondition failures** thrown by the service layer
 *before* any network call — e.g. an empty config field, a `bookingId` that
@@ -293,7 +296,8 @@ below. `verifyInstallWebhook(token, secret)` is different: the payload is a sign
 `"Joken"` audience (the same checks as `verifyPeekAuthToken`) and returns typed
 claims (`installId`, `account.id`, `status`, `displayVersion`, and a **nullable**
 `user` for system-initiated events), throwing the underlying `jsonwebtoken` error
-on any failure. The booking and waiver webhooks differ on registration: a
+on any failure — or `InvalidPeekTokenError` when a present `user` block has no
+`id`. The booking and waiver webhooks differ on registration: a
 **booking** webhook's payload shape is set by a GraphQL query configured **once in
 an external system** (the App Store `broadcast_to_url` config) — this package
 documents and drift-guards the exact query to paste there — whereas the **waiver**

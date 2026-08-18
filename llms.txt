@@ -157,8 +157,10 @@ stay internal.
   418/429 with no GraphQL `errors` — e.g. 401/404/5xx; carries `.statusCode`,
   `.url`, and raw `.body`; surfaced before JSON parsing so non-JSON error pages
   keep their status), `PiiAccessDisabledError` (a payment/booking-modification op
-  was called without `fullCustomerAccess`), and the REST-sibling `CngApiError` /
-  `AcmeApiError` — all importable; branch with `instanceof`.
+  was called without `fullCustomerAccess`), `InvalidPeekTokenError` (a
+  signature-valid `app_registry_v2` token whose `user` block has no `id`;
+  carries `.field`), and the REST-sibling `CngApiError` / `AcmeApiError` — all
+  importable; branch with `instanceof`.
 - Plain `Error` for validation/precondition failures thrown before any request.
 
 ## Webhooks (booking + waiver + install-status)

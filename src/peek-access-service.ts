@@ -181,10 +181,13 @@ export class PeekAccessService {
    *   malformed
    * - `TokenExpiredError` — past `exp`
    * - `NotBeforeError` — before `nbf`
+   * - `InvalidPeekTokenError` — signature valid but the `user` block is missing
+   *   its `id`
    *
    * @throws {JsonWebTokenError} signature invalid or token malformed
    * @throws {TokenExpiredError} token has expired
    * @throws {NotBeforeError} token not yet valid
+   * @throws {InvalidPeekTokenError} verified token has no `user.id`
    */
   verifyPeekAuthToken(token: string): PeekAuthTokenClaims {
     const payload = verifyPeekJwt<RawPeekTokenPayload>(token, this.jwtSecret);
