@@ -15,6 +15,10 @@ npm install @peektravel/app-utilities
 npm update  @peektravel/app-utilities
 ```
 
+Before updating to a new version, consult [`changelog.md`](./changelog.md) —
+it records every caller-visible change grouped by version, including any
+breaking changes and the concrete action you need to take to migrate.
+
 See [Releasing](#releasing) for how new versions are published.
 
 ## Usage
