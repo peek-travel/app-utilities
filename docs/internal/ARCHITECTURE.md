@@ -146,6 +146,15 @@ models in `src/models/peek/`, CNG models in `src/models/cng/`.
 `Product` (empty string for add-ons, which have none) — the field pricing
 consumers need to set the currency on fixed-price overrides.
 
+For catalog/listing consumers, each activity `Product` additionally carries
+`imageUrl`, `description`, and a `meetingLocation` object
+(`ProductMeetingLocation { summary, address, url }`). All are nullable: the
+scalars are `string | null`, and `meetingLocation` itself is `null` when Peek
+reports none of the three underlying fields (`infoMeetingLocation` → `summary`,
+`meetingLocationFormattedAddress` → `address`, `meetingLocationUrl` → `url`).
+Add-ons always report `null` for all three. `ProductMeetingLocation` is exported
+from `src/index.ts` alongside `Product`/`ProductTicket`.
+
 Each `Product.tickets[]` (a `ProductTicket`) additionally carries `minPrice`
 and `maxPrice` (`PricingMoney | null`), mapped from the resourceOption's
 `priceRange { min max }`. They are `null` for add-on options (no range) and
@@ -458,17 +467,50 @@ Load-bearing rules:
   across re-renders through a `[data-ody-slot]` placeholder. The first render is
   deferred one microtask (so parser/`innerHTML` children are attached before the
   slot is captured); attribute-change re-renders are synchronous.
+- **Child mutations are forwarded to the slot.** Because `mount()` relocates
+  consumer children into the `[data-ody-slot]` node, a slotted child's real
+  `parentNode` is that slot, not the host. Framework reconcilers (React, Vue,
+  Angular, Svelte) mutate the DOM by calling `host.removeChild(child)` /
+  `insertBefore` / `replaceChild` / `appendChild`, which would otherwise throw
+  `NotFoundError`. `OdyElement` overrides these four methods: removal/insert/
+  replace delegate to the target node's actual `parentNode` (so they also work
+  while the slot is portaled to `document.body`), and `appendChild` routes into
+  the current slot. Internal chrome/portal re-homing must use `OdyElement.adopt()`
+  (a `super.appendChild`) to bypass this forwarding — the portal components
+  (`modal`, `panel`, `popover`, `tooltip`) do, so their chrome node isn't routed
+  into its own slot. `mount()` itself never passes through the overrides (it uses
+  `this.innerHTML` and operates on the slot/fragment nodes directly).
 - **Text fields update `value` in place, never re-render.** The native
   `<input>`/`<textarea>` already reflects what the user typed, so a destructive
   re-render on each keystroke would drop focus and caret. The controlled inputs
-  (`ody-input`, `ody-inline-input`, `ody-search-input`) therefore `override
-  attributeChangedCallback` to special-case `value`: they push it into the live
-  control via `reflectControlValue` (a no-op when the control already holds it)
-  and toggle the counter/clear-button imperatively, skipping `render()`. Every
-  other observed attribute changes chrome and still re-renders through the base.
-  (`ody-money-input`/`ody-percentage-input` sidestep the issue differently —
-  they write the private `#value` on input and only reflect the attribute on
-  blur, when focus has already left.)
+  (`ody-input`, `ody-inline-input`, `ody-search-input`, `ody-money-input`,
+  `ody-percentage-input`) therefore `override attributeChangedCallback` to
+  special-case `value`: they push it into the live control via
+  `reflectControlValue` (a no-op when the control already holds it), skipping
+  `render()`. Every other observed attribute changes chrome and still re-renders
+  through the base. The selection controls follow the same principle:
+  `ody-checkbox`, `ody-checkbox-group`, and `ody-radio-button-group` update the
+  checked state in place on selection (shared `applyCheckboxState` in
+  `checkbox-state.ts`) so focus/keyboard nav survives.
+- **Re-render on reconnect; portal content survives a move.** `connectedCallback`
+  re-renders when the element is reconnected (`#slot` already captured) — moving
+  an element in the DOM (a framework keyed reorder) otherwise leaves it inert
+  (no locale reactivity, no listeners). Portal components
+  (`modal`/`panel`/`popover`/`tooltip`) call `reclaimPortaledSlot(node)` in
+  `disconnectedCallback` to pull slotted content out of the portaled node before
+  it is torn down, so the reconnect re-render can re-slot it.
+- **Pre-upgrade properties are honored.** `connectedCallback` runs
+  `#upgradeProperties()` — own properties that shadow a prototype accessor
+  (a framework `el.value = …` set before the element upgraded) are deleted and
+  re-assigned through the accessor.
+- **Untrusted attribute values are neutralized at the sink.** `classes()`
+  HTML-escapes its output (class fragments are built from raw attributes), and
+  `cssColor()` allow-lists color tokens before they reach a `style="…"`
+  declaration. Rich-data props (`options`/`presets`/`data`/`columns`/`rows`) are
+  real getter+setter properties (accepting an array or JSON string) rather than
+  getter-only accessors, so they are **not** reflected as JSON DOM attributes;
+  `ody-checkbox-group` serializes its `value` attribute as a JSON array so
+  comma-containing values round-trip.
 - **Localization (`i18n.ts`).** Components' built-in strings (aria-labels,
   default placeholders, check-in-status labels) go through `OdyElement.term(key)`
   / `localized(attr, key)`, never hardcoded. The active language is resolved from

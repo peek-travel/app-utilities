@@ -524,7 +524,9 @@ describe('ody-checkbox-group', () => {
     expect(el.querySelector('.ody-checkbox__input--size-base')).not.toBeNull();
     expect(el.querySelector<HTMLInputElement>('.ody-checkbox__input')!.disabled).toBe(true);
     el.value = ['b'];
-    expect(el.getAttribute('value')).toBe('b');
+    // The value attribute is now serialized as a JSON array (comma-safe).
+    expect(el.getAttribute('value')).toBe('["b"]');
+    expect(el.value).toEqual(['b']);
     const empty = await mount<HTMLElement & { value: string[]; options: unknown[] }>('<ody-checkbox-group options="oops"></ody-checkbox-group>');
     expect(empty.options).toEqual([]);
     expect(empty.value).toEqual([]);
@@ -545,8 +547,12 @@ describe('ody-checkbox-group', () => {
     const items = el.querySelectorAll<HTMLInputElement>('.ody-checkbox-group__item .ody-checkbox__input');
     expect(items.length).toBe(1);
     expect(el.querySelector('.ody-checkbox-group__item .ody-checkbox__label')!.textContent).toBe('A');
-    // The getter round-trips the reflected attribute back to the parsed value.
+    // The property is the source of truth (not reflected onto the attribute).
     expect(el.options).toEqual([{ label: 'A', value: 'a' }]);
+    expect(el.getAttribute('options')).toBeNull();
+    // A comma-containing value round-trips through the property.
+    (el as unknown as { value: string[] }).value = ['a,b'];
+    expect((el as unknown as { value: string[] }).value).toEqual(['a,b']);
   });
 
   it('renders no items when options is set to an empty or non-array value', async () => {

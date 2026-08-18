@@ -104,6 +104,15 @@ placeholder. So the element's children become its body/label content:
 <ody-alert heading="Saved">This is the body content.</ody-alert>
 ```
 
+Although your children are physically relocated into that placeholder, the host
+element forwards the standard child-mutation calls
+(`appendChild` / `insertBefore` / `removeChild` / `replaceChild`) to the slot.
+So a framework reconciler that adds, removes, reorders, or swaps a **direct**
+child of a slotting element operates on the slot correctly — conditional,
+keyed, and `.map()`-ed children all reconcile without a
+`NotFoundError: … not a child of this node`. You do **not** need to wrap dynamic
+children in a single stable `<div>`.
+
 ### 3.5 Framework usage
 
 **Vanilla HTML / JS** — declarative; set rich data and add listeners via the
@@ -134,13 +143,27 @@ reflected/read-only accessor accepts assignment, so passing props directly works
 and does **not** throw the `Cannot set property … which has only a getter` error
 a getter-only property would otherwise raise. Concretely:
 
-- **Reflected props (booleans, and rich data) take effect.** `searchable`,
-  `disabled`, `options`, etc. reflect the assigned value onto the backing
-  attribute — booleans as presence, objects/arrays as a JSON string:
+- **Boolean props reflect to the attribute.** `searchable`, `disabled`, etc.
+  take effect as attribute presence:
 
   ```jsx
   <ody-dropdown-single searchable options={items} value={value} />
   ```
+
+- **Rich-data props are real properties.** `options` (dropdowns, checkbox-group,
+  radio-button-group, toggle-button), `presets` (datepicker), and `data` /
+  `columns` / `rows` (table) are true getter+setter properties. Pass an **array**
+  directly (`options={items}`); a JSON **string** is also accepted for
+  backwards-compatibility. They are the source of truth and are **not** reflected
+  back onto a DOM attribute (so no giant JSON attributes).
+
+- **Controlled `value` never fights the caret.** The text/number fields
+  (`ody-input`, `ody-inline-input`, `ody-search-input`, `ody-money-input`,
+  `ody-percentage-input`) reflect an externally-set `value` into the live control
+  in place, and the selection controls update their checked state in place — so a
+  controlled binding keeps focus. `ody-checkbox-group`'s `value` **attribute** is
+  a JSON array (comma-safe); its `.value` **property** and the `change` detail are
+  a `string[]`.
 
 - **Read-only state accessors ignore assignment.** Props that mirror live
   internal state (`isOpen`, `isVisible`) are inert to writes — they are not

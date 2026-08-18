@@ -15,6 +15,11 @@ export const PRODUCTS_QUERY = `
       type
       colorHex
       currency
+      imageUrl
+      description
+      meetingLocationFormattedAddress
+      meetingLocationUrl
+      infoMeetingLocation
       resourceOptions {
         id
         name
@@ -51,6 +56,11 @@ export interface ActivityNode {
   type: string;
   colorHex: string;
   currency?: string;
+  imageUrl?: string | null;
+  description?: string | null;
+  meetingLocationFormattedAddress?: string | null;
+  meetingLocationUrl?: string | null;
+  infoMeetingLocation?: string | null;
   resourceOptions: Array<{
     id: string;
     name: string;

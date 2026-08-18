@@ -44,7 +44,7 @@ export class OdyModal extends OdyElement {
   protected render(): void {
     // Reclaim portaled nodes so the base `mount` can recover slotted content
     // (which lives inside the dialog) before it rebuilds the markup.
-    if (this.#dialog) this.appendChild(this.#dialog);
+    if (this.#dialog) this.adopt(this.#dialog);
     if (this.#backdrop) removePortal(this.#backdrop);
 
     const isOpen = this.flag('open');
@@ -102,6 +102,9 @@ export class OdyModal extends OdyElement {
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     document.removeEventListener('keydown', this.#onKeydown);
+    // The slotted body lives inside the portaled dialog; reclaim it before the
+    // dialog is destroyed so it survives a reparent (re-slotted on reconnect).
+    this.reclaimPortaledSlot(this.#dialog);
     if (this.#backdrop) removePortal(this.#backdrop);
     if (this.#dialog) removePortal(this.#dialog);
     this.#backdrop = null;

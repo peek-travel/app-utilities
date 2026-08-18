@@ -108,6 +108,14 @@ export class OdyCopyButton extends OdyElement {
       if (this.isConnected) this.render();
     }, Number.isFinite(duration) ? duration : 1200);
   }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    // Clear the pending success/error-reset timer so a removed button isn't
+    // retained until it fires.
+    if (this.#timer) clearTimeout(this.#timer);
+    this.#timer = undefined;
+  }
 }
 
 define('ody-copy-button', OdyCopyButton);

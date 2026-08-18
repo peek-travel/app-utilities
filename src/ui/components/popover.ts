@@ -84,7 +84,7 @@ export class OdyPopover extends OdyElement {
     // content (which lives in the panel's inner slot) on a re-render. The
     // trigger lives in a separate slot, so push it back into the slot too.
     if (this.#panel) {
-      this.appendChild(this.#panel);
+      this.adopt(this.#panel);
       this.#panel.classList.remove('ody-popover__container--open');
     }
     const trigger = this.querySelector('[data-ody-popover-trigger-slot]')?.firstElementChild;
@@ -124,6 +124,9 @@ export class OdyPopover extends OdyElement {
     super.disconnectedCallback();
     document.removeEventListener('click', this.#onOutsideClick, true);
     this.#trigger?.removeEventListener('click', this.#onTriggerClick);
+    // The slotted content lives inside the panel; reclaim it before the panel is
+    // destroyed so it survives a reparent (re-slotted on reconnect).
+    this.reclaimPortaledSlot(this.#panel);
     if (this.#panel) removePortal(this.#panel);
     this.#panel = null;
     this.#trigger = null;

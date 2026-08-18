@@ -349,6 +349,10 @@ property would otherwise cause. Two things worth knowing:
   internal state (`isOpen`, `isVisible`) ignore writes — drive them through the
   imperative methods on a `ref` (`ref.current.openPopover()`, `.show()`) and read
   them back through the component's `CustomEvent`s, not by setting the prop.
+- **Dynamic children reconcile correctly.** Slotting components (`ody-card`,
+  `ody-alert`, `ody-section`, …) forward child mutations to their internal slot,
+  so conditional, keyed, `.map()`-ed, or reordered **direct** children work
+  without a `NotFoundError` — no need to wrap dynamic children in a stable `<div>`.
 
 TypeScript still types these accessors as read-only, so a direct
 `el.isOpen = true` in TS is flagged — the setters are a runtime safety net for

@@ -27,13 +27,47 @@ export abstract class OdyElement extends HTMLElement {
   #localeCb: (() => void) | null = null;
 
   connectedCallback(): void {
-    // Defer the first render to a microtask so children provided via the parser
-    // or `innerHTML` are attached before we capture the default slot (their
-    // timing relative to `connectedCallback` varies across DOM implementations).
-    // Attribute-change re-renders, after the slot is captured, run synchronously.
-    queueMicrotask(() => {
-      if (this.isConnected && this.#slot === null) this.render();
-    });
+    // Apply any property assigned before the element upgraded (SSR hydration,
+    // code-splitting, lazy registration) so a framework's pre-upgrade
+    // `el.value = …` / `el.options = …` isn't silently shadowed and dropped.
+    this.#upgradeProperties();
+    if (this.#slot === null) {
+      // First connect: defer the render to a microtask so children provided via
+      // the parser or `innerHTML` are attached before we capture the default
+      // slot (their timing relative to `connectedCallback` varies across DOM
+      // implementations). Attribute-change re-renders, after the slot is
+      // captured, run synchronously.
+      queueMicrotask(() => {
+        if (this.isConnected && this.#slot === null) this.render();
+      });
+    } else {
+      // Reconnect (the element was moved in the DOM — a framework keyed reorder
+      // or a move between containers fires disconnect→connect). The first render
+      // already captured the slot, so re-render now to restore the locale
+      // subscription, re-attach event listeners, and (for portal components)
+      // rebuild chrome that `disconnectedCallback` tore down. Without this, a
+      // moved element silently stops reacting to `lang` changes and comes back
+      // empty.
+      this.render();
+    }
+  }
+
+  /** Re-apply own properties that shadow a prototype accessor (pre-upgrade sets). */
+  #upgradeProperties(): void {
+    const self = this as unknown as Record<string, unknown>;
+    for (const key of Object.getOwnPropertyNames(this)) {
+      let proto: object | null = Object.getPrototypeOf(this);
+      while (proto && proto !== HTMLElement.prototype) {
+        const desc = Object.getOwnPropertyDescriptor(proto, key);
+        if (desc && (desc.get || desc.set)) {
+          const value = self[key];
+          delete self[key];
+          self[key] = value;
+          break;
+        }
+        proto = Object.getPrototypeOf(proto);
+      }
+    }
   }
 
   attributeChangedCallback(): void {
@@ -69,6 +103,87 @@ export abstract class OdyElement extends HTMLElement {
       while (this.firstChild) this.#slot.appendChild(this.firstChild);
     }
     return this.#slot;
+  }
+
+  /**
+   * Move slotted content out of a portaled chrome node (dialog/panel/bubble)
+   * back into the captured slot fragment, so it survives `disconnectedCallback`
+   * tearing that node down and is re-slotted by the re-render on reconnect.
+   * Portal components call this before `removePortal(...)`; without it, moving
+   * the element in the DOM would permanently lose the consumer's content.
+   */
+  protected reclaimPortaledSlot(node: ParentNode | null | undefined): void {
+    if (this.#slot === null || !node) return;
+    const slot = node.querySelector('[data-ody-slot]');
+    if (slot) while (slot.firstChild) this.#slot.appendChild(slot.firstChild);
+  }
+
+  /**
+   * The element that actually holds slotted (consumer-provided) children right
+   * now, or `null` before the first render, for a non-slotting component, or
+   * while the slot is portaled out of the host (e.g. an open modal). See the
+   * child-mutation overrides below for why this is needed.
+   */
+  #slotTarget(): Element | null {
+    return this.#slot !== null ? this.querySelector('[data-ody-slot]') : null;
+  }
+
+  // --- Framework-reconciler child mutations -------------------------------
+  //
+  // `mount()` physically relocates the consumer's light-DOM children into the
+  // internal `[data-ody-slot]` node, so a slotted child's real `parentNode` is
+  // that slot div, not the host `<ody-*>` element. Framework reconcilers
+  // (React, Vue, Angular, Svelte, …) don't track parent pointers — to move or
+  // remove a node they call `host.removeChild(child)` /
+  // `host.insertBefore(node, ref)` where `host` is the element from their
+  // virtual tree. Because the child no longer lives directly under the host,
+  // those calls would throw `NotFoundError` (or reorder into the wrong place).
+  //
+  // These overrides forward the operation to wherever the node actually lives
+  // (the slot), so reconciler operations succeed regardless of the relocation.
+  // For removal/insertion/replacement we key off the target node's real
+  // `parentNode`, which also works while the slot is portaled to `document.body`
+  // (open modal/panel/popover). Internal chrome mutations use {@link adopt} to
+  // bypass this forwarding; `mount()` itself never routes through here (it uses
+  // `this.innerHTML` and operates on the slot/fragment nodes directly).
+
+  override appendChild<T extends Node>(node: T): T {
+    const slot = this.#slotTarget();
+    return slot ? slot.appendChild(node) : super.appendChild(node);
+  }
+
+  override insertBefore<T extends Node>(node: T, child: Node | null): T {
+    // A reference node that lives in the slot: insert alongside it there.
+    if (child && child.parentNode && child.parentNode !== this) {
+      return child.parentNode.insertBefore(node, child);
+    }
+    const slot = this.#slotTarget();
+    return slot ? slot.insertBefore(node, child) : super.insertBefore(node, child);
+  }
+
+  override removeChild<T extends Node>(child: T): T {
+    // Delegate to wherever the child actually lives (the slot), not the host.
+    if (child.parentNode && child.parentNode !== this) {
+      return child.parentNode.removeChild(child);
+    }
+    return super.removeChild(child);
+  }
+
+  override replaceChild<T extends Node>(node: Node, child: T): T {
+    if (child.parentNode && child.parentNode !== this) {
+      return child.parentNode.replaceChild(node, child);
+    }
+    return super.replaceChild(node, child);
+  }
+
+  /**
+   * Append an element the component owns (chrome / portaled nodes) as a direct
+   * host child, bypassing the slot-forwarding {@link appendChild} override.
+   * Portal-based components use this to re-home a portaled node before a
+   * re-render rebuilds the chrome.
+   */
+  protected adopt(node: Node): void {
+    super.appendChild(node);
   }
 
   /** Read a string attribute with a fallback. */
@@ -160,12 +275,35 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/** Characters permitted in a CSS color value interpolated into a `style="…"`. */
+const SAFE_CSS_COLOR = /^[a-zA-Z0-9#(),.%\s-]+$/;
+
+/**
+ * Return `value` when it is a safe CSS color token, otherwise `fallback`. A
+ * consumer-supplied color attribute (`bar-color`, `text-color`, `color`) is
+ * dropped straight into a `style="…"` declaration; without this a value like
+ * `"red;position:fixed;inset:0;width:100vw;height:100vh"` would inject extra CSS
+ * declarations (overlay / clickjacking). The allow-list still accepts hex,
+ * `rgb()/rgba()/hsl()`, named colors, `var(--…)`, `color-mix(…)`, `oklch(…)`,
+ * etc. — it only rejects the structural characters (`;{}:`) an injection needs.
+ */
+export function cssColor(value: string, fallback = ''): string {
+  return value && SAFE_CSS_COLOR.test(value) ? value : fallback;
+}
+
 /**
  * Join class-name fragments, dropping falsy entries. Keeps component templates
  * readable when classes are conditional.
+ *
+ * The result is HTML-escaped because it is always interpolated into a
+ * `class="…"` attribute (or assigned to `el.className`). Many components build
+ * a class fragment from a raw, unvalidated attribute (`ody-tag--${attr('color')}`,
+ * `--size-${attr('size')}`, …); without escaping, a value containing a `"` would
+ * break out of the attribute and inject markup (DOM XSS). Legitimate class tokens
+ * contain none of the escaped characters, so this is a no-op for real class names.
  */
 export function classes(...parts: Array<string | false | null | undefined>): string {
-  return parts.filter(Boolean).join(' ');
+  return escapeHtml(parts.filter(Boolean).join(' '));
 }
 
 /**

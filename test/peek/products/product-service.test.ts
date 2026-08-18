@@ -103,6 +103,16 @@ describe("ProductService.getAllProducts", () => {
         // Query should be whitespace-collapsed (single line, no double spaces).
         expect(query).not.toMatch(/\n/);
         expect(query).not.toMatch(/ {2,}/);
+        // Catalog fields must be requested on the wire.
+        for (const field of [
+          "imageUrl",
+          "description",
+          "meetingLocationFormattedAddress",
+          "meetingLocationUrl",
+          "infoMeetingLocation",
+        ]) {
+          expect(query).toContain(field);
+        }
         return jsonResponse({ data: { activities: [ACTIVITY] } });
       }
 
@@ -139,6 +149,9 @@ describe("ProductService.getAllProducts", () => {
         type: "ACTIVITY",
         color: "#1A2B3C",
         currency: "USD",
+        imageUrl: null,
+        description: null,
+        meetingLocation: null,
         tickets: [ACTIVITY_TICKET],
       },
       {
@@ -147,6 +160,9 @@ describe("ProductService.getAllProducts", () => {
         type: "ADD-ON",
         color: "#FFFFFF",
         currency: "",
+        imageUrl: null,
+        description: null,
+        meetingLocation: null,
         tickets: [
           { id: "opt-1", name: "Helmet", minPrice: null, maxPrice: null },
           { id: "opt-2", name: "Life Vest", minPrice: null, maxPrice: null },
@@ -309,6 +325,9 @@ describe("ProductService.getAllActivities", () => {
         type: "ACTIVITY",
         color: "#1A2B3C",
         currency: "USD",
+        imageUrl: null,
+        description: null,
+        meetingLocation: null,
         tickets: [ACTIVITY_TICKET],
       },
     ]);
@@ -341,6 +360,9 @@ describe("ProductService.getAllRentals", () => {
         type: "RENTAL",
         color: "#1EC6CE",
         currency: "USD",
+        imageUrl: null,
+        description: null,
+        meetingLocation: null,
         tickets: [{ id: "r2", name: "Bikes", minPrice: null, maxPrice: null }],
       },
     ]);
@@ -385,6 +407,9 @@ describe("ProductService.getAllAddons", () => {
         type: "ADD-ON",
         color: "#FFFFFF",
         currency: "",
+        imageUrl: null,
+        description: null,
+        meetingLocation: null,
         tickets: [{ id: "opt-1", name: "Helmet", minPrice: null, maxPrice: null }],
       },
     ]);

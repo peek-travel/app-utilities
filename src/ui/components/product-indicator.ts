@@ -1,4 +1,4 @@
-import { OdyElement, classes, define } from '../base.js';
+import { OdyElement, classes, cssColor, define } from '../base.js';
 
 export type OdyProductIndicatorSize = 'base' | 'small';
 
@@ -48,12 +48,12 @@ export class OdyProductIndicator extends OdyElement {
       clickable && 'ody-product-indicator-clickable',
     );
 
-    const barColor = this.attr('bar-color');
-    const barStyle = barColor ? ` style="background-color:${this.esc(barColor)}"` : '';
+    const barColor = cssColor(this.attr('bar-color'));
+    const barStyle = barColor ? ` style="background-color:${barColor}"` : '';
     const bar = `<div class="ody-product-indicator__bar"${barStyle}></div>`;
 
-    const textColor = this.attr('text-color');
-    const textStyle = textColor ? ` style="color:${this.esc(textColor)}"` : '';
+    const textColor = cssColor(this.attr('text-color'));
+    const textStyle = textColor ? ` style="color:${textColor}"` : '';
     const name = this.attr('name');
     const nameEl = `<div class="ody-product-indicator__name"${textStyle}>${this.esc(name)}</div>`;
 

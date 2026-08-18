@@ -31,6 +31,9 @@ const REMOVE_DELAY = 400;
  * {@link toast} lazily creates and portals one for you.
  */
 export class OdyToastHost extends OdyElement {
+  /** Per-toast cleanups (cancel rAF + auto-dismiss timer) run on host teardown. */
+  #pending = new Set<() => void>();
+
   protected render(): void {
     this.mount(`<div class="toast-notification-container" data-ody-slot></div>`);
   }
@@ -64,19 +67,34 @@ export class OdyToastHost extends OdyElement {
     container.appendChild(el);
 
     // Trigger the slide-in transition after the node is laid out.
-    requestAnimationFrame(() => el.classList.add('toast-notification--visible'));
+    const raf = requestAnimationFrame(() => el.classList.add('toast-notification--visible'));
 
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const dismiss = (): void => {
+    const cleanup = (): void => {
+      cancelAnimationFrame(raf);
       if (timer !== undefined) clearTimeout(timer);
+      this.#pending.delete(cleanup);
+    };
+    const dismiss = (): void => {
+      cleanup();
       el.classList.remove('toast-notification--visible');
       setTimeout(() => el.remove(), REMOVE_DELAY);
     };
 
     el.querySelector('.toast-notification__close-button')?.addEventListener('click', dismiss);
     if (timeout > 0) timer = setTimeout(dismiss, timeout);
+    this.#pending.add(cleanup);
 
     return { dismiss };
+  }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    // If the host is torn down (e.g. the app removes document.body), cancel any
+    // pending slide-in frames and auto-dismiss timers so they don't fire against
+    // detached nodes.
+    for (const cleanup of [...this.#pending]) cleanup();
+    this.#pending.clear();
   }
 }
 

@@ -1,4 +1,4 @@
-import { OdyElement, classes, define } from '../base.js';
+import { OdyElement, classes, cssColor, define } from '../base.js';
 
 /**
  * `<ody-card>` — a bordered content container with an accent bar on the left.
@@ -15,8 +15,8 @@ export class OdyCard extends OdyElement {
 
   protected render(): void {
     const noBar = this.flag('no-bar');
-    const barColor = this.attr('bar-color');
-    const barStyle = barColor ? ` style="background-color:${this.esc(barColor)}"` : '';
+    const barColor = cssColor(this.attr('bar-color'));
+    const barStyle = barColor ? ` style="background-color:${barColor}"` : '';
     const cls = classes(
       'ody-card__container',
       this.flag('clickable') && 'ody-card--clickable',

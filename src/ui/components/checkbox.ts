@@ -1,4 +1,5 @@
 import { OdyElement, classes, define } from '../base.js';
+import { applyCheckboxState } from '../checkbox-state.js';
 import { iconSvg } from '../icons.js';
 
 export type OdyCheckboxSize = 'base' | 'small';
@@ -37,6 +38,29 @@ export class OdyCheckbox extends OdyElement {
 
   set value(next: boolean) {
     this.checked = next;
+  }
+
+  /**
+   * Reflect `checked` / `indeterminate` in place instead of a full re-render, so
+   * selecting the box (mouse or keyboard) never rebuilds the native `<input>`
+   * and drops focus. Other observed attributes still re-render via the base.
+   */
+  override attributeChangedCallback(name?: string, oldValue?: string | null, newValue?: string | null): void {
+    if ((name === 'checked' || name === 'indeterminate') && this.querySelector('.ody-checkbox__input')) {
+      if (oldValue === newValue) return;
+      this.#syncChecked();
+      return;
+    }
+    super.attributeChangedCallback();
+  }
+
+  /** Update the live control, wrapper class, and check/minus mark in place. */
+  #syncChecked(): void {
+    applyCheckboxState(
+      this.querySelector('.ody-checkbox'),
+      this.flag('checked'),
+      this.flag('indeterminate'),
+    );
   }
 
   protected render(): void {

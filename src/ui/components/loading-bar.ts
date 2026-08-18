@@ -1,4 +1,4 @@
-import { OdyElement, define } from '../base.js';
+import { OdyElement, cssColor, define } from '../base.js';
 
 /**
  * `<ody-loading-bar>` — a horizontal progress bar.
@@ -14,7 +14,7 @@ export class OdyLoadingBar extends OdyElement {
   protected render(): void {
     const raw = Number.parseFloat(this.attr('value', '0'));
     const value = Number.isFinite(raw) ? Math.min(100, Math.max(0, raw)) : 0;
-    const color = this.attr('color') || 'var(--color-interaction-300)';
+    const color = cssColor(this.attr('color'), 'var(--color-interaction-300)');
     const label = this.attr('label');
     const text = label
       ? `<div class="loading-bar__text-container">` +

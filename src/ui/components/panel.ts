@@ -35,7 +35,7 @@ export class OdyPanel extends OdyElement {
   }
 
   protected render(): void {
-    if (this.#panel) this.appendChild(this.#panel);
+    if (this.#panel) this.adopt(this.#panel);
     if (this.#overlay) removePortal(this.#overlay);
 
     const isOpen = this.flag('open');
@@ -77,6 +77,9 @@ export class OdyPanel extends OdyElement {
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
+    // The slotted body lives inside the portaled panel; reclaim it before the
+    // panel is destroyed so it survives a reparent (re-slotted on reconnect).
+    this.reclaimPortaledSlot(this.#panel);
     if (this.#panel) removePortal(this.#panel);
     if (this.#overlay) removePortal(this.#overlay);
     this.#panel = null;
