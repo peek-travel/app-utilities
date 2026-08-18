@@ -21,14 +21,17 @@ out, and the clean data models — never raw GraphQL.
   lines/functions/branches/statements).
 - Unless told otherwise, after everything is done, run the linter and fix any
   errors.
-- **Keep `log.md` up to date.** `log.md` is the consumer-facing change log. Any
-  change that is potentially breaking for an existing consumer — a changed event
-  contract, a removed/renamed attribute or serialization format, an altered
-  default, a lifecycle/behavior change, or anything that requires callers to
-  update their code — MUST be recorded there with (a) what changed, (b) why, and
-  (c) the concrete action the caller has to take. Non-breaking fixes may be
-  logged too, marked as such. Add the entry in the same change that makes the
-  code change; never let `log.md` drift behind the code.
+- **Keep `changelog.md` up to date.** `changelog.md` is the consumer-facing
+  changelog — it records only changes a **caller** can observe or act on, grouped
+  by version. Any change that is potentially breaking for an existing consumer — a
+  changed event contract, a removed/renamed attribute or serialization format, an
+  altered default, a lifecycle/behavior change, or anything that requires callers
+  to update their code — MUST be recorded there under the target version's header
+  with (a) what changed, (b) why, and (c) the concrete action the caller has to
+  take. Caller-visible fixes and new capabilities may be logged too, marked with
+  their tag. **Do not** log internal-only work (refactors, test changes, invisible
+  cleanups). Add the entry in the same change that makes the code change; never let
+  `changelog.md` drift behind the code.
 
 # Architecture conventions
 
@@ -195,4 +198,4 @@ install-script spawn — use `npm install --ignore-scripts`. If the
 - Update `docs/internal/ARCHITECTURE.md` if the public surface, resources, or build changed.
 - Update `docs/external/pricing-api.md` if the pricing surface changed, and
   `llms.txt` if the public entry points changed.
-- Record any potentially breaking change (with the caller's required action) in `log.md`.
+- Record any caller-visible change (and, for breaking ones, the caller's required action) in `changelog.md`.

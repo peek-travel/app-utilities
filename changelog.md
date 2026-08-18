@@ -1,7 +1,9 @@
-# Change log
+# Changelog
 
-Consumer-facing log of changes to `@peektravel/app-utilities`, with an emphasis
-on **anything a consumer may need to act on**. Newest first.
+Consumer-facing changelog for `@peektravel/app-utilities`. It records only
+changes a **caller** can observe or needs to act on — new capabilities, behavior
+changes, and breaking changes — grouped by version, newest first. Internal
+refactors, test-only changes, and invisible cleanups are intentionally omitted.
 
 Each entry states **what** changed, **why**, and — when relevant — the **caller
 action** required. Entries tagged `[breaking]` change observable behavior an
@@ -10,12 +12,23 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Odyssey UI components — framework-integration & safety pass
+## 0.6.0
 
-A review of the `@peektravel/app-utilities/ui` Web Components surfaced a set of
-issues that show up when the components are driven by a framework (React 19, Vue,
-Angular, Svelte) or fed data-derived attributes. All changes are internal to the
-`/ui` subpath; the GraphQL/data-model surface is untouched.
+Two threads: new **product-catalog fields** on the Peek `Product` model, and a
+**framework-integration & safety pass** over the `@peektravel/app-utilities/ui`
+Web Components (issues that surface when the components are driven by a framework
+— React 19, Vue, Angular, Svelte — or fed data-derived attributes).
+
+### `[additive]` Product catalog: `imageUrl`, `description`, `meetingLocation`
+
+- **What:** activity `Product`s now expose nullable `imageUrl`, `description`,
+  and `meetingLocation` (`ProductMeetingLocation { summary, address, url }`);
+  add-ons report `null`. `ProductMeetingLocation` is exported from the package
+  alongside `Product`/`ProductTicket`.
+- **Why:** catalog / listing / marketplace consumers needed description, imagery,
+  and meeting-point data that was previously operator-manual.
+- **Caller action:** none — purely additive; existing `Product` consumers are
+  unaffected.
 
 ### `[fix]` DOM XSS: enum-ish attributes could break out of `class="…"`
 
@@ -124,15 +137,6 @@ Angular, Svelte) or fed data-derived attributes. All changes are internal to the
   on connect, so `el.value = …` / `el.data = …` set **before** the `/ui` bundle
   registers the element (SSR hydration, code-splitting, lazy registration) is no
   longer silently dropped.
-- **Caller action:** none.
-
-### `[fix]` Timer cleanup on teardown
-
-- **What:** `<ody-copy-button>` clears its success-reset timer on disconnect;
-  `<ody-toast-host>` cancels pending slide-in frames and auto-dismiss timers on
-  teardown.
-- **Why:** avoids briefly retaining removed elements / firing against detached
-  nodes.
 - **Caller action:** none.
 
 ### `[additive]` `<ody-datepicker>` function props are reactive
