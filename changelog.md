@@ -12,6 +12,25 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## Unreleased
+
+### `[fix]` `verifyPeekAuthToken` now rejects a token with no `user.id`
+
+- **What:** `verifyPeekAuthToken` (and `verifyInstallWebhook`, when the payload
+  carries a user block) now throws the new, exported `InvalidPeekTokenError`
+  when the signature is valid but the `user` block has no `id`. The error's
+  `.field` is `"user.id"`. Previously such a token decoded to claims whose
+  `user.id` was an empty/`undefined` string.
+- **Why:** the `user.id` is the authenticated end-user identity callers key
+  authorization and audit off of; silently returning a blank id let a malformed
+  token flow through as if a real user were present.
+- **Caller action:** none required for well-formed tokens. Callers that catch
+  verification failures may add `InvalidPeekTokenError` (importable, branch with
+  `instanceof`) to their handling; it is thrown alongside the existing
+  `jsonwebtoken` errors.
+
+---
+
 ## 0.6.0
 
 Two threads: new **product-catalog fields** on the Peek `Product` model, and a

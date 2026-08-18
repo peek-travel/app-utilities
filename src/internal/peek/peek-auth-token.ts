@@ -11,6 +11,7 @@
  * Internal only — never re-exported from `src/index.ts`.
  */
 import * as jwt from "jsonwebtoken";
+import { InvalidPeekTokenError } from "../../errors.js";
 import type { PeekAuthTokenUser, PeekPlatform } from "../../models/peek/auth-token.js";
 
 /** JWT issuer set by the Peek app registry on all tokens it issues. */
@@ -42,8 +43,17 @@ export function verifyPeekJwt<T>(token: string, secret: string): T {
   }) as T;
 }
 
-/** Maps the raw snake_case user block to the clean {@link PeekAuthTokenUser}. */
+/**
+ * Maps the raw snake_case user block to the clean {@link PeekAuthTokenUser}.
+ *
+ * @throws {InvalidPeekTokenError} when the user block carries no `id` — the
+ * signature is already verified at this point, so an absent id means a
+ * structurally malformed token rather than a forged one.
+ */
 export function mapPeekTokenUser(u: RawPeekTokenUser): PeekAuthTokenUser {
+  if (!u.id) {
+    throw new InvalidPeekTokenError("user.id");
+  }
   return {
     email: u.email,
     id: u.id,

@@ -60,10 +60,12 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
   the Peek app registry (`iss: "app_registry_v2"`, `aud: "Joken"`), returning
   a fully typed `PeekAuthTokenClaims` (including the nested `PeekAuthTokenUser`
   object). Throws `JsonWebTokenError` / `TokenExpiredError` / `NotBeforeError`
-  from `jsonwebtoken` on failure. The signature-check core (issuer + audience +
-  user mapping) lives in the internal `peek-auth-token.ts` module, shared with
-  the standalone `verifyInstallWebhook` (§ install webhooks) so the two can't
-  drift apart.
+  from `jsonwebtoken` on failure, plus `InvalidPeekTokenError` when the
+  signature is valid but the `user` block carries no `id` (the check lives in
+  the shared `mapPeekTokenUser`, so it guards `verifyInstallWebhook`'s user
+  block too). The signature-check core (issuer + audience + user mapping) lives
+  in the internal `peek-auth-token.ts` module, shared with the standalone
+  `verifyInstallWebhook` (§ install webhooks) so the two can't drift apart.
 - Composes dependencies between services where needed:
   - `TimeslotService` receives the resource-pool and account-user services (for
     guide resolution).
@@ -348,7 +350,7 @@ options/result types callers need), all data-model **types** (including
 `InstallWebhookClaims`/`InstallWebhookAccount`), the `Logger` interface +
 `noopLogger`, and the typed error classes (`AdminAccountRequiredError`,
 `RateLimitError`, `PeekGraphQLError`, `PeekHttpError`, `PiiAccessDisabledError`,
-`CngApiError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
+`InvalidPeekTokenError`, `CngApiError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and
