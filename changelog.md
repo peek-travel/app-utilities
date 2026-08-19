@@ -12,7 +12,11 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 0.6.1
+
+Two changes to the install/auth surface: support for the **install-event (JSON)
+webhook**, which is where an app learns the account id, name, and platform an
+install belongs to; and a **stricter `user.id` check** on verified Peek tokens.
 
 ### `[additive]` `parseInstallEvent` — the install-event (JSON) webhook
 
