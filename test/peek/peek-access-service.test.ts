@@ -481,6 +481,69 @@ describe("PeekAccessService v2 mode", () => {
   });
 });
 
+describe("PeekAccessService apiUrl mode", () => {
+  const API_URL =
+    "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app";
+
+  it("POSTs every call to apiUrl unmodified (no appId/prefix/endpoint segments)", async () => {
+    const { fetchFn, calls } = makeEmptyFetch();
+
+    const service = new PeekAccessService({
+      installId: "install-1",
+      jwtSecret: "secret",
+      issuer: "Peek Test",
+      apiUrl: API_URL,
+      fetch: fetchFn,
+    });
+    await service.getProductService().getAllProducts();
+
+    expect(calls[0]!.url).toBe(API_URL);
+  });
+
+  it("needs neither appId nor gatewayKey when apiUrl is set", () => {
+    expect(
+      () =>
+        new PeekAccessService({
+          installId: "install-1",
+          jwtSecret: "secret",
+          issuer: "Peek Test",
+          apiUrl: API_URL,
+        }),
+    ).not.toThrow();
+  });
+
+  it("takes precedence over baseUrl and mode", async () => {
+    const { fetchFn, calls } = makeEmptyFetch();
+
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      mode: "v2",
+      baseUrl: "https://ignored.example/gql",
+      apiUrl: API_URL,
+      fetch: fetchFn,
+    });
+    await service.getProductService().getAllProducts();
+
+    expect(calls[0]!.url).toBe(API_URL);
+  });
+
+  it("still mints and sends a bearer token", async () => {
+    const { fetchFn, calls } = makeEmptyFetch();
+
+    const service = new PeekAccessService({
+      installId: "install-1",
+      jwtSecret: "secret",
+      issuer: "Peek Test",
+      apiUrl: API_URL,
+      fetch: fetchFn,
+    });
+    await service.getProductService().getAllProducts();
+
+    const headers = calls[0]!.init.headers as Record<string, string>;
+    expect(headers["X-Peek-Auth"]).toMatch(/^Bearer .+/);
+  });
+});
+
 describe("PeekAccessService proxy methods", () => {
   let service: PeekAccessService;
 

@@ -19,10 +19,20 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
 export interface GraphQLClientOptions {
-  /** Base URL of the backoffice GraphQL gateway (no trailing slash). */
-  baseUrl: string;
-  /** Peek app ID, used in the endpoint path. */
-  appId: string;
+  /**
+   * The install's app endpoint URL (the install webhook's `apiUrl`). When set it
+   * is the **sole request URL** — every GraphQL call POSTs to it unmodified, and
+   * `baseUrl`/`appId`/`endpointPathPrefix`/`endpointName` are ignored for URL
+   * construction. Takes precedence over `baseUrl`.
+   */
+  apiUrl?: string;
+  /**
+   * Base URL of the backoffice GraphQL gateway (no trailing slash). Used only
+   * when `apiUrl` is not set; the URL is `baseUrl/appId/[prefix/]endpointName`.
+   */
+  baseUrl?: string;
+  /** Peek app ID, used in the endpoint path (legacy `baseUrl` mode only). */
+  appId?: string;
   /** API gateway key sent as the `pk-api-key` header. Omitted from headers when absent (v2 mode). */
   gatewayKey?: string;
   /** Supplies a valid bearer token for each request. */
@@ -94,7 +104,9 @@ export class GraphQLClient {
   }
 
   private endpoint(endpointName: string): string {
-    const { baseUrl, appId, endpointPathPrefix } = this.options;
+    const { apiUrl, baseUrl, appId, endpointPathPrefix } = this.options;
+    // The registry-provided app endpoint is the only URL — hit it as given.
+    if (apiUrl) return apiUrl;
     const prefix = endpointPathPrefix ? `${endpointPathPrefix}/` : "";
     return `${baseUrl}/${appId}/${prefix}${endpointName}`;
   }

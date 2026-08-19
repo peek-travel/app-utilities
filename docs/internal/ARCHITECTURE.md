@@ -49,8 +49,10 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
 ### 1. `PeekAccessService` — the authenticated root
 `src/peek-access-service.ts`
 
-- Validates the five required config fields (`installId`, `jwtSecret`, `issuer`,
-  `appId`, `gatewayKey`) and throws on any empty value.
+- Validates the required config fields and throws on any empty value:
+  `installId`, `jwtSecret`, `issuer` always; `appId` and `gatewayKey` only in the
+  legacy `baseUrl` mode (both are unneeded when `apiUrl` is set — see the
+  endpoint-URL note below).
 - Constructs a single shared `TokenManager` and `GraphQLClient`.
 - Exposes one `get<Resource>Service()` accessor per resource. Each is **lazily
   created and memoized** — repeated calls return the same instance.
@@ -73,16 +75,29 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
     guide resolution).
   - `BookingService` receives the product service (for add-on → parent-item
     resolution).
-- Optional config: `mode` (`"v2"` — see below), `baseUrl`, `tokenTtlSeconds` (3600), `tokenRefreshLeewaySeconds`
+- Optional config: `apiUrl` (see the endpoint-URL note below), `mode` (`"v2"` —
+  see below), `baseUrl`, `tokenTtlSeconds` (3600), `tokenRefreshLeewaySeconds`
   (60), `retryDelaysMs` (`[1000, 2000, 4000]`), `logger` (no-op default),
   `fetch` (global default), `itemOptionsPageSize` (50), and `accessOptions`
   (see "Access options / PII" below).
-- **v2 mode** (`mode: "v2"`): routes requests through the app-registry
-  installations API. The endpoint URL becomes
+- **Endpoint URL — `apiUrl` (preferred) vs. `baseUrl`/`appId` (deprecated).**
+  The install webhook's `apiUrl` is the install's app endpoint. When the config
+  carries `apiUrl`, the transport uses it **as given**: `GraphQLClient` POSTs
+  every call to that exact URL (Peek is single-endpoint, so `endpointName` is
+  logging-only), and the CNG/ACME `RestClient` treats it as the base and appends
+  only the REST `path`. No app-id/slug segment is inserted, so `appId` is unused
+  (and `gatewayKey` isn't required — the registry endpoint authenticates on the
+  JWT, like v2). When `apiUrl` is absent the transports fall back to the legacy
+  `baseUrl/appId/[slug/]endpoint` construction with a hardcoded default
+  `baseUrl` — **deprecated**; the fallback will be removed and a URL will become
+  required. `createAccessServiceForInstall` (§ below) is the front door for the
+  `apiUrl` path.
+- **v2 mode** (`mode: "v2"`, legacy `baseUrl` path only): the endpoint URL becomes
   `baseUrl/appId/peek_backoffice_api-v1/endpointName` and the default `baseUrl`
   switches to `https://app-registry.peeklabs.com/installations-api`.
-  A custom `baseUrl` still overrides the default in v2 mode. All other
-  behaviour (JWT auth, headers, retries, resource services) is unchanged.
+  A custom `baseUrl` still overrides the default in v2 mode; `apiUrl`, when set,
+  supersedes `mode`/`baseUrl` entirely. All other behaviour (JWT auth, headers,
+  retries, resource services) is unchanged.
 
 ### 2. `TokenManager` — auth
 `src/internal/token-manager.ts`
@@ -392,6 +407,9 @@ pinned by the drift-guard test; `fullCustomerAccess` governs only the runtime re
 `src/index.ts`
 
 The barrel re-exports only the public contract: `PeekAccessService` + its config,
+the `createAccessServiceForInstall` factory (+ its `InstallAccessTarget` /
+`InstallAccessConfig` / `InstallAccessService` types — builds the right access
+service for an install's `platform`, wired to its `apiUrl`),
 the `AccessOptions` type (see §4b), each resource service class (and the
 options/result types callers need), all data-model **types** (including
 `PeekAuthTokenClaims`, `PeekAuthTokenUser`, and the install-webhook

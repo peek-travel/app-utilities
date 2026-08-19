@@ -301,10 +301,13 @@ event**, so persist them alongside `installId`/`accountId`:
   date/time handling for the install (scheduling, day boundaries, display) needs
   the account's own zone, not the server's.
 - **`apiUrl`** — the **app endpoint URL** the registry serves this install from.
-  Use it **as given** as the base URL for this install's API calls: hit it
-  unmodified, do not decompose it or append your own app id. If the registry tags
-  traffic with an app id in the path, that is the registry's concern and opaque
-  to you. Store it and pass it as the access service's `baseUrl`.
+  Use it **as given** for this install's API calls: hit it unmodified, do not
+  decompose it or append your own app id. If the registry tags traffic with an
+  app id in the path, that is the registry's concern and opaque to you. Store it
+  and pass it as the access service's **`apiUrl`** (for Peek it is the sole
+  request URL; for CNG/ACME it is the base and the REST path is appended) — or
+  hand the whole install to `createAccessServiceForInstall` (below), which wires
+  it for you.
 
 Both default to `""` when a delivery omits them, so treat empty as "not
 reported" and keep any value you previously stored.
@@ -336,6 +339,37 @@ await installs.upsert(event.installId, {
 A consumer that reads only the first `installed` event and ignores later
 `update_installed` deliveries will keep stale data — most importantly a stale
 `apiUrl`, which would send its API calls to the wrong endpoint.
+
+## Build the install's access service from `platform` + `apiUrl`
+
+A persisted install carries the two facts needed to reach it: `platform` picks
+the access service class, and `apiUrl` is its endpoint. `createAccessServiceForInstall`
+encodes that mapping, so you go from a stored install to the right client in one
+call — no `switch` on platform, no URL wiring:
+
+```ts
+import { createAccessServiceForInstall } from "@peektravel/app-utilities";
+
+const install = await installs.get(installId); // { platform, apiUrl, installId, … }
+
+const service = createAccessServiceForInstall(install, {
+  jwtSecret: process.env.PEEK_INTERNAL_SECRET!,
+  issuer: process.env.APP_NAME!,
+  // gatewayKey?, logger?, fetch?, accessOptions?, … (per-app, not per-install)
+});
+// → PeekAccessService | CngAccessService | AcmeAccessService, wired to install.apiUrl.
+// Narrow by install.platform (or `instanceof`) to reach a platform-specific surface.
+```
+
+It throws if `install.platform` is `null` or unrecognised — an install with an
+unknown platform has no service to route to, and silently defaulting would point
+it at the wrong gateway.
+
+Prefer this (or the config's `apiUrl` field) over `baseUrl`/`appId`, which are
+deprecated: they reconstruct the URL with a hardcoded gateway default that cannot
+be correct for every install. **The hardcoded base-URL fallbacks will be removed
+and a URL will become required in a future release** — source it from the install
+webhook's `apiUrl` now.
 
 ## Why `status` and `platform` can be `null`
 

@@ -51,26 +51,41 @@ action needed; `[additive]` only adds capability.
   latest values — the registry pushes changes (e.g. a new `apiUrl`) via
   `update_installed` events.
 
-### `[deprecated]` Hardcoded gateway base URLs — pass the install's `apiUrl`; fallbacks will be **removed**
+### `[additive]` Target an install by its `apiUrl` — new `apiUrl` config + `createAccessServiceForInstall`
 
-- **What:** the access services (`PeekAccessService`, `CngAccessService`,
-  `AcmeAccessService`) still fall back to a **hardcoded default** gateway base URL
-  when you omit `baseUrl`. Those hardcoded fallbacks are now deprecated.
-- **Why:** the install webhook's `apiUrl` is the authoritative, per-install app
-  endpoint. It varies by install (sandbox vs. production, region, per-app path)
-  and the registry can change it at any time via an `update_installed` event, so
-  a single compiled-in default cannot be correct for every install. The endpoint
-  the registry hands you is the one to hit — **use `apiUrl` as given** (do not
-  reconstruct it from `appId`; any app id in the path is the registry's own
-  traffic tag and opaque to you).
-- **Caller action — do this now:** persist `event.apiUrl` from the install
-  webhook and pass it as the access service's `baseUrl` when constructing a
-  service for that install (refresh it on every event — upsert by `installId`).
+- **What:** every access service config (`PeekAccessService`, `CngAccessService`,
+  `AcmeAccessService`) accepts a new **`apiUrl`** field — the install's app
+  endpoint from the install webhook. When set it is used **as given**: for Peek
+  it is the sole request URL (every call POSTs to it, unmodified); for CNG/ACME it
+  is the base and only the REST path is appended. No app-id/gateway segment is
+  inserted, so `appId` is not required alongside it. A new helper
+  **`createAccessServiceForInstall(install, config)`** builds the right service
+  for `install.platform` (`peek`/`cng`/`acme`) wired to `install.apiUrl` in one
+  call (throwing on an unknown/`null` platform).
+- **Why:** the endpoint the registry hands you is the one to hit — it varies per
+  install (sandbox vs. production, region, per-app path) and the registry can
+  change it via an `update_installed` event. Any app id in the path is the
+  registry's own traffic tag and opaque to callers, so the URL is used
+  unmodified rather than reconstructed from `appId`.
+- **Caller action:** none — additive. To adopt: persist `event.apiUrl` (and
+  `platform`) from the install webhook, then either pass `apiUrl` in the config or
+  call `createAccessServiceForInstall({ platform, apiUrl, installId }, { jwtSecret, issuer, … })`.
+
+### `[deprecated]` `baseUrl` + `appId` URL controls and the hardcoded gateway defaults
+
+- **What:** the `baseUrl` and `appId` config fields (and the **hardcoded default**
+  gateway base URL each service falls back to when `baseUrl` is omitted) are now
+  deprecated in favour of `apiUrl`. `appId` was only ever a URL path segment;
+  with `apiUrl` it is unused.
+- **Why:** a single compiled-in default base URL cannot be correct for every
+  install, and reconstructing the URL from `baseUrl`/`appId` fights the registry's
+  own routing. Sourcing the endpoint from the webhook's `apiUrl` is the correct,
+  per-install model.
+- **Caller action — do this now:** move to `apiUrl` (see the entry above).
 - **⚠️ Breaking change coming:** in a **future release the hardcoded base-URL
-  fallbacks will be removed and a base URL will become required** — constructing
-  an access service without one (via `baseUrl`, sourced from the install's
-  `apiUrl`) will throw. Migrate to sourcing the URL from the webhook now so the
-  removal is a no-op for you.
+  fallbacks will be removed and a URL will become required** — constructing an
+  access service without an `apiUrl` (or a `baseUrl`) will throw. Migrate to
+  `apiUrl` now so the removal is a no-op for you.
 
 ### `[deprecated]` Self-spacing UI primitives replace `ody-page-container` and `ody-divider`
 

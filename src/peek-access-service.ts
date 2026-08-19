@@ -138,12 +138,17 @@ export class PeekAccessService {
   private reviewService?: ReviewService;
 
   constructor(config: PeekAccessServiceConfig) {
+    const hasApiUrl = !!config.apiUrl;
     const isV2 = config.mode === "v2";
     requireNonEmpty(config.installId, "installId", "PeekAccessService");
     requireNonEmpty(config.jwtSecret, "jwtSecret", "PeekAccessService");
     requireNonEmpty(config.issuer, "issuer", "PeekAccessService");
-    requireNonEmpty(config.appId, "appId", "PeekAccessService");
-    if (!isV2) requireNonEmpty(config.gatewayKey ?? "", "gatewayKey", "PeekAccessService");
+    // `appId` is only a URL path segment for the legacy `baseUrl` mode; the
+    // registry's `apiUrl` already includes whatever the registry routes on.
+    if (!hasApiUrl) requireNonEmpty(config.appId ?? "", "appId", "PeekAccessService");
+    // The registry app endpoint authenticates on the JWT alone (like v2), so the
+    // `pk-api-key` gateway key is only required in the legacy v1 `baseUrl` mode.
+    if (!hasApiUrl && !isV2) requireNonEmpty(config.gatewayKey ?? "", "gatewayKey", "PeekAccessService");
 
     this.jwtSecret = config.jwtSecret;
 
@@ -152,14 +157,15 @@ export class PeekAccessService {
 
     const defaultBaseUrl = isV2 ? DEFAULT_V2_BASE_URL : DEFAULT_BASE_URL;
     this.client = new GraphQLClient({
-      baseUrl: config.baseUrl ?? defaultBaseUrl,
-      appId: config.appId,
+      apiUrl: config.apiUrl,
+      baseUrl: hasApiUrl ? undefined : (config.baseUrl ?? defaultBaseUrl),
+      appId: hasApiUrl ? undefined : config.appId,
       gatewayKey: config.gatewayKey,
       getToken: () => tokens.getToken(),
       retryDelaysMs: config.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS,
       logger,
       fetchFn: config.fetch ?? globalThis.fetch,
-      endpointPathPrefix: isV2 ? V2_EXTENDABLE_SLUG : undefined,
+      endpointPathPrefix: !hasApiUrl && isV2 ? V2_EXTENDABLE_SLUG : undefined,
     });
 
     this.productServiceOptions = {

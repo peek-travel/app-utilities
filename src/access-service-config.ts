@@ -19,10 +19,30 @@ export interface BaseAccessServiceConfig {
   jwtSecret: string;
   /** JWT issuer — the app name / app ID. */
   issuer: string;
-  /** App ID, used in the gateway endpoint path. */
-  appId: string;
+  /**
+   * The install's **app endpoint URL** — persist the install webhook's `apiUrl`
+   * and pass it here. When set it is used **as given**: for Peek it is the sole
+   * request URL (every call POSTs to it); for CNG/ACME it is the base and the
+   * REST path is appended. No app-id/gateway segment is inserted, so `appId` is
+   * not required. This is the forward-looking way to target an install — prefer
+   * it over `baseUrl`/`appId`, which are deprecated (the hardcoded base-URL
+   * fallbacks will be removed and a URL will become required in a future release).
+   */
+  apiUrl?: string;
+  /**
+   * App ID, inserted into the gateway endpoint path.
+   *
+   * @deprecated Required only in the legacy `baseUrl` mode. Prefer `apiUrl` (the
+   * install's app endpoint), which needs no app-id segment.
+   */
+  appId?: string;
 
-  /** Override the gateway base URL. Default: per-service. */
+  /**
+   * Override the gateway base URL. Default: per-service.
+   *
+   * @deprecated Prefer `apiUrl` (the install's app endpoint, used as given). The
+   * hardcoded per-service default will be removed and a URL will become required.
+   */
   baseUrl?: string;
   /** JWT lifetime in seconds. Default: 3600. */
   tokenTtlSeconds?: number;

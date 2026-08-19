@@ -57,17 +57,19 @@ export class CngAccessService {
   private productService?: CngProductService;
 
   constructor(config: CngAccessServiceConfig) {
+    const hasApiUrl = !!config.apiUrl;
     requireNonEmpty(config.installId, "installId", "CngAccessService");
     requireNonEmpty(config.jwtSecret, "jwtSecret", "CngAccessService");
     requireNonEmpty(config.issuer, "issuer", "CngAccessService");
-    requireNonEmpty(config.appId, "appId", "CngAccessService");
+    if (!hasApiUrl) requireNonEmpty(config.appId ?? "", "appId", "CngAccessService");
 
     const logger = config.logger ?? noopLogger;
     const tokens = createTokenManager(config);
 
     this.client = new RestClient({
-      baseUrl: config.baseUrl ?? DEFAULT_BASE_URL,
-      appId: config.appId,
+      apiUrl: config.apiUrl,
+      baseUrl: hasApiUrl ? undefined : (config.baseUrl ?? DEFAULT_BASE_URL),
+      appId: hasApiUrl ? undefined : config.appId,
       extendableSlug: CNG_EXTENDABLE_SLUG,
       getToken: () => tokens.getToken(),
       retryDelaysMs: config.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS,

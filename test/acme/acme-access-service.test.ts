@@ -83,4 +83,37 @@ describe("AcmeAccessService", () => {
       "https://custom.test/base/app-1/acme_backoffice_api-v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
     );
   });
+
+  it("uses apiUrl as the base and appends only the REST path (no appId/slug)", async () => {
+    const calls: string[] = [];
+    const fetchFn = (async (url: string) => {
+      calls.push(url);
+      return textResponse({ list: [] });
+    }) as unknown as typeof fetch;
+
+    const acme = new AcmeAccessService({
+      installId: "install-123",
+      jwtSecret: "secret",
+      issuer: "app-name",
+      apiUrl: "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app",
+      fetch: fetchFn,
+    });
+    await acme.getAllActivities();
+
+    expect(calls[0]).toBe(
+      "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app/v2/b2b/event/templates/names?pageSize=-1&page=1",
+    );
+  });
+
+  it("needs no appId when apiUrl is set", () => {
+    expect(
+      () =>
+        new AcmeAccessService({
+          installId: "install-123",
+          jwtSecret: "secret",
+          issuer: "app-name",
+          apiUrl: "https://x.test/base",
+        }),
+    ).not.toThrow();
+  });
 });

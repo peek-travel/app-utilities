@@ -58,17 +58,19 @@ export class AcmeAccessService {
   private productService?: AcmeProductService;
 
   constructor(config: AcmeAccessServiceConfig) {
+    const hasApiUrl = !!config.apiUrl;
     requireNonEmpty(config.installId, "installId", "AcmeAccessService");
     requireNonEmpty(config.jwtSecret, "jwtSecret", "AcmeAccessService");
     requireNonEmpty(config.issuer, "issuer", "AcmeAccessService");
-    requireNonEmpty(config.appId, "appId", "AcmeAccessService");
+    if (!hasApiUrl) requireNonEmpty(config.appId ?? "", "appId", "AcmeAccessService");
 
     const logger = config.logger ?? noopLogger;
     const tokens = createTokenManager(config);
 
     this.client = new RestClient({
-      baseUrl: config.baseUrl ?? DEFAULT_BASE_URL,
-      appId: config.appId,
+      apiUrl: config.apiUrl,
+      baseUrl: hasApiUrl ? undefined : (config.baseUrl ?? DEFAULT_BASE_URL),
+      appId: hasApiUrl ? undefined : config.appId,
       extendableSlug: ACME_EXTENDABLE_SLUG,
       getToken: () => tokens.getToken(),
       retryDelaysMs: config.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS,
