@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 0.7.1
 
 ### `[additive]` Peek token verifiers accept the raw `x-peek-auth` header value
 
