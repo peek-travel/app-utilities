@@ -8,11 +8,13 @@
  * verifying its
  * signature is what authenticates that the notification really came from Peek
  * before your app acts on it (e.g. de-provisioning an uninstall). The JSON body
- * is the enrichment channel: it is the only place the account **name**,
- * **platform**, and **test** flag are reported.
+ * is the **event payload**: it carries the full account block (name, platform,
+ * timezone, test flag), the per-install `api.url`, the acting user, and the
+ * install id / status / version.
  *
- * `parseInstallWebhook` verifies the token and merges both sources into one flat
- * {@link InstallWebhook}, so a consumer makes a single call instead of stitching
+ * `parseInstallWebhook` verifies the token and reads the event from the body,
+ * falling back to the token for the fields it also carries, returning one flat
+ * {@link InstallWebhook} so a consumer makes a single call instead of stitching
  * two differently shaped payloads together.
  *
  * This is exported as a standalone function rather than a method on
@@ -56,12 +58,14 @@ interface RawInstallWebhookPayload {
  * Verifies an install-status webhook token and merges it with the delivered
  * JSON body into one flat {@link InstallWebhook}.
  *
- * The **verified token** is the authoritative source of `installId`,
- * `accountId`, `status`, `displayVersion`, and `user`. The **JSON body** — which
- * is not signed and so is trusted only for fields the token cannot carry —
- * supplies `accountName`, `platform`, and `isTest`. A missing or malformed body
- * degrades those three to `""`/`null`/`false`; it never overrides an
- * authenticated field and never throws.
+ * The **JSON body** is the source of the event data — `installId`, `accountId`,
+ * `accountName`, `platform`, `isTest`, `timezone`, `apiUrl`, `status`,
+ * `displayVersion`, and `user`. The **verified token** authenticates the whole
+ * delivery and is the **fallback** for the fields it also carries (`installId`,
+ * `accountId`, `status`, `displayVersion`, `user`) when the body omits them. A
+ * missing or malformed body degrades the body-only fields (`accountName`,
+ * `platform`, `isTest`, `timezone`, `apiUrl`) to `""`/`null`/`false` and leans
+ * on the token for the rest; it never throws.
  *
  * Signature verification is strict: the HMAC signature (with `secret`), the
  * token expiry, the `"app_registry_v2"` issuer, and the `"Joken"` audience are
@@ -104,19 +108,40 @@ export function parseInstallWebhook(
   secret: string,
 ): InstallWebhook {
   const payload = verifyPeekJwt<RawInstallWebhookPayload>(token, secret);
-  const account = extractInstallWebhookBody(body).account ?? {};
-  const rawStatus = payload.status ?? "";
+  const parsed = extractInstallWebhookBody(body);
+  const account = parsed.account ?? {};
+  // The JSON body is the source of the event data; the verified token is the
+  // fallback for the fields it also carries. `||` so an empty body value falls
+  // through to the token rather than masking it.
+  const rawStatus = parsed.status || payload.status || "";
   return {
-    installId: payload.sub ?? "",
-    accountId: payload.account?.id ?? "",
+    installId: parsed.install_id || payload.sub || "",
+    accountId: account.id || payload.account?.id || "",
     accountName: account.name || "",
     platform: toPeekPlatform(account.platform || ""),
     isTest: Boolean(account.is_test),
+    timezone: account.timezone || "",
+    apiUrl: parsed.api?.url || "",
     status: toInstallStatus(rawStatus),
     rawStatus,
-    displayVersion: payload.display_version ?? "",
-    user: payload.user ? mapPeekTokenUser(payload.user) : null,
+    displayVersion: parsed.display_version || payload.display_version || "",
+    user: resolveInstallUser(parsed.modified_by, payload.user),
   };
+}
+
+/**
+ * Resolves the acting user, preferring the body's `modified_by` and falling back
+ * to the token's `user`; system-initiated events carry neither and yield `null`.
+ * The body path is defensive (a `modified_by` without an `id` is treated as
+ * absent, not malformed); the token path keeps the strict
+ * {@link mapPeekTokenUser} check that a present `user` block must carry an `id`.
+ */
+function resolveInstallUser(
+  bodyUser: RawPeekTokenUser | null | undefined,
+  tokenUser: RawPeekTokenUser | null | undefined,
+): InstallWebhook["user"] {
+  if (bodyUser?.id) return mapPeekTokenUser(bodyUser);
+  return tokenUser ? mapPeekTokenUser(tokenUser) : null;
 }
 
 /**

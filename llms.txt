@@ -187,12 +187,14 @@ an external system** (App Store config), not from code.
   `verifyPeekAuthToken`, throwing the underlying `jsonwebtoken` error on failure,
   one `try/catch` → `401`) and merges both into one flat, JSON-safe
   `InstallWebhook`: `installId`, `accountId` (**also called the partner ID**),
-  `accountName`, `platform`, `isTest`, `status`, `rawStatus`, `displayVersion`,
-  `user` (nullable, for system-initiated events). The **verified token** is
-  authoritative for `installId`/`accountId`/`status`/`displayVersion`/`user`; the
-  unsigned body supplies only `accountName`/`platform`/`isTest`, so a forged body
-  can't override an authenticated field. This webhook is the **only** source of
-  `accountId` in the package — no GraphQL read returns it. `status` and `platform`
+  `accountName`, `platform`, `isTest`, `timezone`, `apiUrl`, `status`,
+  `rawStatus`, `displayVersion`, `user` (nullable, for system-initiated events).
+  The **JSON body is the source of the event data**; the fields it shares with
+  the token (`installId`/`accountId`/`status`/`displayVersion`/`user`) fall back
+  to the **verified token** when the body omits them. The token authenticates the
+  whole delivery, so the body is trusted within a verified request. This webhook
+  is the **only** source of `accountId`, `timezone`, and `apiUrl` in the package
+  — no GraphQL read returns them; **persist them per install**. `status` and `platform`
   are **nullable**: a value this version does not recognise maps to `null` (wire
   value kept on `rawStatus`) rather than being coerced, because Peek does not
   redeliver a 2xx and a coerced status silently drops a lifecycle transition. Give

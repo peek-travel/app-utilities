@@ -238,7 +238,7 @@ webhook module and the model.
 The **install** webhook (`installs/install-webhook.ts` + `install-converter.ts`)
 is the third and most distinct. A single delivery carries **two payloads at
 once**: a **signed `app_registry_v2` JWT** (the security boundary, delivered in
-the `x-peek-auth` request header) and a plain **JSON body** (enrichment).
+the `x-peek-auth` request header) and a plain **JSON body** (the event payload).
 `parseInstallWebhook(token, body, secret)` *verifies* the token (signature +
 expiry + issuer + `Joken` audience, via the shared `peek-auth-token.ts` core) and
 merges both into one flat `InstallWebhook` (`src/models/peek/install.ts`). The
@@ -254,17 +254,23 @@ the parser, the pure `install-converter.ts` helpers (`extractInstallWebhookBody`
 
 `verifyInstallWebhook(token, secret)` (returning `InstallWebhookClaims` in the
 shared `auth-token.ts` model) is retained but **`@deprecated`**: it reads only the
-signed token, so it cannot report the account **name**, **platform**, or **test**
-flag that live in the JSON body. It exists solely for backwards compatibility;
-new callers use `parseInstallWebhook`.
+signed token, so it cannot report the account **name**, **platform**, **test**
+flag, **timezone**, or **apiUrl** that live in the JSON body. It exists solely for
+backwards compatibility; new callers use `parseInstallWebhook`.
 
 Three design rules hold this together and are load-bearing:
 
-- **The verified JWT is authoritative; the JSON body only enriches.** The token
-  is signed, the body is not. `installId`, `accountId`, `status`,
-  `displayVersion`, and `user` are read from the verified token; only
-  `accountName`, `platform`, and `isTest` come from the body. A mismatched or
-  forged body can never override an authenticated field.
+- **The JSON body is the source of the event data; the JWT authenticates it and
+  is the fallback.** Every field is read from the body first: `accountName`,
+  `platform`, `isTest`, `timezone`, `apiUrl` are body-only, and `installId`,
+  `accountId`, `status`, `displayVersion`, `user` (from `modified_by`) fall back
+  to the verified token when the body omits them. The real install token does not
+  actually carry those five, so reading it first returned empty core fields — the
+  body is where the data lives. The signature still authenticates the whole
+  delivery (only Peek can mint a valid token), so the body is trusted within a
+  verified request. `user` resolution is defensive on the body path (a
+  `modified_by` without an `id` is treated as absent) but keeps the strict
+  `mapPeekTokenUser` `id` check on the token path.
 - **`InstallWebhook` is flat and JSON-safe.** The shape the parser returns is the
   shape a consumer persists and later rehydrates, so there is exactly one
   representation of "who this install is and what happened" and no mapping layer.

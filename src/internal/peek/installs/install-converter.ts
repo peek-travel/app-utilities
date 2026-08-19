@@ -13,25 +13,33 @@ import {
   INSTALL_STATUSES,
   type InstallStatus,
 } from "../../../models/peek/install.js";
+import type { RawPeekTokenUser } from "../peek-auth-token.js";
 
 /** The raw, snake_case account block of an install webhook's JSON body. */
 export interface InstallWebhookBodyAccount {
   id?: string;
   name?: string;
   platform?: string;
+  timezone?: string;
   is_test?: boolean;
 }
 
 /**
  * The raw, snake_case JSON body delivered alongside the install webhook token.
- * Only `account` (name/platform/test flag) is consumed — the token is the
- * authoritative source of `install_id`/`status`/`display_version`.
+ * This is the **primary source of the event data**: it carries the full
+ * `account` block, the per-install `api.url`, the `modified_by` actor, and the
+ * `install_id`/`status`/`display_version` the token also carries (the token is
+ * the fallback for those). Extraction is defensive — any field may be absent.
  */
 export interface InstallWebhookBody {
   status?: string;
   install_id?: string;
   display_version?: string;
   account?: InstallWebhookBodyAccount | null;
+  /** The per-install backoffice API endpoint block. */
+  api?: { url?: string } | null;
+  /** The user that triggered the event (same shape as the token's `user`). */
+  modified_by?: RawPeekTokenUser | null;
 }
 
 /**

@@ -14,6 +14,40 @@ action needed; `[additive]` only adds capability.
 
 ## 0.7.2
 
+### `[fix]` `parseInstallWebhook` now reads the event from the JSON body (token is the fallback)
+
+- **What:** `parseInstallWebhook` now sources every field from the delivered
+  **JSON body** first, falling back to the **verified token** only for the fields
+  the token also carries (`installId`, `accountId`, `status`, `displayVersion`,
+  `user`). Previously those five were read from the token *first*, so when the
+  token omitted them — which the real `app_registry_v2` install token does — the
+  event came back with empty `installId`/`accountId`/`displayVersion`, a `null`
+  `status`, and a `null` `user`, even though the body carried all of them. The
+  acting `user` is now read from the body's `modified_by`, falling back to the
+  token's `user`.
+- **Why:** the install webhook's data lives in the JSON body; the token is the
+  signature/authenticity boundary. Reading the token first produced empty core
+  fields for a normal delivery. The token still authenticates the whole request
+  (only Peek can mint a valid one), so the body is trusted within a verified
+  request.
+- **Caller action:** none — this fills fields that were previously empty. If you
+  worked around the bug (e.g. re-parsing `req.body` yourself for the account id),
+  you can drop that; `event.installId`/`accountId`/`status`/`displayVersion`/`user`
+  are now populated from the body.
+
+### `[additive]` `InstallWebhook` gains `timezone` and `apiUrl`
+
+- **What:** the `InstallWebhook` returned by `parseInstallWebhook` has two new
+  string fields: `timezone` (the account's IANA zone from the body's
+  `account.timezone`, e.g. `"America/New_York"`) and `apiUrl` (the per-install
+  backoffice API base URL from the body's `api.url`). Both default to `""` when a
+  delivery omits them.
+- **Why:** both are per-install facts with no source other than this event — the
+  account timezone is needed for correct date/time handling, and the API URL
+  identifies the gateway serving the install.
+- **Caller action:** none — additive. **Persist both per install** (alongside
+  `installId`/`accountId`/`platform`); they cannot be re-fetched later.
+
 ### `[deprecated]` Self-spacing UI primitives replace `ody-page-container` and `ody-divider`
 
 - **What:** `<ody-page-container>` and `<ody-divider>` are now `@deprecated`,

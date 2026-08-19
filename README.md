@@ -309,11 +309,14 @@ expiry, issuer, and `"Joken"` audience (the same checks as `verifyPeekAuthToken`
 throwing the underlying `jsonwebtoken` error — or `InvalidPeekTokenError` when a
 present `user` block has no `id`), then returns one flat, JSON-safe
 `InstallWebhook`: `installId`, `accountId` (**also called the partner ID**),
-`accountName`, `platform`, `isTest`, `status`, `rawStatus`, `displayVersion`, and
-a **nullable** `user`. The **verified token** is authoritative for `installId` /
-`accountId` / `status` / `displayVersion` / `user`; the unsigned body supplies
-only `accountName` / `platform` / `isTest`. This webhook is the only source of
-`accountId` in the package, since no GraphQL read returns it. `status` and
+`accountName`, `platform`, `isTest`, `timezone`, `apiUrl`, `status`, `rawStatus`,
+`displayVersion`, and a **nullable** `user`. The **JSON body is the source of the
+event data**; the fields it shares with the token (`installId` / `accountId` /
+`status` / `displayVersion` / `user`) fall back to the **verified token** when
+the body omits them. The token authenticates the whole delivery, so the body is
+trusted within a verified request. This webhook is the only source of
+`accountId`, `timezone`, and `apiUrl` in the package, since no GraphQL read
+returns them — **persist them per install**. `status` and
 `platform` are **nullable** — a value this version doesn't recognise stays `null`
 (wire value on `rawStatus`) instead of being coerced, so a newer registry can't be
 mistaken for an older one. (The older `verifyInstallWebhook(token, secret)` is
