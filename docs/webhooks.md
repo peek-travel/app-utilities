@@ -300,11 +300,42 @@ event**, so persist them alongside `installId`/`accountId`:
 - **`timezone`** — the account's IANA zone (e.g. `America/New_York`). Downstream
   date/time handling for the install (scheduling, day boundaries, display) needs
   the account's own zone, not the server's.
-- **`apiUrl`** — the per-install backoffice API base URL Peek serves this
-  install from. Store it so later calls target the correct gateway URL.
+- **`apiUrl`** — the **app endpoint URL** the registry serves this install from.
+  Use it **as given** as the base URL for this install's API calls: hit it
+  unmodified, do not decompose it or append your own app id. If the registry tags
+  traffic with an app id in the path, that is the registry's concern and opaque
+  to you. Store it and pass it as the access service's `baseUrl`.
 
 Both default to `""` when a delivery omits them, so treat empty as "not
 reported" and keep any value you previously stored.
+
+## Every install event is a full snapshot — upsert by `installId`
+
+An install webhook is not just a one-time "who is this install" signal. **Every
+event carries the complete, current record**, and an `update_installed` event
+delivers the *same fields* as the original `installed` event. So the registry
+uses the webhook to push changes: a new `apiUrl`, a renamed account, a new
+`displayVersion`, a platform move.
+
+Treat each delivery as an **upsert keyed by `installId`** and overwrite your
+stored fields with the incoming ones:
+
+```ts
+const event = parseInstallWebhook(token, req.body, secret);
+await installs.upsert(event.installId, {
+  accountId: event.accountId,
+  accountName: event.accountName,
+  platform: event.platform,
+  isTest: event.isTest,
+  timezone: event.timezone,
+  apiUrl: event.apiUrl, // may change between events — always take the latest
+  displayVersion: event.displayVersion,
+});
+```
+
+A consumer that reads only the first `installed` event and ignores later
+`update_installed` deliveries will keep stale data — most importantly a stale
+`apiUrl`, which would send its API calls to the wrong endpoint.
 
 ## Why `status` and `platform` can be `null`
 

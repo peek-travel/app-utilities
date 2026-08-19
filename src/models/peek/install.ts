@@ -12,9 +12,16 @@
  * acts as the **fallback** for the fields it also happens to carry (`installId`,
  * `accountId`, `status`, `displayVersion`, `user`) when the body omits them.
  *
- * It is also the single origin of the account id in the whole system: no
- * GraphQL read returns it, so whatever a consumer persists from this event is
- * all it will ever have.
+ * It is also the single origin of the account id (and the `apiUrl`/`timezone`)
+ * in the whole system: no GraphQL read returns them, so whatever a consumer
+ * persists from this event is all it will ever have.
+ *
+ * **Every install event is a full snapshot — upsert by `installId`.** An
+ * `update_installed` event carries the *same complete record* as the original
+ * `installed` event, so treat each delivery as an upsert keyed by `installId`
+ * and overwrite the stored fields with the incoming ones. This is how the
+ * registry pushes changes — e.g. a new `apiUrl` — so a consumer that only reads
+ * the first `installed` event and ignores later updates will keep stale data.
  */
 import type { PeekAuthTokenUser, PeekPlatform } from "./auth-token.js";
 
@@ -81,12 +88,19 @@ export interface InstallWebhook {
    */
   timezone: string;
   /**
-   * The per-install backoffice **API base URL** Peek serves this install from
-   * (from the body's `api.url`), or `""` when the body omits it.
+   * The **app endpoint URL** the registry serves this install from (the body's
+   * `api.url`), or `""` when the body omits it.
    *
-   * **Persist this per install.** It is install-specific and has no source
-   * other than this event — store it alongside `installId`/`accountId` so later
-   * calls target the correct gateway URL for the install.
+   * Use it **as given** as the base URL for this install's API calls — do not
+   * decompose it or append your own app id. The registry may tag traffic with an
+   * app id in the path; that is the registry's concern and opaque to callers, so
+   * hit the URL unmodified.
+   *
+   * **Persist this per install, and refresh it on every install event.** It is
+   * install-specific, has no source other than this webhook, and the registry
+   * can change it: an `update_installed` event redelivers the full record with a
+   * (possibly new) `apiUrl`, so re-key by `installId` and overwrite the stored
+   * URL whenever an event arrives.
    */
   apiUrl: string;
   /**

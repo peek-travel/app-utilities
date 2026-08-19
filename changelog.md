@@ -46,7 +46,31 @@ action needed; `[additive]` only adds capability.
   account timezone is needed for correct date/time handling, and the API URL
   identifies the gateway serving the install.
 - **Caller action:** none — additive. **Persist both per install** (alongside
-  `installId`/`accountId`/`platform`); they cannot be re-fetched later.
+  `installId`/`accountId`/`platform`); they cannot be re-fetched later. Every
+  install event is a full snapshot, so **upsert by `installId`** and take the
+  latest values — the registry pushes changes (e.g. a new `apiUrl`) via
+  `update_installed` events.
+
+### `[deprecated]` Hardcoded gateway base URLs — pass the install's `apiUrl`; fallbacks will be **removed**
+
+- **What:** the access services (`PeekAccessService`, `CngAccessService`,
+  `AcmeAccessService`) still fall back to a **hardcoded default** gateway base URL
+  when you omit `baseUrl`. Those hardcoded fallbacks are now deprecated.
+- **Why:** the install webhook's `apiUrl` is the authoritative, per-install app
+  endpoint. It varies by install (sandbox vs. production, region, per-app path)
+  and the registry can change it at any time via an `update_installed` event, so
+  a single compiled-in default cannot be correct for every install. The endpoint
+  the registry hands you is the one to hit — **use `apiUrl` as given** (do not
+  reconstruct it from `appId`; any app id in the path is the registry's own
+  traffic tag and opaque to you).
+- **Caller action — do this now:** persist `event.apiUrl` from the install
+  webhook and pass it as the access service's `baseUrl` when constructing a
+  service for that install (refresh it on every event — upsert by `installId`).
+- **⚠️ Breaking change coming:** in a **future release the hardcoded base-URL
+  fallbacks will be removed and a base URL will become required** — constructing
+  an access service without one (via `baseUrl`, sourced from the install's
+  `apiUrl`) will throw. Migrate to sourcing the URL from the webhook now so the
+  removal is a no-op for you.
 
 ### `[deprecated]` Self-spacing UI primitives replace `ody-page-container` and `ody-divider`
 

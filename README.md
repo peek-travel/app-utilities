@@ -316,7 +316,11 @@ event data**; the fields it shares with the token (`installId` / `accountId` /
 the body omits them. The token authenticates the whole delivery, so the body is
 trusted within a verified request. This webhook is the only source of
 `accountId`, `timezone`, and `apiUrl` in the package, since no GraphQL read
-returns them — **persist them per install**. `status` and
+returns them — **persist them per install**. `apiUrl` is the install's app
+endpoint: use it **as given** as the access service's `baseUrl` (don't
+reconstruct it from `appId`). Every event is a **full snapshot** — an
+`update_installed` carries the same fields as the original `installed`, so upsert
+by `installId` and take the latest `apiUrl`. `status` and
 `platform` are **nullable** — a value this version doesn't recognise stays `null`
 (wire value on `rawStatus`) instead of being coerced, so a newer registry can't be
 mistaken for an older one. (The older `verifyInstallWebhook(token, secret)` is
