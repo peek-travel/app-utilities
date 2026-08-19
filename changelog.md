@@ -89,34 +89,14 @@ action needed; `[additive]` only adds capability.
 
 ### `[deprecated]` Self-spacing UI primitives replace `ody-page-container` and `ody-divider`
 
-- **What:** `<ody-page-container>` and `<ody-divider>` are now `@deprecated`,
-  superseded by two self-spacing successors, backed by a published spacing scale:
-  - `<ody-app-page-container>` — the responsive settings-page wrapper, replacing
-    `<ody-page-container>`. Same 868/1310px widths and `ody-page` container
-    context, but with a **default responsive gutter** (`var(--gap24)`, tightening
-    to `var(--gap16)` at/below 868px) instead of full-bleed content. A `flush`
-    boolean attribute restores edge-to-edge for the rare layout that needs it.
-  - `<ody-horizontal-divider>` — a 1px rule replacing `<ody-divider>`, with a
-    default `margin-block: var(--gap16)` (vs. the old zero margin), plus
-    `spacing="tight"` (`--gap8`) / `spacing="none"` (`0`).
-  - `tokens.css` now publishes the spacing scale (`--gap8/16/24/32`) and the two
-    canonical page widths (`--layout-page-width-narrow` = 868px,
-    `--layout-page-width-wide` = 1310px) so consumers can reach for tokens
-    instead of magic numbers.
-- **Why:** components that are mandatory page primitives (`ody-page-container`) or
-  whose whole purpose is spacing (`ody-divider`) shipped spacing-neutral, forcing
-  every app to re-solve edge padding in a wrapper `<div>` and to add margins
-  around every divider. The successors bake those defaults in — with explicit
-  opt-outs — so the boilerplate goes away and spacing stays consistent across apps.
-- **Caller action:** the old components keep working unchanged, but you should
-  **switch to the new ones** and **remove any padding/margins you layered on top
-  of the old ones** (a wrapper `<div>`'s edge padding, dividers wrapped for
-  spacing) — the successors already provide it, so leaving your own in place will
-  double the spacing. Migrate by renaming the tag: `ody-page-container` →
-  `ody-app-page-container` (drop your gutter `<div>`; add `flush` only if you
-  genuinely relied on full-bleed content), and `ody-divider` →
-  `ody-horizontal-divider` (drop the surrounding spacing; add `spacing="none"`
-  only if you truly want a flush rule).
+- **What:** `<ody-app-page-container>` (responsive default gutter; `flush` opts
+  out) replaces `<ody-page-container>`, and `<ody-horizontal-divider>` (default
+  `margin-block`; `spacing="tight"|"none"`) replaces `<ody-divider>`. New spacing
+  tokens `--gap8/16/24/32` in `tokens.css`. The old tags are `@deprecated` but
+  unchanged.
+- **Caller action:** rename the tags and **drop any padding/margins you added
+  around the old ones** — the successors provide it, so leaving yours doubles the
+  spacing.
 
 ## 0.7.1
 
