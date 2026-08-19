@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 0.7.2
 
 ### `[additive]` Self-spacing UI primitives: `ody-app-page-container` and `ody-horizontal-divider`
 
