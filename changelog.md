@@ -47,6 +47,19 @@ token and merges in the body, returning a flat object.
   Verification can throw (`JsonWebTokenError` / `TokenExpiredError` /
   `NotBeforeError`), so wrap the call in `try/catch` → `401`.
 
+### `[breaking]` `parseInstallEvent` removed — use `parseInstallWebhook`
+
+- **What:** the `parseInstallEvent(body): InstallEvent` parser and its
+  `InstallEvent` / `InstallIdentity` types (shipped in 0.6.1) are removed.
+- **Why:** it read only the unauthenticated JSON body and returned a different,
+  nested shape. `parseInstallWebhook` verifies the token **and** merges the body,
+  covering everything `parseInstallEvent` did and more.
+- **Caller action:** replace `parseInstallEvent(req.body)` with
+  `parseInstallWebhook(token, req.body, secret)` and read the flat result
+  (`event.accountId` / `event.installId`) instead of the old nested
+  `event.identity.*`; swap the `InstallEvent` / `InstallIdentity` types for
+  `InstallWebhook`.
+
 ### `[deprecated]` `verifyInstallWebhook` superseded by `parseInstallWebhook`
 
 - **What:** `verifyInstallWebhook(token, secret): InstallWebhookClaims` is now
