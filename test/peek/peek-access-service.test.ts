@@ -314,6 +314,19 @@ describe("PeekAccessService.verifyPeekAuthToken", () => {
     expect(claims.displayVersion).toBe("0.0.11");
   });
 
+  it("accepts the raw x-peek-auth header value with a Bearer prefix", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const token = mintRegistryToken(REQUIRED_CONFIG.jwtSecret);
+
+    // The whole header value (scheme + token) verifies the same as the bare JWT.
+    expect(service.verifyPeekAuthToken(`Bearer ${token}`).installId).toBe(
+      "8c1f32b4-ab3c-4e20-82b7-844ea9e03bc9",
+    );
+    expect(service.verifyPeekAuthToken(`bearer ${token}`).installId).toBe(
+      "8c1f32b4-ab3c-4e20-82b7-844ea9e03bc9",
+    );
+  });
+
   it("maps the nested user object to typed fields", () => {
     const service = new PeekAccessService(REQUIRED_CONFIG);
     const token = mintRegistryToken(REQUIRED_CONFIG.jwtSecret);

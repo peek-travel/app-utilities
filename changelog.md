@@ -12,6 +12,25 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 0.7.1
+
+### `[additive]` Peek token verifiers accept the raw `x-peek-auth` header value
+
+- **What:** every Peek token entry point — `PeekAccessService.verifyPeekAuthToken`,
+  `parseInstallWebhook`, and the deprecated `verifyInstallWebhook` — now strips a
+  leading `Bearer ` prefix from the `token` argument, so you can pass the
+  `x-peek-auth` request header value straight in without unwrapping it. A bare
+  JWT still works unchanged.
+- **Why:** Peek delivers these tokens in the `x-peek-auth` header, sometimes with
+  a `Bearer ` scheme prefix. The docs didn't say where the token lives (the old
+  install example passed a non-existent `req.token`), and each caller was left to
+  strip the scheme. Handling it in the shared verifier removes both papercuts and
+  keeps the behavior uniform across the token family.
+- **Caller action:** none — additive. Read the token from the `x-peek-auth`
+  header and pass it as-is, e.g. `parseInstallWebhook(req.header("x-peek-auth") ??
+  "", req.body, secret)` or `peek.verifyPeekAuthToken(req.header("x-peek-auth") ??
+  "")`.
+
 ## 0.7.0
 
 Adds a single verify-and-parse call for the install webhook, which delivers

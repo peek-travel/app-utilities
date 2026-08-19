@@ -65,7 +65,9 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
   the shared `mapPeekTokenUser`, so it guards `verifyInstallWebhook`'s user
   block too). The signature-check core (issuer + audience + user mapping) lives
   in the internal `peek-auth-token.ts` module, shared with the standalone
-  `verifyInstallWebhook` (§ install webhooks) so the two can't drift apart.
+  `verifyInstallWebhook` (§ install webhooks) so the two can't drift apart. That
+  core (`verifyPeekJwt`) also strips a leading `Bearer ` prefix from the token,
+  so every entry point in the family accepts the raw `x-peek-auth` header value.
 - Composes dependencies between services where needed:
   - `TimeslotService` receives the resource-pool and account-user services (for
     guide resolution).
@@ -235,11 +237,15 @@ webhook module and the model.
 
 The **install** webhook (`installs/install-webhook.ts` + `install-converter.ts`)
 is the third and most distinct. A single delivery carries **two payloads at
-once**: a **signed `app_registry_v2` JWT** (the security boundary) and a plain
-**JSON body** (enrichment). `parseInstallWebhook(token, body, secret)` *verifies*
-the token (signature + expiry + issuer + `Joken` audience, via the shared
-`peek-auth-token.ts` core) and merges both into one flat `InstallWebhook`
-(`src/models/peek/install.ts`). Standalone-function rationale as above, with an
+once**: a **signed `app_registry_v2` JWT** (the security boundary, delivered in
+the `x-peek-auth` request header) and a plain **JSON body** (enrichment).
+`parseInstallWebhook(token, body, secret)` *verifies* the token (signature +
+expiry + issuer + `Joken` audience, via the shared `peek-auth-token.ts` core) and
+merges both into one flat `InstallWebhook` (`src/models/peek/install.ts`). The
+`token` argument accepts the raw header value — the shared `verifyPeekJwt` core
+strips a leading `Bearer ` scheme prefix (case-insensitive) before verification
+(see §1 / `peek-auth-token.ts`), so no token entry point makes the caller unwrap
+it. Standalone-function rationale as above, with an
 extra reason: the receiver has no per-install service to inherit a secret from
 yet (the webhook can precede the first session or describe a tear-down), so the
 app secret is passed directly. `installs` carries no queries/service triad — just

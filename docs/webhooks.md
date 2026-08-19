@@ -195,10 +195,12 @@ App Store config. There is no GraphQL selection to paste.
 
 ## Step 2 — verify and parse the delivery
 
-Extract the JWT from the delivery (the request token, or the `Authorization`
-header with the `Bearer ` prefix stripped) and pass it — along with the JSON body
-and your app's signing secret (the same `jwtSecret` you construct
-`PeekAccessService` with) — to `parseInstallWebhook`:
+Peek delivers the signed token in the **`x-peek-auth` request header**. Pass that
+header value as-is, along with the JSON body and your app's signing secret (the
+same `jwtSecret` you construct `PeekAccessService` with — conventionally
+`PEEK_INTERNAL_SECRET`), to `parseInstallWebhook`. You do **not** need to strip a
+`Bearer ` prefix: `parseInstallWebhook` tolerates the header value with or
+without it.
 
 ```ts
 import { parseInstallWebhook, type InstallWebhook } from "@peektravel/app-utilities";
@@ -206,7 +208,9 @@ import { parseInstallWebhook, type InstallWebhook } from "@peektravel/app-utilit
 app.post("/webhooks/install", async (req, res) => {
   let event: InstallWebhook;
   try {
-    event = parseInstallWebhook(req.token, req.body, process.env.PEEK_INTERNAL_SECRET!);
+    // `x-peek-auth` carries the token (a `Bearer ` prefix, if any, is stripped for you):
+    const token = req.header("x-peek-auth") ?? "";
+    event = parseInstallWebhook(token, req.body, process.env.PEEK_INTERNAL_SECRET!);
   } catch {
     return res.sendStatus(401); // signature/issuer/audience/expiry failed
   }

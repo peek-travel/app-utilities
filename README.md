@@ -276,8 +276,9 @@ app.post("/waiver-webhook", (req, res) => {
 app.post("/install-webhook", async (req, res) => {
   let event: InstallWebhook;
   try {
-    // Verifies the signed token, then merges in the JSON body:
-    event = parseInstallWebhook(req.token, req.body, process.env.PEEK_INTERNAL_SECRET!);
+    // Token rides in the `x-peek-auth` header (a `Bearer ` prefix is stripped for you):
+    const token = req.header("x-peek-auth") ?? "";
+    event = parseInstallWebhook(token, req.body, process.env.PEEK_INTERNAL_SECRET!);
   } catch {
     return res.sendStatus(401); // bad signature / issuer / audience / expired
   }
@@ -301,7 +302,9 @@ is the receiver's job**. `parseWaiverWebhook` also takes an optional
 below.
 
 `parseInstallWebhook(token, body, secret)` is different: the delivery carries a
-signed `app_registry_v2` JWT plus a JSON body. It validates the HMAC signature,
+signed `app_registry_v2` JWT plus a JSON body. Peek sends the token in the
+`x-peek-auth` header — pass that value straight in (`token` accepts it with or
+without a `Bearer ` prefix). It validates the HMAC signature,
 expiry, issuer, and `"Joken"` audience (the same checks as `verifyPeekAuthToken`,
 throwing the underlying `jsonwebtoken` error — or `InvalidPeekTokenError` when a
 present `user` block has no `id`), then returns one flat, JSON-safe
