@@ -1,10 +1,16 @@
 /**
+ * Every platform this package knows about. Exported as a value (not just a
+ * union) so runtime code can recognise a reported platform without restating
+ * the list. New platforms extend this array.
+ */
+export const PEEK_PLATFORMS = ["peek", "cng", "acme"] as const;
+
+/**
  * Platform that embedded the app for this session. Verification is
  * brand-agnostic — one peek-auth JWT is minted for every platform — so this
  * claim is the single thing that identifies which platform a request came from.
- * New platforms extend this union.
  */
-export type PeekPlatform = "peek" | "cng" | "acme";
+export type PeekPlatform = (typeof PEEK_PLATFORMS)[number];
 
 /** User context embedded in a Peek auth token. */
 export interface PeekAuthTokenUser {

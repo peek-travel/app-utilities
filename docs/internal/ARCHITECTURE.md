@@ -244,6 +244,38 @@ extra reason: the receiver has no per-install service to inherit a secret from
 yet (the webhook can precede the first session or describe a tear-down), so the
 app secret is passed directly. Like `waivers`, `installs` carries no
 queries/service triad — just the verifier and the (shared `auth-token.ts`) model.
+
+The **install-event** webhook (`installs/install-event.ts` + `install-converter.ts`)
+is the fourth, and is the *same lifecycle event* delivered on a different channel:
+a plain JSON body rather than a signed token. `parseInstallEvent(body)` is a pure
+parser in the waiver mould (envelope-free body or JSON string, never throws),
+delegating the mapping to the pure `install-converter.ts`. It is the richer of the
+two install channels — the only one carrying the account **name**, **platform**,
+and **test** flag — so it, not the JWT, is the authoritative source of
+`InstallIdentity` (`src/models/peek/install.ts`).
+
+Two design rules hold this together and are load-bearing:
+
+- **`InstallIdentity` is flat and JSON-safe.** The shape the parser returns is
+  the shape a consumer persists and later rehydrates, so there is exactly one
+  representation of "who this install is" and no mapping layer. Do not add
+  methods, nested objects, or non-JSON types to it.
+- **`status` and `platform` are nullable, and unknown values are never coerced.**
+  The package does not defend against malformed input here (the sender is
+  first-party); it defends against the contract *growing*. An unrecognised value
+  maps to `null` with the wire value kept on `InstallEvent.rawStatus`. Coercion
+  would be unsafe: Peek treats any 2xx as delivered and does not redeliver, so a
+  status quietly mapped onto a no-op loses a lifecycle transition permanently,
+  and a defaulted platform points the install at the wrong gateway. When a new
+  status or platform ships, extend `INSTALL_STATUSES` / `PEEK_PLATFORMS` — both
+  are `as const` arrays that the unions derive from, so the type follows the
+  runtime list automatically.
+
+`accountId` deserves a note: it is what Peek elsewhere calls the **partner ID**,
+and these webhooks are its *only* source. No GraphQL query in this package selects
+an account id (the gateway routes by `appId` + `installId`) and no peek-auth token
+carries one — `PeekAuthTokenUser.id` is the acting **user**, not the account. A
+consumer that loses it cannot re-fetch it.
 The detailed `AddonItem`
 model (refids + reservation statuses) is **internal only** — consumers see just
 the grouped `BookingAddons`; the internal model exists solely so add/remove can
@@ -353,9 +385,11 @@ options/result types callers need), all data-model **types** (including
 `InvalidPeekTokenError`, `CngApiError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
-The webhook-related public exports are the two parsers `parseBookingWebhook` and
-`parseWaiverWebhook` plus the install-status verifier `verifyInstallWebhook`
-(and the `Waiver` / `InstallWebhookClaims` model types; see the webhook notes above).
+The webhook-related public exports are the three parsers `parseBookingWebhook`,
+`parseWaiverWebhook`, and `parseInstallEvent` plus the install-status verifier
+`verifyInstallWebhook` (and the `Waiver` / `InstallEvent` / `InstallIdentity` /
+`InstallStatus` / `InstallWebhookClaims` model types and the `INSTALL_STATUSES`
+constant; see the webhook notes above).
 
 ### 5b. CNG accessor (REST)
 `src/cng-access-service.ts`, `src/internal/cng/`, `src/models/cng/product.ts`

@@ -163,9 +163,9 @@ stay internal.
   importable; branch with `instanceof`.
 - Plain `Error` for validation/precondition failures thrown before any request.
 
-## Webhooks (booking + waiver + install-status)
+## Webhooks (booking + waiver + install-event + install-status)
 
-Two pure-transform parsers plus one signature-verifier. The parsers need no
+Three pure-transform parsers plus one signature-verifier. The parsers need no
 auth/network/`PeekAccessService`; accept the `{<key>:…}` envelope, a bare node,
 or a JSON string; never throw on malformed input. Registration is done **once in
 an external system** (App Store config), not from code.
@@ -180,6 +180,17 @@ an external system** (App Store config), not from code.
   register** — just subscribe to the `agreement_signature_created` event. Takes
   the same `AccessOptions`; by default (`fullCustomerAccess` off) `guestName` and
   `fileUrl` are redacted — pass `{ fullCustomerAccess: true }` to keep them.
+- `parseInstallEvent(body): InstallEvent` — maps the fixed `snake_case` install
+  lifecycle body (`status`, `install_id`, `display_version`, `account`) to
+  `{ status, rawStatus, displayVersion, identity }`. `identity` is the clean
+  `InstallIdentity` (`installId`, `accountId` — **also called the partner ID** —
+  `accountName`, `platform`, `isTest`): flat, JSON-safe, meant to be persisted as
+  a unit. This body is the **only** source of `accountId` in the package — no
+  GraphQL read and no token returns it. `status` and `platform` are **nullable**:
+  a value this version does not recognise maps to `null` (wire value kept on
+  `rawStatus`) rather than being coerced, because Peek does not redeliver a 2xx
+  and a coerced status silently drops a lifecycle transition. Give both a
+  `default:` branch that fails loudly. No query to register; just subscribe.
 - `verifyInstallWebhook(token, secret): InstallWebhookClaims` — for install
   lifecycle events (installed/uninstalled/status changed). The payload *is* a
   signed `app_registry_v2` JWT, so this **verifies** it (HMAC signature + expiry +
@@ -188,7 +199,12 @@ an external system** (App Store config), not from code.
   (`installId`, `account.id`, `status`, `displayVersion`, and `user` which is
   **nullable** for system-initiated events). Throws the underlying `jsonwebtoken`
   error on any failure — one `try/catch` → `401`. `secret` is the app's
-  `jwtSecret`. No query to register; just subscribe to the event.
+  `jwtSecret`. No query to register; just subscribe to the event. This and
+  `parseInstallEvent` are **two channels for the same lifecycle event**: this one
+  authenticates itself but carries only `account.id`; `parseInstallEvent` carries
+  the account name/platform/test flag and is the authoritative `InstallIdentity`
+  source. The app secret is app-wide, so either channel verifies/parses fine on a
+  brand-new install, before any record exists.
 
 **Full guide + booking query-to-register: `docs/webhooks.md` (shipped).**
 
