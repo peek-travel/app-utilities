@@ -22,13 +22,23 @@ const peek = new PeekAccessService({
   installId,   // JWT subject
   jwtSecret,   // HMAC secret signing the JWT
   issuer,      // app name (JWT issuer)
-  appId,       // gateway path segment
-  gatewayKey,  // pk-api-key header
-  // optional: baseUrl, tokenTtlSeconds, tokenRefreshLeewaySeconds,
+  apiUrl,      // the install webhook's apiUrl — the app endpoint, used as given
+  // optional: gatewayKey, tokenTtlSeconds, tokenRefreshLeewaySeconds,
   // retryDelaysMs, logger, fetch, itemOptionsPageSize,
   // accessOptions: { fullCustomerAccess: false }  // default — see "Access options / PII"
 });
 ```
+
+Targeting an install by URL: pass the install webhook's `apiUrl` as the config
+`apiUrl` — for Peek it is the **sole** request URL (every call POSTs to it,
+unmodified); for CNG/ACME it is the base and the REST path is appended. No
+app-id/gateway segment is inserted (`appId` is unused). Any app id in the path is
+the registry's own traffic tag, opaque to callers. `createAccessServiceForInstall(install, config)`
+builds the right service for `install.platform` (`peek`/`cng`/`acme`) wired to
+`install.apiUrl` in one call (throws on unknown/`null` platform). `appId` +
+`baseUrl` (and the hardcoded gateway default) are **`@deprecated`** — they
+reconstruct the URL with a compiled-in default that can't be right for every
+install; the fallbacks will be removed and a URL will become **required**.
 
 ## Access options / PII — `fullCustomerAccess`
 
@@ -124,8 +134,10 @@ final authority and may still reject the request.
 Two brand-parallel accessors sit alongside `PeekAccessService` and share the same
 auth/transport/UI plumbing. Both are **REST** and deliberately minimal today
 (products only). Construct one per install, same config shape **minus `gatewayKey`**
-(`installId`, `jwtSecret`, `issuer`, `appId`); both default the base URL to the
-app-registry installations API.
+(`installId`, `jwtSecret`, `issuer`, `apiUrl`). With `apiUrl` set, it is the REST
+base and only the path is appended; the deprecated `baseUrl`/`appId` fall back to
+the app-registry installations API default. `createAccessServiceForInstall` routes
+`platform` `"cng"`/`"acme"` to these.
 
 - `CngAccessService` — `getProductService().getAllActivities()` (short-form
   `getAllActivities()`) → `Activity[]` (`Activity`/`ActivityTicket` models).
@@ -187,12 +199,14 @@ an external system** (App Store config), not from code.
   `verifyPeekAuthToken`, throwing the underlying `jsonwebtoken` error on failure,
   one `try/catch` → `401`) and merges both into one flat, JSON-safe
   `InstallWebhook`: `installId`, `accountId` (**also called the partner ID**),
-  `accountName`, `platform`, `isTest`, `status`, `rawStatus`, `displayVersion`,
-  `user` (nullable, for system-initiated events). The **verified token** is
-  authoritative for `installId`/`accountId`/`status`/`displayVersion`/`user`; the
-  unsigned body supplies only `accountName`/`platform`/`isTest`, so a forged body
-  can't override an authenticated field. This webhook is the **only** source of
-  `accountId` in the package — no GraphQL read returns it. `status` and `platform`
+  `accountName`, `platform`, `isTest`, `timezone`, `apiUrl`, `status`,
+  `rawStatus`, `displayVersion`, `user` (nullable, for system-initiated events).
+  The **JSON body is the source of the event data**; the fields it shares with
+  the token (`installId`/`accountId`/`status`/`displayVersion`/`user`) fall back
+  to the **verified token** when the body omits them. The token authenticates the
+  whole delivery, so the body is trusted within a verified request. This webhook
+  is the **only** source of `accountId`, `timezone`, and `apiUrl` in the package
+  — no GraphQL read returns them; **persist them per install**. `status` and `platform`
   are **nullable**: a value this version does not recognise maps to `null` (wire
   value kept on `rawStatus`) rather than being coerced, because Peek does not
   redeliver a 2xx and a coerced status silently drops a lifecycle transition. Give
@@ -236,12 +250,18 @@ via a `ref`'s imperative methods). No `only a getter` crash. TS still types them
 read-only — the setters are a runtime safety net.
 
 Tags by tier (see `docs/ui.md` for attributes/events/examples per component):
-- display: `ody-button`, `ody-tag`, `ody-alert`, `ody-card`, `ody-divider`,
+- display: `ody-button`, `ody-tag`, `ody-alert`, `ody-card`, `ody-horizontal-divider`
+  (1px rule with a default `margin-block: var(--gap16)`; `spacing="tight"|"none"`),
   `ody-status-dot`, `ody-message`, `ody-icon`, `ody-loading-spinner`, `ody-loading-bar`
 - layout: `ody-empty-state`, `ody-breadcrumb`(+`-item`), `ody-stat-summary`(+`ody-stat`),
   `ody-inline-list`(+`-item`), `ody-list-item`, `ody-product-indicator`,
   `ody-toggle-button`, `ody-section-rows`/`-columns`(+items), `ody-two-column`(+parts),
-  `ody-collapsible-section`
+  `ody-collapsible-section`, `ody-app-page-container` (required page wrapper for a
+  settings UI — 868/1310px widths, `ody-page` container context, default responsive
+  gutter; `flush` opts out)
+- deprecated (kept, unchanged): `ody-divider` → use `ody-horizontal-divider` (the old
+  one has zero margin); `ody-page-container` → use `ody-app-page-container` (the old
+  one is full-bleed with no gutter). Migrate by renaming the tag.
 - form: `ody-input`, `ody-inline-input`, `ody-search-input`, `ody-money-input`,
   `ody-percentage-input`, `ody-checkbox`, `ody-radio-button-group`, `ody-checkbox-group`
 - interactive: `ody-accordion`, `ody-collapsible`, `ody-tabs`, `ody-copy-button`,

@@ -23,6 +23,14 @@ export type { AcmeAccessServiceConfig } from "./acme-access-service.js";
 export { AcmeProductService } from "./internal/acme/products/product-service.js";
 export type { AcmeActivity, AcmeActivityTicket } from "./models/acme/product.js";
 
+// ─── Build the right access service for a persisted install (platform + apiUrl) ─
+export { createAccessServiceForInstall } from "./access-service-factory.js";
+export type {
+  InstallAccessTarget,
+  InstallAccessConfig,
+  InstallAccessService,
+} from "./access-service-factory.js";
+
 export { ProductService } from "./internal/peek/products/product-service.js";
 export type { ProductServiceOptions } from "./internal/peek/products/product-service.js";
 

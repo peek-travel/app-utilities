@@ -22,13 +22,12 @@ install webhook is different: it carries a signed JWT, so `parseInstallWebhook`
 checks the signature for you before returning the merged event.
 
 **The install webhook delivers two payloads at once.** A signed
-`app_registry_v2` JWT authenticates the notification and carries the account
-**id**, install id, status, version, and the acting `user`; a plain JSON body
-alongside it adds the account's **name**, **platform**, and **test** flag.
-`parseInstallWebhook` verifies the token and merges both into one flat
-`InstallWebhook`, so you make a single call. The verified token is authoritative
-for the fields it carries; the unsigned body is trusted only for name/platform/
-test.
+`app_registry_v2` JWT authenticates the notification; a plain JSON body alongside
+it carries the **event data** — the full account block (name, platform,
+timezone, test flag), the per-install `api.url`, the acting user, and the install
+id / status / version. `parseInstallWebhook` verifies the token and reads the
+event from the body — falling back to the token for the fields it also carries —
+merging both into one flat `InstallWebhook`, so you make a single call.
 
 # Booking webhooks
 
@@ -173,10 +172,11 @@ a **signed `app_registry_v2` JWT** and a plain **JSON body**.
 
 - The **JWT** is the security boundary. Verifying its signature proves the
   notification really came from Peek before your app acts on it (for example,
-  de-provisioning an uninstall). It carries the install id, account **id**,
-  status, version, and the acting `user`.
-- The **JSON body** is the enrichment channel. It adds the account's **name**,
-  **platform**, and **test** flag — the fields the token does not carry.
+  de-provisioning an uninstall) — it authenticates the whole delivery, body
+  included.
+- The **JSON body** is the event payload. It carries the full account block
+  (name, platform, timezone, test flag), the per-install `api.url`, the acting
+  user, and the install id / status / version.
 
 This webhook is also where an app first learns **who the install belongs to** —
 and the only place it ever learns it: no GraphQL read returns the account id, so
@@ -184,9 +184,9 @@ whatever you persist from this delivery is all you will ever have.
 
 `parseInstallWebhook(token, body, secret)` verifies the token (issuer, audience,
 expiry, HMAC — the security-critical boilerplate you'd otherwise hand-roll) and
-merges both payloads into one flat, JSON-safe `InstallWebhook` you store as a
-unit. The **verified token** is authoritative for the fields it carries; the
-unsigned body is trusted only for name/platform/test.
+reads the event from the body, **falling back to the token** for the fields it
+also carries (`installId`, `accountId`, `status`, `displayVersion`, `user`),
+returning one flat, JSON-safe `InstallWebhook` you store as a unit.
 
 ## Step 1 — subscribe to the event (external, one-time)
 
@@ -249,21 +249,25 @@ The resulting `InstallWebhook` is flat:
 
 | Field | Type | Source | From | Notes |
 | --- | --- | --- | --- | --- |
-| `installId` | `string` | token | `sub` | Peek-assigned install UUID |
-| `accountId` | `string` | token | `account.id` | **also called the partner ID** |
+| `installId` | `string` | body → token | `install_id` / `sub` | Peek-assigned install UUID |
+| `accountId` | `string` | body → token | `account.id` | **also called the partner ID** |
 | `accountName` | `string` | body | `account.name` | partner display name; `""` when absent |
 | `platform` | `PeekPlatform \| null` | body | `account.platform` | **persist per install** — see below; `null` when unrecognised |
 | `isTest` | `boolean` | body | `account.is_test` | defaults to `false` |
-| `status` | `InstallStatus \| null` | token | `status` | `null` when unrecognised — see below |
-| `rawStatus` | `string` | token | `status` | always the wire value, for logging |
-| `displayVersion` | `string` | token | `display_version` | `""` when absent |
-| `user` | `PeekAuthTokenUser \| null` | token | `user` | `null` for system-initiated events |
+| `timezone` | `string` | body | `account.timezone` | IANA zone (e.g. `America/New_York`); **persist per install**; `""` when absent |
+| `apiUrl` | `string` | body | `api.url` | per-install backoffice API base URL; **persist per install**; `""` when absent |
+| `status` | `InstallStatus \| null` | body → token | `status` | `null` when unrecognised — see below |
+| `rawStatus` | `string` | body → token | `status` | always the wire value, for logging |
+| `displayVersion` | `string` | body → token | `display_version` | `""` when absent |
+| `user` | `PeekAuthTokenUser \| null` | body → token | `modified_by` / `user` | `null` for system-initiated events |
 
-Because the four fields present in **both** payloads (`installId`, `accountId`,
-`status`, `displayVersion`) are read from the **verified token**, a mismatched or
-forged body can never override an authenticated identity. Unlike
-`verifyPeekAuthToken`, `user` is nullable: install lifecycle events are often
-system-initiated (no acting user), so the parser tolerates `user: null`.
+The **JSON body is the source of the event data**; the fields it shares with the
+token (`installId`, `accountId`, `status`, `displayVersion`, `user`) fall back to
+the **verified token** when the body omits them. The token authenticates the
+whole delivery — only Peek can mint a valid one — so the body is trusted within a
+verified request. Unlike `verifyPeekAuthToken`, `user` is nullable: install
+lifecycle events are often system-initiated (no acting user), so the parser
+tolerates a missing `modified_by`/`user`.
 
 > **Migrating from `verifyInstallWebhook` / `parseInstallEvent`?**
 > `verifyInstallWebhook(token, secret)` still works but is `@deprecated` — it
@@ -287,6 +291,85 @@ and therefore which access service you construct for it:
 Two installs of the same app can sit on different platforms, so this cannot be
 inferred from app-level config — it is per install, it has no source other than
 this event, and it must be stored alongside `installId` and `accountId`.
+
+## Also persist `timezone` and `apiUrl` per install
+
+Like `platform`, these are per-install facts with **no source other than this
+event**, so persist them alongside `installId`/`accountId`:
+
+- **`timezone`** — the account's IANA zone (e.g. `America/New_York`). Downstream
+  date/time handling for the install (scheduling, day boundaries, display) needs
+  the account's own zone, not the server's.
+- **`apiUrl`** — the **app endpoint URL** the registry serves this install from.
+  Use it **as given** for this install's API calls: hit it unmodified, do not
+  decompose it or append your own app id. If the registry tags traffic with an
+  app id in the path, that is the registry's concern and opaque to you. Store it
+  and pass it as the access service's **`apiUrl`** (for Peek it is the sole
+  request URL; for CNG/ACME it is the base and the REST path is appended) — or
+  hand the whole install to `createAccessServiceForInstall` (below), which wires
+  it for you.
+
+Both default to `""` when a delivery omits them, so treat empty as "not
+reported" and keep any value you previously stored.
+
+## Every install event is a full snapshot — upsert by `installId`
+
+An install webhook is not just a one-time "who is this install" signal. **Every
+event carries the complete, current record**, and an `update_installed` event
+delivers the *same fields* as the original `installed` event. So the registry
+uses the webhook to push changes: a new `apiUrl`, a renamed account, a new
+`displayVersion`, a platform move.
+
+Treat each delivery as an **upsert keyed by `installId`** and overwrite your
+stored fields with the incoming ones:
+
+```ts
+const event = parseInstallWebhook(token, req.body, secret);
+await installs.upsert(event.installId, {
+  accountId: event.accountId,
+  accountName: event.accountName,
+  platform: event.platform,
+  isTest: event.isTest,
+  timezone: event.timezone,
+  apiUrl: event.apiUrl, // may change between events — always take the latest
+  displayVersion: event.displayVersion,
+});
+```
+
+A consumer that reads only the first `installed` event and ignores later
+`update_installed` deliveries will keep stale data — most importantly a stale
+`apiUrl`, which would send its API calls to the wrong endpoint.
+
+## Build the install's access service from `platform` + `apiUrl`
+
+A persisted install carries the two facts needed to reach it: `platform` picks
+the access service class, and `apiUrl` is its endpoint. `createAccessServiceForInstall`
+encodes that mapping, so you go from a stored install to the right client in one
+call — no `switch` on platform, no URL wiring:
+
+```ts
+import { createAccessServiceForInstall } from "@peektravel/app-utilities";
+
+const install = await installs.get(installId); // { platform, apiUrl, installId, … }
+
+const service = createAccessServiceForInstall(install, {
+  jwtSecret: process.env.PEEK_INTERNAL_SECRET!,
+  issuer: process.env.APP_NAME!,
+  // gatewayKey?, logger?, fetch?, accessOptions?, … (per-app, not per-install)
+});
+// → PeekAccessService | CngAccessService | AcmeAccessService, wired to install.apiUrl.
+// Narrow by install.platform (or `instanceof`) to reach a platform-specific surface.
+```
+
+It throws if `install.platform` is `null` or unrecognised — an install with an
+unknown platform has no service to route to, and silently defaulting would point
+it at the wrong gateway.
+
+Prefer this (or the config's `apiUrl` field) over `baseUrl`/`appId`, which are
+deprecated: they reconstruct the URL with a hardcoded gateway default that cannot
+be correct for every install. **The hardcoded base-URL fallbacks will be removed
+and a URL will become required in a future release** — source it from the install
+webhook's `apiUrl` now.
 
 ## Why `status` and `platform` can be `null`
 

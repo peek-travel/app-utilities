@@ -10,13 +10,13 @@
  */
 
 /* ---- base ---------------------------------------------------------------- */
-ody-icon, ody-button, ody-tag, ody-alert, ody-card, ody-divider,
+ody-icon, ody-button, ody-tag, ody-alert, ody-card, ody-divider, ody-horizontal-divider,
 ody-status-dot, ody-message, ody-loading-spinner, ody-loading-bar {
   font-family: var(--ody-font-family);
   box-sizing: border-box;
 }
 ody-button, ody-tag, ody-status-dot, ody-message, ody-loading-spinner { display: inline-block; }
-ody-alert, ody-card, ody-divider, ody-loading-bar { display: block; }
+ody-alert, ody-card, ody-divider, ody-horizontal-divider, ody-loading-bar { display: block; }
 
 @keyframes ody-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 .ody-spin { animation: ody-spin 1s linear infinite; }
@@ -183,6 +183,10 @@ ody-alert, ody-card, ody-divider, ody-loading-bar { display: block; }
 
 /* ---- divider ------------------------------------------------------------- */
 .ody-divider { display: block; width: 100%; height: 1px; background-color: var(--color-neutral-200); }
+/* horizontal-divider — padded successor to divider; carries its own rhythm. */
+.ody-horizontal-divider { display: block; width: 100%; height: 1px; background-color: var(--color-neutral-200); margin-block: var(--gap16); }
+.ody-horizontal-divider--tight { margin-block: var(--gap8); }
+.ody-horizontal-divider--none { margin-block: 0; }
 
 /* ---- status-dot ---------------------------------------------------------- */
 .status-dot-container { color: var(--color-neutral-350); font-size: 14px; display: inline-flex; align-items: center; }
@@ -384,6 +388,24 @@ ody-percentage-input, ody-checkbox, ody-radio-button-group, ody-checkbox-group {
 /* ===== page-container ===== */
 ody-page-container { display: block; width: 100%; }
 .ody-page-container { width: 100%; max-width: 1310px; margin: 0 auto; container-type: inline-size; container-name: ody-page; }
+
+/* ===== app-page-container (padded successor to page-container) ===== */
+/* The container context is on the host so the padded inner div is a descendant
+   of the `ody-page` container and its gutter can respond to the container's own
+   width (an element cannot query the container it establishes). */
+ody-app-page-container {
+  display: block;
+  width: 100%;
+  max-width: var(--layout-page-width-wide);
+  margin: 0 auto;
+  container-type: inline-size;
+  container-name: ody-page;
+}
+.ody-app-page-container { box-sizing: border-box; width: 100%; padding: var(--gap24); }
+@container ody-page (max-width: 868px) {
+  .ody-app-page-container { padding: var(--gap16); }
+}
+.ody-app-page-container--flush { padding: 0; }
 
 /* ===== collapsible-section ===== */
 .ody-collapsible-section .ody-collapsible-container .ody-collapsible { margin: 0; }

@@ -49,8 +49,10 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
 ### 1. `PeekAccessService` — the authenticated root
 `src/peek-access-service.ts`
 
-- Validates the five required config fields (`installId`, `jwtSecret`, `issuer`,
-  `appId`, `gatewayKey`) and throws on any empty value.
+- Validates the required config fields and throws on any empty value:
+  `installId`, `jwtSecret`, `issuer` always; `appId` and `gatewayKey` only in the
+  legacy `baseUrl` mode (both are unneeded when `apiUrl` is set — see the
+  endpoint-URL note below).
 - Constructs a single shared `TokenManager` and `GraphQLClient`.
 - Exposes one `get<Resource>Service()` accessor per resource. Each is **lazily
   created and memoized** — repeated calls return the same instance.
@@ -73,16 +75,29 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
     guide resolution).
   - `BookingService` receives the product service (for add-on → parent-item
     resolution).
-- Optional config: `mode` (`"v2"` — see below), `baseUrl`, `tokenTtlSeconds` (3600), `tokenRefreshLeewaySeconds`
+- Optional config: `apiUrl` (see the endpoint-URL note below), `mode` (`"v2"` —
+  see below), `baseUrl`, `tokenTtlSeconds` (3600), `tokenRefreshLeewaySeconds`
   (60), `retryDelaysMs` (`[1000, 2000, 4000]`), `logger` (no-op default),
   `fetch` (global default), `itemOptionsPageSize` (50), and `accessOptions`
   (see "Access options / PII" below).
-- **v2 mode** (`mode: "v2"`): routes requests through the app-registry
-  installations API. The endpoint URL becomes
+- **Endpoint URL — `apiUrl` (preferred) vs. `baseUrl`/`appId` (deprecated).**
+  The install webhook's `apiUrl` is the install's app endpoint. When the config
+  carries `apiUrl`, the transport uses it **as given**: `GraphQLClient` POSTs
+  every call to that exact URL (Peek is single-endpoint, so `endpointName` is
+  logging-only), and the CNG/ACME `RestClient` treats it as the base and appends
+  only the REST `path`. No app-id/slug segment is inserted, so `appId` is unused
+  (and `gatewayKey` isn't required — the registry endpoint authenticates on the
+  JWT, like v2). When `apiUrl` is absent the transports fall back to the legacy
+  `baseUrl/appId/[slug/]endpoint` construction with a hardcoded default
+  `baseUrl` — **deprecated**; the fallback will be removed and a URL will become
+  required. `createAccessServiceForInstall` (§ below) is the front door for the
+  `apiUrl` path.
+- **v2 mode** (`mode: "v2"`, legacy `baseUrl` path only): the endpoint URL becomes
   `baseUrl/appId/peek_backoffice_api-v1/endpointName` and the default `baseUrl`
   switches to `https://app-registry.peeklabs.com/installations-api`.
-  A custom `baseUrl` still overrides the default in v2 mode. All other
-  behaviour (JWT auth, headers, retries, resource services) is unchanged.
+  A custom `baseUrl` still overrides the default in v2 mode; `apiUrl`, when set,
+  supersedes `mode`/`baseUrl` entirely. All other behaviour (JWT auth, headers,
+  retries, resource services) is unchanged.
 
 ### 2. `TokenManager` — auth
 `src/internal/token-manager.ts`
@@ -238,7 +253,7 @@ webhook module and the model.
 The **install** webhook (`installs/install-webhook.ts` + `install-converter.ts`)
 is the third and most distinct. A single delivery carries **two payloads at
 once**: a **signed `app_registry_v2` JWT** (the security boundary, delivered in
-the `x-peek-auth` request header) and a plain **JSON body** (enrichment).
+the `x-peek-auth` request header) and a plain **JSON body** (the event payload).
 `parseInstallWebhook(token, body, secret)` *verifies* the token (signature +
 expiry + issuer + `Joken` audience, via the shared `peek-auth-token.ts` core) and
 merges both into one flat `InstallWebhook` (`src/models/peek/install.ts`). The
@@ -254,17 +269,23 @@ the parser, the pure `install-converter.ts` helpers (`extractInstallWebhookBody`
 
 `verifyInstallWebhook(token, secret)` (returning `InstallWebhookClaims` in the
 shared `auth-token.ts` model) is retained but **`@deprecated`**: it reads only the
-signed token, so it cannot report the account **name**, **platform**, or **test**
-flag that live in the JSON body. It exists solely for backwards compatibility;
-new callers use `parseInstallWebhook`.
+signed token, so it cannot report the account **name**, **platform**, **test**
+flag, **timezone**, or **apiUrl** that live in the JSON body. It exists solely for
+backwards compatibility; new callers use `parseInstallWebhook`.
 
 Three design rules hold this together and are load-bearing:
 
-- **The verified JWT is authoritative; the JSON body only enriches.** The token
-  is signed, the body is not. `installId`, `accountId`, `status`,
-  `displayVersion`, and `user` are read from the verified token; only
-  `accountName`, `platform`, and `isTest` come from the body. A mismatched or
-  forged body can never override an authenticated field.
+- **The JSON body is the source of the event data; the JWT authenticates it and
+  is the fallback.** Every field is read from the body first: `accountName`,
+  `platform`, `isTest`, `timezone`, `apiUrl` are body-only, and `installId`,
+  `accountId`, `status`, `displayVersion`, `user` (from `modified_by`) fall back
+  to the verified token when the body omits them. The real install token does not
+  actually carry those five, so reading it first returned empty core fields — the
+  body is where the data lives. The signature still authenticates the whole
+  delivery (only Peek can mint a valid token), so the body is trusted within a
+  verified request. `user` resolution is defensive on the body path (a
+  `modified_by` without an `id` is treated as absent) but keeps the strict
+  `mapPeekTokenUser` `id` check on the token path.
 - **`InstallWebhook` is flat and JSON-safe.** The shape the parser returns is the
   shape a consumer persists and later rehydrates, so there is exactly one
   representation of "who this install is and what happened" and no mapping layer.
@@ -386,6 +407,9 @@ pinned by the drift-guard test; `fullCustomerAccess` governs only the runtime re
 `src/index.ts`
 
 The barrel re-exports only the public contract: `PeekAccessService` + its config,
+the `createAccessServiceForInstall` factory (+ its `InstallAccessTarget` /
+`InstallAccessConfig` / `InstallAccessService` types — builds the right access
+service for an install's `platform`, wired to its `apiUrl`),
 the `AccessOptions` type (see §4b), each resource service class (and the
 options/result types callers need), all data-model **types** (including
 `PeekAuthTokenClaims`, `PeekAuthTokenUser`, and the install-webhook
@@ -592,11 +616,17 @@ Load-bearing rules:
   `svg-jar`, or bootstrap. Colours/spacing reference the `tokens.css` custom
   properties; icons are inlined; button variant colours (which live in a
   bootstrap base layer upstream) are reproduced from Odyssey tokens.
-- **Scope:** ~46 components across display, layout, form-input, interactive,
+- **Scope:** ~48 components across display, layout, form-input, interactive,
   overlay, and data/selection tiers. The layout tier includes
-  `ody-page-container` — the required full-bleed wrapper for app **settings**
-  UIs, sized to the two settings-host iframe widths (868px / 1310px) and
-  exposing an `ody-page` CSS container context for the content within. The data/selection tier — `dropdown-single`,
+  `ody-app-page-container` — the required wrapper for app **settings** UIs, sized
+  to the two settings-host iframe widths (868px / 1310px), exposing an `ody-page`
+  CSS container context, and shipping a **default responsive gutter**
+  (`--gap24` → `--gap16` at/below 868px; `flush` opts out). It supersedes
+  `ody-page-container` (kept, `@deprecated`, full-bleed/no-gutter). Likewise
+  `ody-horizontal-divider` (default `margin-block: var(--gap16)`;
+  `spacing="tight"|"none"`) supersedes the spacing-neutral `ody-divider`. Both
+  successors are **self-spacing** primitives built on the `--gap8/16/24/32`
+  scale published in `tokens.css`; PII/behavior is unaffected. The data/selection tier — `dropdown-single`,
   `dropdown-multi` (+ shared `select-base.ts`), `datepicker`, `table` — was
   **rebuilt from scratch** as lightweight vanilla components (rather than ported
   from their `ember-power-select` / `ember-power-calendar` originals), following

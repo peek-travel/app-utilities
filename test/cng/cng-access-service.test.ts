@@ -68,4 +68,37 @@ describe("CngAccessService", () => {
       "https://custom.test/base/app-1/cng_backoffice_api-v1/api/v2/commerce-config/products",
     );
   });
+
+  it("uses apiUrl as the base and appends only the REST path (no appId/slug)", async () => {
+    const calls: string[] = [];
+    const fetchFn = (async (url: string) => {
+      calls.push(url);
+      return textResponse({ products: [] });
+    }) as unknown as typeof fetch;
+
+    const cng = new CngAccessService({
+      installId: "install-123",
+      jwtSecret: "secret",
+      issuer: "app-name",
+      apiUrl: "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app",
+      fetch: fetchFn,
+    });
+    await cng.getAllActivities();
+
+    expect(calls[0]).toBe(
+      "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app/api/v2/commerce-config/products",
+    );
+  });
+
+  it("needs no appId when apiUrl is set", () => {
+    expect(
+      () =>
+        new CngAccessService({
+          installId: "install-123",
+          jwtSecret: "secret",
+          issuer: "app-name",
+          apiUrl: "https://x.test/base",
+        }),
+    ).not.toThrow();
+  });
 });

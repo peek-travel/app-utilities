@@ -12,6 +12,92 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 0.7.2
+
+### `[fix]` `parseInstallWebhook` now reads the event from the JSON body (token is the fallback)
+
+- **What:** `parseInstallWebhook` now sources every field from the delivered
+  **JSON body** first, falling back to the **verified token** only for the fields
+  the token also carries (`installId`, `accountId`, `status`, `displayVersion`,
+  `user`). Previously those five were read from the token *first*, so when the
+  token omitted them — which the real `app_registry_v2` install token does — the
+  event came back with empty `installId`/`accountId`/`displayVersion`, a `null`
+  `status`, and a `null` `user`, even though the body carried all of them. The
+  acting `user` is now read from the body's `modified_by`, falling back to the
+  token's `user`.
+- **Why:** the install webhook's data lives in the JSON body; the token is the
+  signature/authenticity boundary. Reading the token first produced empty core
+  fields for a normal delivery. The token still authenticates the whole request
+  (only Peek can mint a valid one), so the body is trusted within a verified
+  request.
+- **Caller action:** none — this fills fields that were previously empty. If you
+  worked around the bug (e.g. re-parsing `req.body` yourself for the account id),
+  you can drop that; `event.installId`/`accountId`/`status`/`displayVersion`/`user`
+  are now populated from the body.
+
+### `[additive]` `InstallWebhook` gains `timezone` and `apiUrl`
+
+- **What:** the `InstallWebhook` returned by `parseInstallWebhook` has two new
+  string fields: `timezone` (the account's IANA zone from the body's
+  `account.timezone`, e.g. `"America/New_York"`) and `apiUrl` (the per-install
+  backoffice API base URL from the body's `api.url`). Both default to `""` when a
+  delivery omits them.
+- **Why:** both are per-install facts with no source other than this event — the
+  account timezone is needed for correct date/time handling, and the API URL
+  identifies the gateway serving the install.
+- **Caller action:** none — additive. **Persist both per install** (alongside
+  `installId`/`accountId`/`platform`); they cannot be re-fetched later. Every
+  install event is a full snapshot, so **upsert by `installId`** and take the
+  latest values — the registry pushes changes (e.g. a new `apiUrl`) via
+  `update_installed` events.
+
+### `[additive]` Target an install by its `apiUrl` — new `apiUrl` config + `createAccessServiceForInstall`
+
+- **What:** every access service config (`PeekAccessService`, `CngAccessService`,
+  `AcmeAccessService`) accepts a new **`apiUrl`** field — the install's app
+  endpoint from the install webhook. When set it is used **as given**: for Peek
+  it is the sole request URL (every call POSTs to it, unmodified); for CNG/ACME it
+  is the base and only the REST path is appended. No app-id/gateway segment is
+  inserted, so `appId` is not required alongside it. A new helper
+  **`createAccessServiceForInstall(install, config)`** builds the right service
+  for `install.platform` (`peek`/`cng`/`acme`) wired to `install.apiUrl` in one
+  call (throwing on an unknown/`null` platform).
+- **Why:** the endpoint the registry hands you is the one to hit — it varies per
+  install (sandbox vs. production, region, per-app path) and the registry can
+  change it via an `update_installed` event. Any app id in the path is the
+  registry's own traffic tag and opaque to callers, so the URL is used
+  unmodified rather than reconstructed from `appId`.
+- **Caller action:** none — additive. To adopt: persist `event.apiUrl` (and
+  `platform`) from the install webhook, then either pass `apiUrl` in the config or
+  call `createAccessServiceForInstall({ platform, apiUrl, installId }, { jwtSecret, issuer, … })`.
+
+### `[deprecated]` `baseUrl` + `appId` URL controls and the hardcoded gateway defaults
+
+- **What:** the `baseUrl` and `appId` config fields (and the **hardcoded default**
+  gateway base URL each service falls back to when `baseUrl` is omitted) are now
+  deprecated in favour of `apiUrl`. `appId` was only ever a URL path segment;
+  with `apiUrl` it is unused.
+- **Why:** a single compiled-in default base URL cannot be correct for every
+  install, and reconstructing the URL from `baseUrl`/`appId` fights the registry's
+  own routing. Sourcing the endpoint from the webhook's `apiUrl` is the correct,
+  per-install model.
+- **Caller action — do this now:** move to `apiUrl` (see the entry above).
+- **⚠️ Breaking change coming:** in a **future release the hardcoded base-URL
+  fallbacks will be removed and a URL will become required** — constructing an
+  access service without an `apiUrl` (or a `baseUrl`) will throw. Migrate to
+  `apiUrl` now so the removal is a no-op for you.
+
+### `[deprecated]` Self-spacing UI primitives replace `ody-page-container` and `ody-divider`
+
+- **What:** `<ody-app-page-container>` (responsive default gutter; `flush` opts
+  out) replaces `<ody-page-container>`, and `<ody-horizontal-divider>` (default
+  `margin-block`; `spacing="tight"|"none"`) replaces `<ody-divider>`. New spacing
+  tokens `--gap8/16/24/32` in `tokens.css`. The old tags are `@deprecated` but
+  unchanged.
+- **Caller action:** rename the tags and **drop any padding/margins you added
+  around the old ones** — the successors provide it, so leaving yours doubles the
+  spacing.
+
 ## 0.7.1
 
 ### `[additive]` Peek token verifiers accept the raw `x-peek-auth` header value

@@ -380,6 +380,22 @@ describe('simple display components', () => {
     expect(el.querySelector('.ody-divider')).not.toBeNull();
   });
 
+  it('ody-horizontal-divider renders a rule with default rhythm', async () => {
+    const el = await mount('<ody-horizontal-divider></ody-horizontal-divider>');
+    const rule = el.querySelector('.ody-horizontal-divider')!;
+    expect(rule).not.toBeNull();
+    expect(rule.classList.contains('ody-horizontal-divider--tight')).toBe(false);
+    expect(rule.classList.contains('ody-horizontal-divider--none')).toBe(false);
+  });
+
+  it.each([
+    ['tight', 'ody-horizontal-divider--tight'],
+    ['none', 'ody-horizontal-divider--none'],
+  ])('ody-horizontal-divider honours spacing="%s"', async (spacing, cls) => {
+    const el = await mount(`<ody-horizontal-divider spacing="${spacing}"></ody-horizontal-divider>`);
+    expect(el.querySelector(`.${cls}`)).not.toBeNull();
+  });
+
   it('ody-status-dot renders the colour and label', async () => {
     const el = await mount('<ody-status-dot color="blue">Active</ody-status-dot>');
     expect(el.querySelector('.status-dot--blue')).not.toBeNull();
@@ -389,6 +405,28 @@ describe('simple display components', () => {
   it('ody-message renders with and without an icon', async () => {
     expect((await mount('<ody-message icon="info">Hi</ody-message>')).querySelector('.ody-message__icon')).not.toBeNull();
     expect((await mount('<ody-message>Hi</ody-message>')).querySelector('.ody-message__icon')).toBeNull();
+  });
+});
+
+describe('page containers', () => {
+  it('ody-page-container wraps slotted content', async () => {
+    const el = await mount('<ody-page-container><p>hi</p></ody-page-container>');
+    const inner = el.querySelector('.ody-page-container')!;
+    expect(inner).not.toBeNull();
+    expect(inner.querySelector('p')!.textContent).toBe('hi');
+  });
+
+  it('ody-app-page-container wraps slotted content with a default gutter', async () => {
+    const el = await mount('<ody-app-page-container><p>hi</p></ody-app-page-container>');
+    const inner = el.querySelector('.ody-app-page-container')!;
+    expect(inner).not.toBeNull();
+    expect(inner.classList.contains('ody-app-page-container--flush')).toBe(false);
+    expect(inner.querySelector('p')!.textContent).toBe('hi');
+  });
+
+  it('ody-app-page-container honours the flush opt-out', async () => {
+    const el = await mount('<ody-app-page-container flush></ody-app-page-container>');
+    expect(el.querySelector('.ody-app-page-container--flush')).not.toBeNull();
   });
 });
 

@@ -15,12 +15,22 @@ import { parseBody, requestWithRetry } from "../http-transport.js";
 import type { Logger } from "../../logger.js";
 
 export interface RestClientOptions {
-  /** Base URL of the backoffice gateway (no trailing slash). */
-  baseUrl: string;
-  /** App ID, used in the endpoint path. */
-  appId: string;
-  /** Fixed extendable slug inserted between `appId` and the REST path. */
-  extendableSlug: string;
+  /**
+   * The install's app endpoint URL (the install webhook's `apiUrl`). When set it
+   * is the **base URL** and only the REST path is appended (`apiUrl/path`) —
+   * `baseUrl`/`appId`/`extendableSlug` are ignored. Takes precedence over
+   * `baseUrl`.
+   */
+  apiUrl?: string;
+  /**
+   * Base URL of the backoffice gateway (no trailing slash). Used only when
+   * `apiUrl` is not set; the URL is `baseUrl/appId/extendableSlug/path`.
+   */
+  baseUrl?: string;
+  /** App ID, used in the endpoint path (legacy `baseUrl` mode only). */
+  appId?: string;
+  /** Fixed extendable slug inserted between `appId` and the REST path (legacy mode). */
+  extendableSlug?: string;
   /** Supplies a valid bearer token for each request. */
   getToken: () => string;
   /** Backoff delays (ms) applied on successive HTTP 429 responses. */
@@ -68,7 +78,9 @@ export class RestClient {
   }
 
   private endpoint(path: string): string {
-    const { baseUrl, appId, extendableSlug } = this.options;
+    const { apiUrl, baseUrl, appId, extendableSlug } = this.options;
+    // The registry-provided app endpoint is the base — append only the REST path.
+    if (apiUrl) return `${apiUrl}/${path}`;
     return `${baseUrl}/${appId}/${extendableSlug}/${path}`;
   }
 
