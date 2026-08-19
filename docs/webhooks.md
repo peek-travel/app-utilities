@@ -1,25 +1,34 @@
 # Webhooks
 
 A guide for wiring a receiver app up to Peek "backoffice" webhooks using
-`@peektravel/app-utilities`. Three webhook types are supported today —
-**booking**, **waiver**, and **install-status** — and each has a helper that
-turns the delivered payload into a clean data model. They differ in one important
-way: a booking webhook is configured with a GraphQL query (so the package
-documents the exact query to register), a waiver webhook has a fixed payload (so
-there's nothing to register beyond subscribing to the event), and an
-install-status webhook delivers a **signed token** (so the helper *verifies* it
-rather than just parsing it).
+`@peektravel/app-utilities`. Four webhook types are supported today —
+**booking**, **waiver**, **install-event**, and **install-status** — and each has
+a helper that turns the delivered payload into a clean data model. They differ in
+one important way: a booking webhook is configured with a GraphQL query (so the
+package documents the exact query to register), waiver and install-event webhooks
+have fixed payloads (so there's nothing to register beyond subscribing to the
+event), and an install-status webhook delivers a **signed token** (so the helper
+*verifies* it rather than just parsing it).
 
 | Webhook | Register | Handle the delivery |
 | --- | --- | --- |
 | Booking | paste a GraphQL query into the external config (below) | `parseBookingWebhook(body)` → `Booking` |
 | Waiver | subscribe to the event — **no query needed** | `parseWaiverWebhook(body)` → `Waiver` |
+| Install-event | subscribe to the event — **no query needed** | `parseInstallEvent(body)` → `InstallEvent` |
 | Install-status | subscribe to the event — **no query needed** | `verifyInstallWebhook(token, secret)` → `InstallWebhookClaims` |
 
-The booking and waiver parsers are pure transforms — no auth, no network,
-construct nothing; **authenticating those deliveries is the receiver's job**. The
-install-status webhook is different: its payload *is* a signed JWT, so
+The booking, waiver, and install-event parsers are pure transforms — no auth, no
+network, construct nothing; **authenticating those deliveries is the receiver's
+job**. The install-status webhook is different: its payload *is* a signed JWT, so
 `verifyInstallWebhook` checks the signature for you.
+
+**Install-event and install-status are two channels for the same lifecycle
+event.** Install-event arrives as a plain JSON body and is the richer of the two —
+it is the only delivery that reports the account's **name**, **platform**, and
+**test** flag, which makes it the authoritative source of `InstallIdentity`.
+Install-status arrives as a signed JWT and carries only the account **id**, plus
+the acting `user`. Use install-event to record who an install is; use
+install-status when you need the delivery to authenticate itself.
 
 # Booking webhooks
 
@@ -153,6 +162,101 @@ The resulting `Waiver` is flat:
 | `isOptinSms` | `boolean` | `waiver_data.participant_optin_sms` |
 
 Authenticating the delivery is the receiver's responsibility, as with bookings.
+
+# Install-event webhooks
+
+## The problem this solves
+
+Peek's app registry POSTs a plain JSON body when an app is installed,
+uninstalled, or updated. That body is where an app first learns **who the
+install belongs to** — and it is the only place it ever learns it: no GraphQL
+read and no peek-auth token returns the account id, so whatever you persist from
+this delivery is all you will ever have.
+
+`parseInstallEvent` turns the snake_case body into a clean `InstallEvent` whose
+`identity` is a flat, JSON-safe object built to be stored as a unit and handed
+straight back to an access service later.
+
+## Step 1 — subscribe to the event (external, one-time)
+
+Nothing to register in code: subscribe your endpoint to the install event in the
+App Store config. There is no GraphQL selection to paste.
+
+## Step 2 — parse the delivered body
+
+```ts
+import { parseInstallEvent } from "@peektravel/app-utilities";
+
+app.post("/webhooks/install", async (req, res) => {
+  const event = parseInstallEvent(req.body);
+
+  switch (event.status) {
+    case "installed":
+      await provision(event.identity, event.displayVersion);
+      break;
+    case "uninstalled":
+      await deprovision(event.identity);
+      break;
+    case "update_installed":
+      await recordVersion(event.identity, event.displayVersion);
+      break;
+    default:
+      // Peek sent a status this package version does not know. Fail loudly —
+      // a 2xx here is a silently dropped lifecycle transition.
+      return res.status(500).json({ error: `unknown status: ${event.rawStatus}` });
+  }
+
+  res.sendStatus(200);
+});
+```
+
+The resulting `InstallEvent`:
+
+| Field | Type | From | Notes |
+| --- | --- | --- | --- |
+| `status` | `InstallStatus \| null` | `status` | `null` when unrecognised — see below |
+| `rawStatus` | `string` | `status` | always the wire value, for logging |
+| `displayVersion` | `string` | `display_version` | `""` when absent |
+| `identity` | `InstallIdentity` | `install_id` + `account` | the core account data |
+
+…and the `InstallIdentity` inside it:
+
+| Field | Type | From | Notes |
+| --- | --- | --- | --- |
+| `installId` | `string` | `install_id` | Peek-assigned install UUID |
+| `accountId` | `string` | `account.id` | **also called the partner ID** |
+| `accountName` | `string` | `account.name` | partner display name |
+| `platform` | `PeekPlatform \| null` | `account.platform` | **persist per install** — see below; `null` when unrecognised |
+| `isTest` | `boolean` | `account.is_test` | defaults to `false` |
+
+## Persist `platform` per install
+
+`identity.platform` is not cosmetic. It decides which APIs the install is served
+by, and therefore which access service you construct for it:
+
+| `platform` | Access service | Gateway |
+| --- | --- | --- |
+| `"peek"` | `PeekAccessService` | Peek backoffice GraphQL |
+| `"cng"` | `CngAccessService` | CNG backoffice REST |
+| `"acme"` | `AcmeAccessService` | ACME backoffice REST |
+
+Two installs of the same app can sit on different platforms, so this cannot be
+inferred from app-level config — it is per install, it has no source other than
+this event, and it must be stored alongside `installId` and `accountId`.
+
+## Why `status` and `platform` can be `null`
+
+`parseInstallEvent` never throws. The sender is first-party and the payload
+contract is Peek's own, so a malformed body is not the failure worth designing
+for. The failure that *is* real is the contract **growing** — a new status, or a
+fourth platform.
+
+Both are therefore reported as `null` rather than coerced into a known value,
+with the wire value preserved on `rawStatus`. Coercing would be actively
+dangerous: Peek treats any 2xx as delivered and does not redeliver, so quietly
+mapping an unknown status onto a no-op loses a lifecycle transition permanently,
+and defaulting an unknown platform would point that install at the wrong gateway.
+Give both a `default:` branch that fails loudly.
 
 # Install-status webhooks
 

@@ -245,18 +245,20 @@ Functions runtime) resolve correctly. Its only runtime dependency is
 
 ## Webhooks
 
-Receiver apps can consume Peek **booking**, **waiver**, and **install-status**
-webhooks without hand-writing the payload handling. The booking and waiver
-webhooks have a pure parser (construct nothing — no auth/network) that returns a
-clean model; the install-status webhook delivers a signed token, so its helper
-**verifies** it:
+Receiver apps can consume Peek **booking**, **waiver**, **install-event**, and
+**install-status** webhooks without hand-writing the payload handling. The
+booking, waiver, and install-event webhooks have a pure parser (construct
+nothing — no auth/network) that returns a clean model; the install-status webhook
+delivers a signed token, so its helper **verifies** it:
 
 ```ts
 import {
   parseBookingWebhook,
+  parseInstallEvent,
   parseWaiverWebhook,
   verifyInstallWebhook,
   type Booking,
+  type InstallEvent,
   type Waiver,
   type InstallWebhookClaims,
 } from "@peektravel/app-utilities";
@@ -269,6 +271,19 @@ app.post("/booking-webhook", (req, res) => {
 app.post("/waiver-webhook", (req, res) => {
   // guestName/fileUrl are redacted unless you opt into PII:
   const waiver: Waiver = parseWaiverWebhook(req.body, { fullCustomerAccess: true });
+  res.sendStatus(200);
+});
+
+app.post("/install-event", async (req, res) => {
+  const event: InstallEvent = parseInstallEvent(req.body);
+  switch (event.status) {
+    case "installed":        await provision(event.identity); break;
+    case "uninstalled":      await deprovision(event.identity); break;
+    case "update_installed": await recordVersion(event.identity, event.displayVersion); break;
+    // `status` is null when Peek sends one this version doesn't know. Peek
+    // doesn't redeliver a 2xx, so fail loudly rather than silently no-op.
+    default: return res.status(500).json({ error: `unknown status: ${event.rawStatus}` });
+  }
   res.sendStatus(200);
 });
 
@@ -286,9 +301,16 @@ app.post("/install-webhook", (req, res) => {
 });
 ```
 
-The booking and waiver parsers tolerate the delivery envelope / a bare node / a
-JSON string and never throw on malformed input; **authenticating those deliveries
-is the receiver's job**. `parseWaiverWebhook` also takes an optional
+The booking, waiver, and install-event parsers tolerate the delivery envelope / a
+bare node / a JSON string and never throw on malformed input; **authenticating
+those deliveries is the receiver's job**. `parseInstallEvent` returns an
+`InstallIdentity` (`installId`, `accountId` — **also called the partner ID** —
+`accountName`, `platform`, `isTest`) that is flat and JSON-safe, so it persists
+and rehydrates as a unit; that body is the only source of `accountId` in the
+package, since no GraphQL read or token returns it. Its `status` and `platform`
+are **nullable** — a value this version doesn't recognise stays `null` instead of
+being coerced, so a newer registry can't be mistaken for an older one.
+`parseWaiverWebhook` also takes an optional
 `AccessOptions` (`{ fullCustomerAccess }`) and redacts the participant `guestName`
 + document `fileUrl` by default — see [Access options / PII](#access-options--pii)
 below. `verifyInstallWebhook(token, secret)` is different: the payload is a signed

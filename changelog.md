@@ -12,7 +12,35 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 0.6.1
+
+Two changes to the install/auth surface: support for the **install-event (JSON)
+webhook**, which is where an app learns the account id, name, and platform an
+install belongs to; and a **stricter `user.id` check** on verified Peek tokens.
+
+### `[additive]` `parseInstallEvent` — the install-event (JSON) webhook
+
+- **What:** new exported parser `parseInstallEvent(body): InstallEvent` for the
+  plain-JSON install lifecycle webhook (`status`, `install_id`,
+  `display_version`, `account`). It returns `{ status, rawStatus,
+  displayVersion, identity }`, where `identity` is the new `InstallIdentity`
+  model — `installId`, `accountId` (the value Peek elsewhere calls the **partner
+  ID**), `accountName`, `platform`, `isTest`. Also exported: the
+  `InstallEvent` / `InstallIdentity` / `InstallStatus` types and the
+  `INSTALL_STATUSES` constant.
+- **Why:** the package previously handled only the *signed-JWT* install channel
+  (`verifyInstallWebhook`), which carries just `account.id`. The JSON channel is
+  the only delivery that reports the account **name**, **platform**, and **test**
+  flag, and it is the sole source of the account id anywhere in the system — no
+  GraphQL read and no peek-auth token returns one. Consumers were hand-rolling
+  the snake_case destructuring and their own status vocabulary.
+- **Caller action:** none — purely additive. `verifyInstallWebhook` is unchanged
+  and both channels remain supported. New consumers should persist
+  `event.identity` as a unit (it is flat and JSON-safe by design) and **handle a
+  `null` `status`**: an unrecognised status maps to `null` with the wire value on
+  `rawStatus` rather than being coerced, and because Peek treats any 2xx as
+  delivered and does not redeliver, responding successfully to one silently drops
+  a lifecycle transition. `identity.platform` is nullable for the same reason.
 
 ### `[fix]` `verifyPeekAuthToken` now rejects a token with no `user.id`
 
