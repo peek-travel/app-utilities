@@ -1,6 +1,7 @@
 /**
- * Pure, I/O-free mapping of the raw install-event webhook body into the clean
- * {@link InstallEvent} model. No network, no logging, no clock.
+ * Pure, I/O-free helpers for the install webhook: narrowing an unknown request
+ * body to the raw JSON node, and narrowing a delivered `status`/`platform`
+ * string to its known union. No network, no logging, no clock.
  *
  * Internal only — never re-exported from `src/index.ts`.
  */
@@ -10,25 +11,45 @@ import {
 } from "../../../models/peek/auth-token.js";
 import {
   INSTALL_STATUSES,
-  type InstallEvent,
-  type InstallIdentity,
   type InstallStatus,
 } from "../../../models/peek/install.js";
 
-/** The raw, snake_case account block of an install-event body. */
-export interface InstallEventAccountNode {
+/** The raw, snake_case account block of an install webhook's JSON body. */
+export interface InstallWebhookBodyAccount {
   id?: string;
   name?: string;
   platform?: string;
   is_test?: boolean;
 }
 
-/** The raw, snake_case install-event body as delivered by the app registry. */
-export interface InstallEventNode {
+/**
+ * The raw, snake_case JSON body delivered alongside the install webhook token.
+ * Only `account` (name/platform/test flag) is consumed — the token is the
+ * authoritative source of `install_id`/`status`/`display_version`.
+ */
+export interface InstallWebhookBody {
   status?: string;
   install_id?: string;
   display_version?: string;
-  account?: InstallEventAccountNode | null;
+  account?: InstallWebhookBodyAccount | null;
+}
+
+/**
+ * Narrows an unknown request body to an {@link InstallWebhookBody}, tolerating a
+ * JSON string (parsed first) and returning `{}` for anything non-object or
+ * unparseable, so the caller never has to guard.
+ */
+export function extractInstallWebhookBody(payload: unknown): InstallWebhookBody {
+  let body: unknown = payload;
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      return {};
+    }
+  }
+  if (!body || typeof body !== "object") return {};
+  return body as InstallWebhookBody;
 }
 
 /**
@@ -49,32 +70,4 @@ export function toPeekPlatform(raw: string): PeekPlatform | null {
   return (PEEK_PLATFORMS as readonly string[]).includes(raw)
     ? (raw as PeekPlatform)
     : null;
-}
-
-/** Maps the raw account block to the clean {@link InstallIdentity}. */
-export function fromInstallIdentityNode(
-  node: InstallEventNode | null | undefined,
-): InstallIdentity {
-  const data = node ?? {};
-  const account = data.account ?? {};
-  return {
-    installId: data.install_id || "",
-    accountId: account.id || "",
-    accountName: account.name || "",
-    platform: toPeekPlatform(account.platform || ""),
-    isTest: Boolean(account.is_test),
-  };
-}
-
-/** Maps a raw install-event body to the clean {@link InstallEvent}. */
-export function fromInstallEventNode(
-  node: InstallEventNode | null | undefined,
-): InstallEvent {
-  const rawStatus = node?.status || "";
-  return {
-    status: toInstallStatus(rawStatus),
-    rawStatus,
-    displayVersion: node?.display_version || "",
-    identity: fromInstallIdentityNode(node),
-  };
 }

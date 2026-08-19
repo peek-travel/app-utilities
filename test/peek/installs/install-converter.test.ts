@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  fromInstallEventNode,
-  fromInstallIdentityNode,
+  extractInstallWebhookBody,
   toInstallStatus,
   toPeekPlatform,
 } from "../../../src/internal/peek/installs/install-converter.js";
@@ -30,37 +29,25 @@ describe("toPeekPlatform", () => {
   });
 });
 
-describe("fromInstallIdentityNode", () => {
-  it.each([
-    ["null", null],
-    ["undefined", undefined],
-  ])("maps %s to an empty identity", (_label, node) => {
-    expect(fromInstallIdentityNode(node)).toEqual({
-      installId: "",
-      accountId: "",
-      accountName: "",
-      platform: null,
-      isTest: false,
-    });
-  });
-});
+describe("extractInstallWebhookBody", () => {
+  it("returns an object body unchanged", () => {
+    const body = { account: { id: "acct_42", name: "Sunset Kayak Tours" } };
 
-describe("fromInstallEventNode", () => {
+    expect(extractInstallWebhookBody(body)).toBe(body);
+  });
+
+  it("parses a JSON string body", () => {
+    const body = { account: { id: "acct_42", is_test: true } };
+
+    expect(extractInstallWebhookBody(JSON.stringify(body))).toEqual(body);
+  });
+
   it.each([
-    ["null", null],
     ["undefined", undefined],
-  ])("maps %s to an empty event", (_label, node) => {
-    expect(fromInstallEventNode(node)).toEqual({
-      status: null,
-      rawStatus: "",
-      displayVersion: "",
-      identity: {
-        installId: "",
-        accountId: "",
-        accountName: "",
-        platform: null,
-        isTest: false,
-      },
-    });
+    ["null", null],
+    ["a non-object", 42],
+    ["unparseable JSON", "{not json"],
+  ])("returns an empty body for %s", (_label, payload) => {
+    expect(extractInstallWebhookBody(payload)).toEqual({});
   });
 });
