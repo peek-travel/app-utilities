@@ -98,7 +98,16 @@
   --ody-z-wormhole: 2002;
   --ody-z-tooltip: 2004;
 
-  /* layout */
+  /* spacing scale — the canonical gaps used across the design system. Prefer
+     these over raw px so spacing stays consistent across apps. */
+  --gap8: 8px;
+  --gap16: 16px;
+  --gap24: 24px;
+  --gap32: 32px;
+
+  /* layout — the two canonical settings-iframe widths the host renders at. */
+  --layout-page-width-narrow: 868px;
+  --layout-page-width-wide: 1310px;
   --layout-breadcrumb-height: 26px;
   --layout-top-bar-height: 56px;
 }

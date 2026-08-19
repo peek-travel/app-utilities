@@ -50,6 +50,29 @@ import {
 } from '@peektravel/app-utilities/ui';
 ```
 
+### 2.1 Spacing & layout tokens
+
+`tokens.css` publishes the canonical spacing scale and the two page widths.
+Reach for these instead of magic numbers so spacing stays consistent across
+apps even for one-off gaps:
+
+| Token | Value | Use for |
+| --- | --- | --- |
+| `--gap8` | `8px` | tight gaps |
+| `--gap16` | `16px` | the default gap between elements |
+| `--gap24` | `24px` | section-level spacing / page gutters |
+| `--gap32` | `32px` | large section spacing |
+| `--layout-page-width-narrow` | `868px` | the narrow settings-iframe width (design for this first) |
+| `--layout-page-width-wide` | `1310px` | the wide settings-iframe width |
+
+```css
+.my-card { padding: var(--gap24); gap: var(--gap16); }
+```
+
+The layout primitives already bake these in: `ody-app-page-container` uses the
+gap tokens for its responsive gutter, and `ody-section-*` / `ody-horizontal-divider`
+expose them through `gap-size` / `spacing` attributes.
+
 ---
 
 ## 3. Core conventions (read this — it is how all components work)
@@ -208,7 +231,7 @@ flagged — assign only via JSX props / refs as above.
 | Empty / error / no-results view | `ody-empty-state` |
 | KPI figures | `ody-stat-summary` + `ody-stat` |
 | Expand/collapse | `ody-accordion`, `ody-collapsible`, `ody-collapsible-section` |
-| Full-page wrapper for an **app settings UI** | `ody-page-container` (required — see below) |
+| Full-page wrapper for an **app settings UI** | `ody-app-page-container` (required — see below; `ody-page-container` is the deprecated full-bleed predecessor) |
 | Master/detail page layout | `ody-two-column` |
 | Row/column section layout | `ody-section-rows` / `ody-section-columns` |
 | Progress | `ody-loading-bar`, `ody-loading-spinner` |
@@ -299,8 +322,21 @@ carries meaning (e.g. status).
 <ody-card bar-color="var(--color-interaction-300)"><p>Card body</p></ody-card>
 ```
 
-#### `<ody-divider>`
+#### `<ody-horizontal-divider>`
+**Use when** you need a 1px horizontal rule that separates content. Unlike the
+deprecated `<ody-divider>`, it carries its own vertical rhythm
+(`margin-block: var(--gap16)`) so you don't have to add spacing around it.
+**Attributes**
+- `spacing` — `tight` (`--gap8`) | `none` (`0`); default is the normal `--gap16`.
+```html
+<ody-horizontal-divider></ody-horizontal-divider>
+<ody-horizontal-divider spacing="tight"></ody-horizontal-divider>
+```
+
+#### `<ody-divider>` _(deprecated — use `<ody-horizontal-divider>`)_
 **Use when** you need a 1px horizontal rule. No attributes, no content.
+**Deprecated:** renders with **zero** margin, so every caller has to add its own
+spacing. Prefer `<ody-horizontal-divider>`. Still works and unchanged.
 ```html
 <ody-divider></ody-divider>
 ```
@@ -497,11 +533,11 @@ Extra content (e.g. a tag) is the child content.
 </ody-two-column>
 ```
 
-#### `<ody-page-container>`
+#### `<ody-app-page-container>`
 > [!IMPORTANT]
-> **Every app settings UI must wrap its content in `<ody-page-container>`.** It is
-> the standard responsive page wrapper that keeps the settings page sized to the
-> two widths the settings host iframe renders at — **868px** (narrow) and
+> **Every app settings UI must wrap its content in `<ody-app-page-container>`.**
+> It is the standard responsive page wrapper that keeps the settings page sized
+> to the two widths the settings host iframe renders at — **868px** (narrow) and
 > **1310px** (wide).
 >
 > **Design for 868px first — it is the default.** Optimise every settings layout
@@ -514,20 +550,24 @@ Extra content (e.g. a tag) is the child content.
 full-page UI embedded in the settings host).
 The container is `width: 100%`, so it fills whichever of the two widths the
 parent iframe gives it; a `max-width` of `1310px` caps and centres it if it is
-ever embedded somewhere wider. Content is **full-bleed** (edge-to-edge, no side
-gutters). It also establishes a CSS **container context** named `ody-page`, so
-the content inside can adapt between the two widths with container queries
-instead of viewport media queries — treat 868px as the base styles and use a
-container query to *enhance* for the wider view.
-**Attributes** — none; the width is driven entirely by the parent.
+ever embedded somewhere wider. Unlike the deprecated `<ody-page-container>`, it
+ships a **default responsive gutter** — `var(--gap24)` at the wide width,
+tightening to `var(--gap16)` at/below 868px — so you no longer wrap the page in
+a padded `<div>`. It also establishes a CSS **container context** named
+`ody-page`, so the content inside can adapt between the two widths with container
+queries instead of viewport media queries — treat 868px as the base styles and
+use a container query to *enhance* for the wider view.
+**Attributes**
+- `flush` — drop the default gutter and render edge-to-edge, for the rare layout
+  that truly wants full-bleed content.
 **Slots / content** — child nodes are the page content.
 **Example**
 ```html
-<ody-page-container>
+<ody-app-page-container>
   <ody-section-rows gap-size="24">
     …settings UI…
   </ody-section-rows>
-</ody-page-container>
+</ody-app-page-container>
 ```
 ```css
 /* Base styles target the default 868px width… */
@@ -537,6 +577,15 @@ container query to *enhance* for the wider view.
   .my-settings-grid { grid-template-columns: 1fr 1fr; }
 }
 ```
+
+#### `<ody-page-container>` _(deprecated — use `<ody-app-page-container>`)_
+**Deprecated:** the original page wrapper is **full-bleed** (edge-to-edge, no
+side gutters), so every settings UI had to add its own edge padding. Prefer
+`<ody-app-page-container>`, which bakes in a responsive gutter (with a `flush`
+opt-out) while keeping the same widths and `ody-page` container context. This
+element still works and is unchanged; migrate by renaming the tag (add `flush`
+if you genuinely relied on the full-bleed behaviour).
+**Attributes** — none; the width is driven entirely by the parent.
 
 #### `<ody-collapsible-section>` + `<ody-collapsible-collapsed>` + `<ody-collapsible-content>`
 **Use when** a titled section that expands/collapses on header click.

@@ -236,12 +236,18 @@ via a `ref`'s imperative methods). No `only a getter` crash. TS still types them
 read-only — the setters are a runtime safety net.
 
 Tags by tier (see `docs/ui.md` for attributes/events/examples per component):
-- display: `ody-button`, `ody-tag`, `ody-alert`, `ody-card`, `ody-divider`,
+- display: `ody-button`, `ody-tag`, `ody-alert`, `ody-card`, `ody-horizontal-divider`
+  (1px rule with a default `margin-block: var(--gap16)`; `spacing="tight"|"none"`),
   `ody-status-dot`, `ody-message`, `ody-icon`, `ody-loading-spinner`, `ody-loading-bar`
 - layout: `ody-empty-state`, `ody-breadcrumb`(+`-item`), `ody-stat-summary`(+`ody-stat`),
   `ody-inline-list`(+`-item`), `ody-list-item`, `ody-product-indicator`,
   `ody-toggle-button`, `ody-section-rows`/`-columns`(+items), `ody-two-column`(+parts),
-  `ody-collapsible-section`
+  `ody-collapsible-section`, `ody-app-page-container` (required page wrapper for a
+  settings UI — 868/1310px widths, `ody-page` container context, default responsive
+  gutter; `flush` opts out)
+- deprecated (kept, unchanged): `ody-divider` → use `ody-horizontal-divider` (the old
+  one has zero margin); `ody-page-container` → use `ody-app-page-container` (the old
+  one is full-bleed with no gutter). Migrate by renaming the tag.
 - form: `ody-input`, `ody-inline-input`, `ody-search-input`, `ody-money-input`,
   `ody-percentage-input`, `ody-checkbox`, `ody-radio-button-group`, `ody-checkbox-group`
 - interactive: `ody-accordion`, `ody-collapsible`, `ody-tabs`, `ody-copy-button`,

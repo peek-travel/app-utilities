@@ -12,6 +12,35 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## Unreleased
+
+### `[additive]` Self-spacing UI primitives: `ody-app-page-container` and `ody-horizontal-divider`
+
+- **What:** two new `./ui` web components that carry their own spacing, plus a
+  published spacing scale:
+  - `<ody-app-page-container>` — the responsive settings-page wrapper, now with a
+    **default responsive gutter** (`var(--gap24)`, tightening to `var(--gap16)`
+    at/below 868px). It keeps the same 868/1310px widths and `ody-page` container
+    context as `ody-page-container`. A `flush` boolean attribute opts back into
+    edge-to-edge, full-bleed content.
+  - `<ody-horizontal-divider>` — a 1px rule with a default `margin-block:
+    var(--gap16)`, plus `spacing="tight"` (`--gap8`) / `spacing="none"` (`0`).
+  - `tokens.css` now publishes the spacing scale (`--gap8/16/24/32`) and the two
+    canonical page widths (`--layout-page-width-narrow` = 868px,
+    `--layout-page-width-wide` = 1310px) so consumers can reach for tokens
+    instead of magic numbers.
+- **Why:** components that are mandatory page primitives (`ody-page-container`) or
+  whose whole purpose is spacing (`ody-divider`) shipped spacing-neutral, forcing
+  every app to re-solve edge padding in a wrapper `<div>` and to add margins
+  around every divider. Baking sensible defaults in — with explicit opt-outs —
+  removes that boilerplate and keeps spacing consistent across apps.
+- **Caller action:** none — additive. The existing `<ody-page-container>` and
+  `<ody-divider>` are unchanged and still exported. They are now **deprecated**;
+  migrate at your leisure by renaming the tag (`ody-page-container` →
+  `ody-app-page-container`, adding `flush` only if you relied on the full-bleed
+  layout; `ody-divider` → `ody-horizontal-divider`, adding `spacing="none"` to
+  keep zero margin).
+
 ## 0.7.1
 
 ### `[additive]` Peek token verifiers accept the raw `x-peek-auth` header value

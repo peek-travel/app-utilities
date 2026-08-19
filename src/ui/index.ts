@@ -103,7 +103,7 @@ export {
 export { OdyTag, type OdyTagVariant, type OdyTagColor, type OdyTagSize } from './components/tag.js';
 export { OdyAlert, type OdyAlertVariant } from './components/alert.js';
 export { OdyCard } from './components/card.js';
-export { OdyDivider } from './components/divider.js';
+export { OdyDivider, OdyHorizontalDivider, type OdyDividerSpacing } from './components/divider.js';
 export { OdyStatusDot, type OdyStatusDotColor } from './components/status-dot.js';
 export { OdyMessage } from './components/message.js';
 export { OdyLoadingSpinner, type OdySpinnerSize } from './components/loading-spinner.js';
@@ -148,7 +148,7 @@ export {
   OdyTwoColumnSecondary,
   OdyTwoColumnSecondaryHeader,
 } from './components/two-column.js';
-export { OdyPageContainer } from './components/page-container.js';
+export { OdyPageContainer, OdyAppPageContainer } from './components/page-container.js';
 export {
   OdyCollapsibleSection,
   OdyCollapsibleCollapsed,

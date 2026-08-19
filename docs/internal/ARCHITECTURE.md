@@ -592,11 +592,17 @@ Load-bearing rules:
   `svg-jar`, or bootstrap. Colours/spacing reference the `tokens.css` custom
   properties; icons are inlined; button variant colours (which live in a
   bootstrap base layer upstream) are reproduced from Odyssey tokens.
-- **Scope:** ~46 components across display, layout, form-input, interactive,
+- **Scope:** ~48 components across display, layout, form-input, interactive,
   overlay, and data/selection tiers. The layout tier includes
-  `ody-page-container` — the required full-bleed wrapper for app **settings**
-  UIs, sized to the two settings-host iframe widths (868px / 1310px) and
-  exposing an `ody-page` CSS container context for the content within. The data/selection tier — `dropdown-single`,
+  `ody-app-page-container` — the required wrapper for app **settings** UIs, sized
+  to the two settings-host iframe widths (868px / 1310px), exposing an `ody-page`
+  CSS container context, and shipping a **default responsive gutter**
+  (`--gap24` → `--gap16` at/below 868px; `flush` opts out). It supersedes
+  `ody-page-container` (kept, `@deprecated`, full-bleed/no-gutter). Likewise
+  `ody-horizontal-divider` (default `margin-block: var(--gap16)`;
+  `spacing="tight"|"none"`) supersedes the spacing-neutral `ody-divider`. Both
+  successors are **self-spacing** primitives built on the `--gap8/16/24/32`
+  scale published in `tokens.css`; PII/behavior is unaffected. The data/selection tier — `dropdown-single`,
   `dropdown-multi` (+ shared `select-base.ts`), `datepicker`, `table` — was
   **rebuilt from scratch** as lightweight vanilla components (rather than ported
   from their `ember-power-select` / `ember-power-calendar` originals), following
