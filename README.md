@@ -124,7 +124,8 @@ Two kinds of failures surface as exceptions:
 - `PiiAccessDisabledError` — a payment / booking-modification operation was
   called on an access service created without `fullCustomerAccess` (see [Access options
   / PII](#access-options--pii)). Carries `.operation` (the blocked method name).
-- `InvalidPeekTokenError` — `verifyPeekAuthToken` (or `verifyInstallWebhook`)
+- `InvalidPeekTokenError` — `verifyPeekAuthToken` (or `parseInstallWebhook` /
+  `verifyInstallWebhook`)
   received a token whose signature is valid but whose `user` block has no `id`.
   Carries `.field` (`"user.id"`). Thrown alongside the `jsonwebtoken` errors.
 
@@ -245,22 +246,20 @@ Functions runtime) resolve correctly. Its only runtime dependency is
 
 ## Webhooks
 
-Receiver apps can consume Peek **booking**, **waiver**, **install-event**, and
-**install-status** webhooks without hand-writing the payload handling. The
-booking, waiver, and install-event webhooks have a pure parser (construct
-nothing — no auth/network) that returns a clean model; the install-status webhook
-delivers a signed token, so its helper **verifies** it:
+Receiver apps can consume Peek **booking**, **waiver**, and **install** webhooks
+without hand-writing the payload handling. The booking and waiver webhooks have a
+pure parser (construct nothing — no auth/network) that returns a clean model; the
+install webhook delivers a signed token alongside a JSON body, so its helper
+**verifies** the token before merging the two:
 
 ```ts
 import {
   parseBookingWebhook,
-  parseInstallEvent,
+  parseInstallWebhook,
   parseWaiverWebhook,
-  verifyInstallWebhook,
   type Booking,
-  type InstallEvent,
+  type InstallWebhook,
   type Waiver,
-  type InstallWebhookClaims,
 } from "@peektravel/app-utilities";
 
 app.post("/booking-webhook", (req, res) => {
@@ -274,57 +273,56 @@ app.post("/waiver-webhook", (req, res) => {
   res.sendStatus(200);
 });
 
-app.post("/install-event", async (req, res) => {
-  const event: InstallEvent = parseInstallEvent(req.body);
+app.post("/install-webhook", async (req, res) => {
+  let event: InstallWebhook;
+  try {
+    // Verifies the signed token, then merges in the JSON body:
+    event = parseInstallWebhook(req.token, req.body, process.env.PEEK_INTERNAL_SECRET!);
+  } catch {
+    return res.sendStatus(401); // bad signature / issuer / audience / expired
+  }
   switch (event.status) {
-    case "installed":        await provision(event.identity); break;
-    case "uninstalled":      await deprovision(event.identity); break;
-    case "update_installed": await recordVersion(event.identity, event.displayVersion); break;
+    case "installed":        await provision(event); break;
+    case "uninstalled":      await deprovision(event); break;
+    case "update_installed": await recordVersion(event); break;
     // `status` is null when Peek sends one this version doesn't know. Peek
     // doesn't redeliver a 2xx, so fail loudly rather than silently no-op.
     default: return res.status(500).json({ error: `unknown status: ${event.rawStatus}` });
   }
   res.sendStatus(200);
 });
-
-app.post("/install-webhook", (req, res) => {
-  try {
-    // The payload IS a signed JWT — verify signature/issuer/audience/expiry:
-    const claims: InstallWebhookClaims = verifyInstallWebhook(req.body, process.env.PEEK_INTERNAL_SECRET!);
-    if (claims.status === "uninstalled") {
-      /* tear down this install */
-    }
-    res.sendStatus(200);
-  } catch {
-    res.sendStatus(401); // bad signature / issuer / audience / expired
-  }
-});
 ```
 
-The booking, waiver, and install-event parsers tolerate the delivery envelope / a
-bare node / a JSON string and never throw on malformed input; **authenticating
-those deliveries is the receiver's job**. `parseInstallEvent` returns an
-`InstallIdentity` (`installId`, `accountId` — **also called the partner ID** —
-`accountName`, `platform`, `isTest`) that is flat and JSON-safe, so it persists
-and rehydrates as a unit; that body is the only source of `accountId` in the
-package, since no GraphQL read or token returns it. Its `status` and `platform`
-are **nullable** — a value this version doesn't recognise stays `null` instead of
-being coerced, so a newer registry can't be mistaken for an older one.
-`parseWaiverWebhook` also takes an optional
+The booking and waiver parsers tolerate the delivery envelope / a bare node / a
+JSON string and never throw on malformed input; **authenticating those deliveries
+is the receiver's job**. `parseWaiverWebhook` also takes an optional
 `AccessOptions` (`{ fullCustomerAccess }`) and redacts the participant `guestName`
 + document `fileUrl` by default — see [Access options / PII](#access-options--pii)
-below. `verifyInstallWebhook(token, secret)` is different: the payload is a signed
-`app_registry_v2` JWT, so it validates the HMAC signature, expiry, issuer, and
-`"Joken"` audience (the same checks as `verifyPeekAuthToken`) and returns typed
-claims (`installId`, `account.id`, `status`, `displayVersion`, and a **nullable**
-`user` for system-initiated events), throwing the underlying `jsonwebtoken` error
-on any failure — or `InvalidPeekTokenError` when a present `user` block has no
-`id`. The booking and waiver webhooks differ on registration: a
-**booking** webhook's payload shape is set by a GraphQL query configured **once in
-an external system** (the App Store `broadcast_to_url` config) — this package
-documents and drift-guards the exact query to paste there — whereas the **waiver**
-and **install-status** webhooks have fixed payloads, so you just subscribe to
-their event with no query. **The query to register and the full guide:
+below.
+
+`parseInstallWebhook(token, body, secret)` is different: the delivery carries a
+signed `app_registry_v2` JWT plus a JSON body. It validates the HMAC signature,
+expiry, issuer, and `"Joken"` audience (the same checks as `verifyPeekAuthToken`,
+throwing the underlying `jsonwebtoken` error — or `InvalidPeekTokenError` when a
+present `user` block has no `id`), then returns one flat, JSON-safe
+`InstallWebhook`: `installId`, `accountId` (**also called the partner ID**),
+`accountName`, `platform`, `isTest`, `status`, `rawStatus`, `displayVersion`, and
+a **nullable** `user`. The **verified token** is authoritative for `installId` /
+`accountId` / `status` / `displayVersion` / `user`; the unsigned body supplies
+only `accountName` / `platform` / `isTest`. This webhook is the only source of
+`accountId` in the package, since no GraphQL read returns it. `status` and
+`platform` are **nullable** — a value this version doesn't recognise stays `null`
+(wire value on `rawStatus`) instead of being coerced, so a newer registry can't be
+mistaken for an older one. (The older `verifyInstallWebhook(token, secret)` is
+still exported but **`@deprecated`** — it reads only the token, missing the
+account name/platform/test flag; `parseInstallEvent` has been **removed**.)
+
+The booking and waiver webhooks differ on registration: a **booking** webhook's
+payload shape is set by a GraphQL query configured **once in an external system**
+(the App Store `broadcast_to_url` config) — this package documents and
+drift-guards the exact query to paste there — whereas the **waiver** and
+**install** webhooks have fixed payloads, so you just subscribe to their event
+with no query. **The query to register and the full guide:
 [`docs/webhooks.md`](docs/webhooks.md) (shipped).**
 
 ## UI components (`/ui`)

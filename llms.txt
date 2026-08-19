@@ -163,10 +163,10 @@ stay internal.
   importable; branch with `instanceof`.
 - Plain `Error` for validation/precondition failures thrown before any request.
 
-## Webhooks (booking + waiver + install-event + install-status)
+## Webhooks (booking + waiver + install)
 
-Three pure-transform parsers plus one signature-verifier. The parsers need no
-auth/network/`PeekAccessService`; accept the `{<key>:…}` envelope, a bare node,
+Two pure-transform parsers plus one verify-and-parse call. The pure parsers need
+no auth/network/`PeekAccessService`; accept the `{<key>:…}` envelope, a bare node,
 or a JSON string; never throw on malformed input. Registration is done **once in
 an external system** (App Store config), not from code.
 
@@ -180,31 +180,29 @@ an external system** (App Store config), not from code.
   register** — just subscribe to the `agreement_signature_created` event. Takes
   the same `AccessOptions`; by default (`fullCustomerAccess` off) `guestName` and
   `fileUrl` are redacted — pass `{ fullCustomerAccess: true }` to keep them.
-- `parseInstallEvent(body): InstallEvent` — maps the fixed `snake_case` install
-  lifecycle body (`status`, `install_id`, `display_version`, `account`) to
-  `{ status, rawStatus, displayVersion, identity }`. `identity` is the clean
-  `InstallIdentity` (`installId`, `accountId` — **also called the partner ID** —
-  `accountName`, `platform`, `isTest`): flat, JSON-safe, meant to be persisted as
-  a unit. This body is the **only** source of `accountId` in the package — no
-  GraphQL read and no token returns it. `status` and `platform` are **nullable**:
-  a value this version does not recognise maps to `null` (wire value kept on
-  `rawStatus`) rather than being coerced, because Peek does not redeliver a 2xx
-  and a coerced status silently drops a lifecycle transition. Give both a
-  `default:` branch that fails loudly. No query to register; just subscribe.
-- `verifyInstallWebhook(token, secret): InstallWebhookClaims` — for install
-  lifecycle events (installed/uninstalled/status changed). The payload *is* a
-  signed `app_registry_v2` JWT, so this **verifies** it (HMAC signature + expiry +
+- `parseInstallWebhook(token, body, secret): InstallWebhook` — the install
+  webhook delivers **two payloads at once**: a signed `app_registry_v2` JWT and a
+  JSON body. This **verifies** the token (HMAC signature + expiry +
   `app_registry_v2` issuer + `Joken` audience — same checks as
-  `verifyPeekAuthToken`) rather than just parsing. Returns clean claims
-  (`installId`, `account.id`, `status`, `displayVersion`, and `user` which is
-  **nullable** for system-initiated events). Throws the underlying `jsonwebtoken`
-  error on any failure — one `try/catch` → `401`. `secret` is the app's
-  `jwtSecret`. No query to register; just subscribe to the event. This and
-  `parseInstallEvent` are **two channels for the same lifecycle event**: this one
-  authenticates itself but carries only `account.id`; `parseInstallEvent` carries
-  the account name/platform/test flag and is the authoritative `InstallIdentity`
-  source. The app secret is app-wide, so either channel verifies/parses fine on a
-  brand-new install, before any record exists.
+  `verifyPeekAuthToken`, throwing the underlying `jsonwebtoken` error on failure,
+  one `try/catch` → `401`) and merges both into one flat, JSON-safe
+  `InstallWebhook`: `installId`, `accountId` (**also called the partner ID**),
+  `accountName`, `platform`, `isTest`, `status`, `rawStatus`, `displayVersion`,
+  `user` (nullable, for system-initiated events). The **verified token** is
+  authoritative for `installId`/`accountId`/`status`/`displayVersion`/`user`; the
+  unsigned body supplies only `accountName`/`platform`/`isTest`, so a forged body
+  can't override an authenticated field. This webhook is the **only** source of
+  `accountId` in the package — no GraphQL read returns it. `status` and `platform`
+  are **nullable**: a value this version does not recognise maps to `null` (wire
+  value kept on `rawStatus`) rather than being coerced, because Peek does not
+  redeliver a 2xx and a coerced status silently drops a lifecycle transition. Give
+  both a `default:` branch that fails loudly. `secret` is the app's `jwtSecret`,
+  app-wide, so it verifies fine on a brand-new install before any record exists.
+  No query to register; just subscribe to the event.
+  - **Deprecated / removed:** `verifyInstallWebhook(token, secret):
+    InstallWebhookClaims` still verifies the token but is `@deprecated` — it reads
+    only the token, missing the account name/platform/test flag. `parseInstallEvent`
+    (the JSON-body-only parser) has been **removed**. Use `parseInstallWebhook`.
 
 **Full guide + booking query-to-register: `docs/webhooks.md` (shipped).**
 

@@ -57,9 +57,10 @@ export { parseBookingWebhook } from "./internal/peek/bookings/booking-webhook.js
 
 export { parseWaiverWebhook } from "./internal/peek/waivers/waiver-webhook.js";
 
-export { verifyInstallWebhook } from "./internal/peek/installs/install-webhook.js";
-
-export { parseInstallEvent } from "./internal/peek/installs/install-event.js";
+export {
+  parseInstallWebhook,
+  verifyInstallWebhook,
+} from "./internal/peek/installs/install-webhook.js";
 
 export { ReviewService } from "./internal/peek/reviews/review-service.js";
 
@@ -157,9 +158,8 @@ export type { Guide, Review } from "./models/peek/review.js";
 export type { Waiver } from "./models/peek/waiver.js";
 export { INSTALL_STATUSES } from "./models/peek/install.js";
 export type {
-  InstallEvent,
-  InstallIdentity,
   InstallStatus,
+  InstallWebhook,
 } from "./models/peek/install.js";
 export type {
   InstallWebhookAccount,

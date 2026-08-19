@@ -233,37 +233,40 @@ it never throws). Same standalone-pure-function rationale as bookings. Because
 there are no reads, `waivers` carries no queries/service triad — just the
 webhook module and the model.
 
-The **install-status** webhook (`installs/install-webhook.ts`) is the third and
-most distinct: its payload is not a data node but a **signed `app_registry_v2`
-JWT**, so `verifyInstallWebhook(token, secret)` *verifies* it (signature +
-expiry + issuer + `Joken` audience, via the shared `peek-auth-token.ts` core)
-before mapping to the clean `InstallWebhookClaims` (`installId`, `account.id`,
-`status`, `displayVersion`, and a **nullable** `user` — install lifecycle events
-are often system-initiated). Standalone-function rationale as above, with an
+The **install** webhook (`installs/install-webhook.ts` + `install-converter.ts`)
+is the third and most distinct. A single delivery carries **two payloads at
+once**: a **signed `app_registry_v2` JWT** (the security boundary) and a plain
+**JSON body** (enrichment). `parseInstallWebhook(token, body, secret)` *verifies*
+the token (signature + expiry + issuer + `Joken` audience, via the shared
+`peek-auth-token.ts` core) and merges both into one flat `InstallWebhook`
+(`src/models/peek/install.ts`). Standalone-function rationale as above, with an
 extra reason: the receiver has no per-install service to inherit a secret from
 yet (the webhook can precede the first session or describe a tear-down), so the
-app secret is passed directly. Like `waivers`, `installs` carries no
-queries/service triad — just the verifier and the (shared `auth-token.ts`) model.
+app secret is passed directly. `installs` carries no queries/service triad — just
+the parser, the pure `install-converter.ts` helpers (`extractInstallWebhookBody`,
+`toInstallStatus`, `toPeekPlatform`), and the model.
 
-The **install-event** webhook (`installs/install-event.ts` + `install-converter.ts`)
-is the fourth, and is the *same lifecycle event* delivered on a different channel:
-a plain JSON body rather than a signed token. `parseInstallEvent(body)` is a pure
-parser in the waiver mould (envelope-free body or JSON string, never throws),
-delegating the mapping to the pure `install-converter.ts`. It is the richer of the
-two install channels — the only one carrying the account **name**, **platform**,
-and **test** flag — so it, not the JWT, is the authoritative source of
-`InstallIdentity` (`src/models/peek/install.ts`).
+`verifyInstallWebhook(token, secret)` (returning `InstallWebhookClaims` in the
+shared `auth-token.ts` model) is retained but **`@deprecated`**: it reads only the
+signed token, so it cannot report the account **name**, **platform**, or **test**
+flag that live in the JSON body. It exists solely for backwards compatibility;
+new callers use `parseInstallWebhook`.
 
-Two design rules hold this together and are load-bearing:
+Three design rules hold this together and are load-bearing:
 
-- **`InstallIdentity` is flat and JSON-safe.** The shape the parser returns is
-  the shape a consumer persists and later rehydrates, so there is exactly one
-  representation of "who this install is" and no mapping layer. Do not add
-  methods, nested objects, or non-JSON types to it.
+- **The verified JWT is authoritative; the JSON body only enriches.** The token
+  is signed, the body is not. `installId`, `accountId`, `status`,
+  `displayVersion`, and `user` are read from the verified token; only
+  `accountName`, `platform`, and `isTest` come from the body. A mismatched or
+  forged body can never override an authenticated field.
+- **`InstallWebhook` is flat and JSON-safe.** The shape the parser returns is the
+  shape a consumer persists and later rehydrates, so there is exactly one
+  representation of "who this install is and what happened" and no mapping layer.
+  Do not add methods, nested objects, or non-JSON types to it.
 - **`status` and `platform` are nullable, and unknown values are never coerced.**
   The package does not defend against malformed input here (the sender is
   first-party); it defends against the contract *growing*. An unrecognised value
-  maps to `null` with the wire value kept on `InstallEvent.rawStatus`. Coercion
+  maps to `null` with the wire value kept on `InstallWebhook.rawStatus`. Coercion
   would be unsafe: Peek treats any 2xx as delivered and does not redeliver, so a
   status quietly mapped onto a no-op loses a lifecycle transition permanently,
   and a defaulted platform points the install at the wrong gateway. When a new
@@ -272,10 +275,11 @@ Two design rules hold this together and are load-bearing:
   runtime list automatically.
 
 `accountId` deserves a note: it is what Peek elsewhere calls the **partner ID**,
-and these webhooks are its *only* source. No GraphQL query in this package selects
-an account id (the gateway routes by `appId` + `installId`) and no peek-auth token
-carries one — `PeekAuthTokenUser.id` is the acting **user**, not the account. A
-consumer that loses it cannot re-fetch it.
+and this webhook is its *only* source. No GraphQL query in this package selects an
+account id (the gateway routes by `appId` + `installId`); the account id lives on
+the install webhook alone — the session peek-auth token does not carry one
+(`PeekAuthTokenUser.id` is the acting **user**, not the account). A consumer that
+loses it cannot re-fetch it.
 The detailed `AddonItem`
 model (refids + reservation statuses) is **internal only** — consumers see just
 the grouped `BookingAddons`; the internal model exists solely so add/remove can
@@ -385,9 +389,9 @@ options/result types callers need), all data-model **types** (including
 `InvalidPeekTokenError`, `CngApiError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
-The webhook-related public exports are the three parsers `parseBookingWebhook`,
-`parseWaiverWebhook`, and `parseInstallEvent` plus the install-status verifier
-`verifyInstallWebhook` (and the `Waiver` / `InstallEvent` / `InstallIdentity` /
+The webhook-related public exports are the two parsers `parseBookingWebhook` and
+`parseWaiverWebhook` plus the install-webhook parser `parseInstallWebhook` and the
+`@deprecated` `verifyInstallWebhook` (and the `Waiver` / `InstallWebhook` /
 `InstallStatus` / `InstallWebhookClaims` model types and the `INSTALL_STATUSES`
 constant; see the webhook notes above).
 

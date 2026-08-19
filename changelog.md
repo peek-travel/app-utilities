@@ -12,35 +12,72 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 0.7.0
+
+Adds a single verify-and-parse call for the install webhook, which delivers
+**two** payloads at once — a signed JWT and a JSON body. Previously
+`verifyInstallWebhook` covered only the token half; now one call verifies the
+token and merges in the body, returning a flat object.
+
+### `[additive]` `parseInstallWebhook` — verify + parse the install webhook in one call
+
+- **What:** new `parseInstallWebhook(token, body, secret): InstallWebhook`
+  verifies the signed install token **and** merges in the JSON body, returning a
+  single flat record: `installId`, `accountId` (the **partner ID**),
+  `accountName`, `platform`, `isTest`, `status`, `rawStatus`, `displayVersion`,
+  and `user` (nullable). The `InstallWebhook` type is exported; `InstallStatus`
+  and the `INSTALL_STATUSES` constant are unchanged.
+- **Why:** the install webhook delivers both a signed JWT (which authenticates
+  the notification and carries `account.id`, install id, status, version, and the
+  acting user) and a JSON body (the only source of the account **name**,
+  **platform**, and **test** flag). The signed token had a verifier but the body
+  did not, so callers hand-rolled the body parsing and stitched the two shapes
+  together. `parseInstallWebhook` does both, making the **verified** token
+  authoritative for the fields it carries (`installId`, `accountId`, `status`,
+  `displayVersion`, `user`) and trusting the unsigned body only for `accountName`
+  / `platform` / `isTest`. This webhook is the sole source of the account id
+  anywhere in the system — no GraphQL read returns one.
+- **Caller action:** none — additive. Call
+  `parseInstallWebhook(token, req.body, secret)` with the webhook's signed token
+  and your app's `jwtSecret`. Persist the whole flat object as a unit (JSON-safe),
+  and **handle a `null` `status`**: an unrecognised status maps to `null` with the
+  wire value on `rawStatus` rather than being coerced, and because Peek treats any
+  2xx as delivered and does not redeliver, responding successfully to one silently
+  drops a lifecycle transition. `platform` is nullable for the same reason.
+  Verification can throw (`JsonWebTokenError` / `TokenExpiredError` /
+  `NotBeforeError`), so wrap the call in `try/catch` → `401`.
+
+### `[breaking]` `parseInstallEvent` removed — use `parseInstallWebhook`
+
+- **What:** the `parseInstallEvent(body): InstallEvent` parser and its
+  `InstallEvent` / `InstallIdentity` types (shipped in 0.6.1) are removed.
+- **Why:** it read only the unauthenticated JSON body and returned a different,
+  nested shape. `parseInstallWebhook` verifies the token **and** merges the body,
+  covering everything `parseInstallEvent` did and more.
+- **Caller action:** replace `parseInstallEvent(req.body)` with
+  `parseInstallWebhook(token, req.body, secret)` and read the flat result
+  (`event.accountId` / `event.installId`) instead of the old nested
+  `event.identity.*`; swap the `InstallEvent` / `InstallIdentity` types for
+  `InstallWebhook`.
+
+### `[deprecated]` `verifyInstallWebhook` superseded by `parseInstallWebhook`
+
+- **What:** `verifyInstallWebhook(token, secret): InstallWebhookClaims` is now
+  marked `@deprecated`. It still verifies the token and returns the same
+  `InstallWebhookClaims` (unchanged), but it reads only the token, so it cannot
+  report the account `name`, `platform`, or `isTest` the JSON body carries.
+- **Why:** `parseInstallWebhook` runs the identical signature check and returns
+  every field, so there is no longer a reason to call the token-only verifier.
+- **Caller action:** none required — it keeps working. Migrate to
+  `parseInstallWebhook(token, body, secret)` to get the account name/platform/
+  test flag and the flat shape; note the fields move (`claims.account.id` →
+  `event.accountId`).
+
+---
+
 ## 0.6.1
 
-Two changes to the install/auth surface: support for the **install-event (JSON)
-webhook**, which is where an app learns the account id, name, and platform an
-install belongs to; and a **stricter `user.id` check** on verified Peek tokens.
-
-### `[additive]` `parseInstallEvent` — the install-event (JSON) webhook
-
-- **What:** new exported parser `parseInstallEvent(body): InstallEvent` for the
-  plain-JSON install lifecycle webhook (`status`, `install_id`,
-  `display_version`, `account`). It returns `{ status, rawStatus,
-  displayVersion, identity }`, where `identity` is the new `InstallIdentity`
-  model — `installId`, `accountId` (the value Peek elsewhere calls the **partner
-  ID**), `accountName`, `platform`, `isTest`. Also exported: the
-  `InstallEvent` / `InstallIdentity` / `InstallStatus` types and the
-  `INSTALL_STATUSES` constant.
-- **Why:** the package previously handled only the *signed-JWT* install channel
-  (`verifyInstallWebhook`), which carries just `account.id`. The JSON channel is
-  the only delivery that reports the account **name**, **platform**, and **test**
-  flag, and it is the sole source of the account id anywhere in the system — no
-  GraphQL read and no peek-auth token returns one. Consumers were hand-rolling
-  the snake_case destructuring and their own status vocabulary.
-- **Caller action:** none — purely additive. `verifyInstallWebhook` is unchanged
-  and both channels remain supported. New consumers should persist
-  `event.identity` as a unit (it is flat and JSON-safe by design) and **handle a
-  `null` `status`**: an unrecognised status maps to `null` with the wire value on
-  `rawStatus` rather than being coerced, and because Peek treats any 2xx as
-  delivered and does not redeliver, responding successfully to one silently drops
-  a lifecycle transition. `identity.platform` is nullable for the same reason.
+A **stricter `user.id` check** on verified Peek tokens.
 
 ### `[fix]` `verifyPeekAuthToken` now rejects a token with no `user.id`
 

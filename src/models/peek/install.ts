@@ -1,18 +1,21 @@
 /**
- * The clean data model for an app-store **install lifecycle event** — the JSON
- * webhook body Peek's app registry POSTs when an app is installed, uninstalled,
- * or updated.
+ * The clean data model for an app-store **install lifecycle event** — the single
+ * flat object `parseInstallWebhook` returns for the webhook Peek's app registry
+ * POSTs when an app is installed, uninstalled, or updated.
  *
- * This is the sibling of the signed-JWT channel behind `verifyInstallWebhook`
- * (see `models/peek/auth-token.ts`). The two carry the same event; this one is
- * the richer of the pair, because only it reports the account **name**,
- * **platform**, and **test** flag.
+ * That delivery carries two things at once: a **signed `app_registry_v2` JWT**
+ * (the security boundary) and a plain **JSON body** (the enrichment channel).
+ * `parseInstallWebhook` verifies the JWT and merges both into this shape, so a
+ * consumer sees one clean, flat, JSON-safe record instead of two differently
+ * shaped payloads. The verified JWT is authoritative for the fields it carries
+ * (`installId`, `accountId`, `status`, `displayVersion`, `user`); the JSON body
+ * is the only source of `accountName`, `platform`, and `isTest`.
  *
  * It is also the single origin of the account id in the whole system: no
- * GraphQL read and no peek-auth token returns it, so whatever a consumer
- * persists from this event is all it will ever have.
+ * GraphQL read returns it, so whatever a consumer persists from this event is
+ * all it will ever have.
  */
-import type { PeekPlatform } from "./auth-token.js";
+import type { PeekAuthTokenUser, PeekPlatform } from "./auth-token.js";
 
 /**
  * Every install lifecycle status Peek's app registry sends today. Exported so
@@ -28,21 +31,27 @@ export const INSTALL_STATUSES = [
 export type InstallStatus = (typeof INSTALL_STATUSES)[number];
 
 /**
- * Who an install is — the core account data, in one object.
+ * A verified install lifecycle event — what happened, to which install, and who
+ * (if anyone) triggered it — as one flat, JSON-safe record.
  *
- * Flat and JSON-safe by design: it round-trips through a datastore unchanged,
- * so the same shape the parser returns is the shape a consumer persists and
- * later rehydrates. There is deliberately no second representation.
+ * This is the shape `parseInstallWebhook` returns. It is flat by design: it
+ * round-trips through a datastore unchanged, so the same shape the parser
+ * returns is the shape a consumer persists and later rehydrates. There is
+ * deliberately no nested identity object and no second representation.
+ *
+ * Fields sourced from the **verified JWT** (`installId`, `accountId`, `status`,
+ * `rawStatus`, `displayVersion`, `user`) are trustworthy; the enrichment fields
+ * (`accountName`, `platform`, `isTest`) come from the unauthenticated JSON body.
  */
-export interface InstallIdentity {
-  /** Install ID — Peek-assigned UUID. Also the subject of every peek-auth JWT. */
+export interface InstallWebhook {
+  /** Install ID — Peek-assigned UUID. Also the JWT subject (`sub`). */
   installId: string;
   /**
    * Stable Peek account id — the same value Peek calls the **partner ID**.
    * This event is its only source; it cannot be re-fetched later.
    */
   accountId: string;
-  /** Partner display name. */
+  /** Partner display name. `""` when the JSON body omits it. */
   accountName: string;
   /**
    * Which Peek platform owns the install, or `null` when the registry reported
@@ -60,10 +69,6 @@ export interface InstallIdentity {
   platform: PeekPlatform | null;
   /** Whether this is a test account. Defaults to `false` when not reported. */
   isTest: boolean;
-}
-
-/** A parsed install lifecycle event: what happened, to which install. */
-export interface InstallEvent {
   /**
    * The lifecycle status, or `null` when the registry sent a status this
    * version of the package does not know. Handle `null` explicitly — treating
@@ -74,6 +79,9 @@ export interface InstallEvent {
   rawStatus: string;
   /** App display version at the time of the event. */
   displayVersion: string;
-  /** The install's core account data. */
-  identity: InstallIdentity;
+  /**
+   * The user that triggered the event, or `null` for system-initiated events
+   * (install lifecycle changes are often system-initiated). From the JWT.
+   */
+  user: PeekAuthTokenUser | null;
 }
