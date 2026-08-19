@@ -18,6 +18,22 @@ import type { PeekAuthTokenUser, PeekPlatform } from "../../models/peek/auth-tok
 export const PEEK_TOKEN_ISSUER = "app_registry_v2";
 /** JWT audience set by the Peek app registry on all tokens it issues. */
 export const PEEK_TOKEN_AUDIENCE = "Joken";
+/** Case-insensitive `Bearer ` scheme prefix on an `x-peek-auth` header value. */
+const BEARER_PREFIX = "bearer ";
+
+/**
+ * Strips a leading `Bearer ` prefix (case-insensitive) so every caller can pass
+ * the raw `x-peek-auth` request header value straight through — with or without
+ * the scheme — without unwrapping it first. A real `app_registry_v2` JWT is
+ * base64url and never starts with `"bearer "`, so this is a no-op on well-formed
+ * tokens.
+ */
+function stripBearer(token: string): string {
+  const trimmed = token.trim();
+  return trimmed.toLowerCase().startsWith(BEARER_PREFIX)
+    ? trimmed.slice(BEARER_PREFIX.length).trim()
+    : trimmed;
+}
 
 /** The raw, snake_case user block embedded in an `app_registry_v2` token. */
 export interface RawPeekTokenUser {
@@ -35,9 +51,13 @@ export interface RawPeekTokenUser {
  * returns the decoded payload cast to `T`. Throws from the `jsonwebtoken`
  * library on any failure (`JsonWebTokenError` / `TokenExpiredError` /
  * `NotBeforeError`).
+ *
+ * The `token` argument accepts the raw `x-peek-auth` header value: a leading
+ * `Bearer ` scheme prefix (case-insensitive) is stripped before verification, so
+ * every token entry point in the family tolerates it uniformly.
  */
 export function verifyPeekJwt<T>(token: string, secret: string): T {
-  return jwt.verify(token, secret, {
+  return jwt.verify(stripBearer(token), secret, {
     issuer: PEEK_TOKEN_ISSUER,
     audience: PEEK_TOKEN_AUDIENCE,
   }) as T;

@@ -166,6 +166,15 @@ describe("parseInstallWebhook", () => {
     expect(() => parseInstallWebhook(mintInstallToken("wrong-secret"), buildBody(), SECRET)).toThrow();
   });
 
+  it("accepts the raw x-peek-auth header value with a Bearer prefix", () => {
+    const token = mintInstallToken(SECRET);
+
+    // The whole header value (scheme + token) verifies the same as the bare JWT.
+    expect(parseInstallWebhook(`Bearer ${token}`, buildBody(), SECRET).installId).toBe(INSTALL_ID);
+    expect(parseInstallWebhook(`bearer ${token}`, buildBody(), SECRET).installId).toBe(INSTALL_ID);
+    expect(parseInstallWebhook(`  ${token}  `, buildBody(), SECRET).installId).toBe(INSTALL_ID);
+  });
+
   it("defaults token-sourced fields to empty when a valid token omits them", () => {
     // Validly signed, but carries no sub/account/status/display_version/user.
     const token = jwt.sign({}, SECRET, {

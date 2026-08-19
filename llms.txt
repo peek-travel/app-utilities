@@ -196,9 +196,11 @@ an external system** (App Store config), not from code.
   are **nullable**: a value this version does not recognise maps to `null` (wire
   value kept on `rawStatus`) rather than being coerced, because Peek does not
   redeliver a 2xx and a coerced status silently drops a lifecycle transition. Give
-  both a `default:` branch that fails loudly. `secret` is the app's `jwtSecret`,
-  app-wide, so it verifies fine on a brand-new install before any record exists.
-  No query to register; just subscribe to the event.
+  both a `default:` branch that fails loudly. `token` is Peek's `x-peek-auth`
+  request header value — pass it as-is, a `Bearer ` prefix is stripped for you.
+  `secret` is the app's `jwtSecret`, app-wide, so it verifies fine on a brand-new
+  install before any record exists. No query to register; just subscribe to the
+  event.
   - **Deprecated / removed:** `verifyInstallWebhook(token, secret):
     InstallWebhookClaims` still verifies the token but is `@deprecated` — it reads
     only the token, missing the account name/platform/test flag. `parseInstallEvent`

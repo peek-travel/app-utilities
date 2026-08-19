@@ -3,8 +3,9 @@
  *
  * Peek's app registry notifies your app of install lifecycle changes (installed,
  * uninstalled, status changed) with a single POST that carries **two** things at
- * once: a **signed `app_registry_v2` JWT** (delivered as the request token) and
- * a plain **JSON body**. The JWT is the security boundary — verifying its
+ * once: a **signed `app_registry_v2` JWT** (delivered in the `x-peek-auth`
+ * request header) and a plain **JSON body**. The JWT is the security boundary —
+ * verifying its
  * signature is what authenticates that the notification really came from Peek
  * before your app acts on it (e.g. de-provisioning an uninstall). The JSON body
  * is the enrichment channel: it is the only place the account **name**,
@@ -87,7 +88,9 @@ interface RawInstallWebhookPayload {
  * }
  * ```
  *
- * @param token the raw JWT delivered by the install webhook (no `Bearer` prefix)
+ * @param token the JWT delivered by the install webhook. Pass the raw
+ *   `x-peek-auth` header value directly — a leading `Bearer ` prefix, if
+ *   present, is stripped for you.
  * @param body the delivered JSON body (raw object or a JSON string)
  * @param secret the app's HMAC signing secret (the `jwtSecret` you construct
  *   `PeekAccessService` with)
@@ -137,7 +140,9 @@ export function parseInstallWebhook(
  * - `TokenExpiredError` — past `exp`
  * - `NotBeforeError` — before `nbf`
  *
- * @param token the raw JWT delivered by the install webhook (no `Bearer` prefix)
+ * @param token the JWT delivered by the install webhook. Pass the raw
+ *   `x-peek-auth` header value directly — a leading `Bearer ` prefix, if
+ *   present, is stripped for you.
  * @param secret the app's HMAC signing secret (the `jwtSecret` you construct
  *   `PeekAccessService` with)
  * @throws {JsonWebTokenError} signature invalid or token malformed

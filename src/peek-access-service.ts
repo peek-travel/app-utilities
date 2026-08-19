@@ -173,9 +173,10 @@ export class PeekAccessService {
    * decoded claims.
    *
    * Validates the HMAC signature (using this service's `jwtSecret`), the token
-   * expiry, the `"app_registry_v2"` issuer, and the `"Joken"` audience. Throws
-   * from the `jsonwebtoken` library on any failure — callers should catch to
-   * distinguish error kinds:
+   * expiry, the `"app_registry_v2"` issuer, and the `"Joken"` audience. Pass the
+   * raw `x-peek-auth` request header value — a leading `Bearer ` prefix, if
+   * present, is stripped for you. Throws from the `jsonwebtoken` library on any
+   * failure — callers should catch to distinguish error kinds:
    *
    * - `JsonWebTokenError` — signature invalid, wrong issuer/audience, or token
    *   malformed
