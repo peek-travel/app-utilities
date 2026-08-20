@@ -12,20 +12,34 @@ export const PEEK_PLATFORMS = ["peek", "cng", "acme"] as const;
  */
 export type PeekPlatform = (typeof PEEK_PLATFORMS)[number];
 
-/** User context embedded in a Peek auth token. */
+/**
+ * User context embedded in a Peek auth token.
+ *
+ * Every field is nullable: the token is untrusted even after its signature
+ * verifies, so a claim may be absent, `null`, or a sentinel (`""`, `"null"`)
+ * that this package normalizes to `null`. Never assume a field is populated —
+ * always null-check.
+ */
 export interface PeekAuthTokenUser {
-  /** User's email address. */
-  email: string;
-  /** User's Peek account ID */
-  id: string;
-  /** Whether the user has admin privileges. */
-  isAdmin: boolean;
-  /** User's locale (e.g. `"en"`). */
-  locale: string;
-  /** User's display name. */
-  name: string;
-  /** Which platform embedded the app for this session. */
-  platform: PeekPlatform;
+  /** User's email address, or `null` if the token omits it. */
+  email: string | null;
+  /**
+   * The user's own Peek user ID — it identifies the signed-in person, **not**
+   * the account or partner they belong to. Use it only to key the user; never
+   * treat it as an account/partner id. `null` when the token omits it.
+   */
+  id: string | null;
+  /** Whether the user has admin privileges, or `null` if the token omits it. */
+  isAdmin: boolean | null;
+  /** User's locale (e.g. `"en"`), or `null` if the token omits it. */
+  locale: string | null;
+  /** User's display name, or `null` if the token omits it. */
+  name: string | null;
+  /**
+   * Which platform embedded the app for this session, or `null` when the token
+   * omits it or reports one this version of the package doesn't recognize.
+   */
+  platform: PeekPlatform | null;
 }
 
 /** Claims returned by {@link PeekAccessService.verifyPeekAuthToken}. */
@@ -34,8 +48,11 @@ export interface PeekAuthTokenClaims {
   installId: string;
   /** App display version at time of issuance. */
   displayVersion: string;
-  /** Authenticated user context. */
-  user: PeekAuthTokenUser;
+  /**
+   * Authenticated user context, or `null` when the token carries no `user`
+   * block. Do not assume a session token always names a user.
+   */
+  user: PeekAuthTokenUser | null;
 }
 
 /** The Peek account an install belongs to, as reported on an install webhook. */

@@ -33,6 +33,7 @@ import {
   toPeekPlatform,
 } from "./install-converter.js";
 import {
+  cleanTokenString,
   mapPeekTokenUser,
   verifyPeekJwt,
   type RawPeekTokenUser,
@@ -132,16 +133,17 @@ export function parseInstallWebhook(
 /**
  * Resolves the acting user, preferring the body's `modified_by` and falling back
  * to the token's `user`; system-initiated events carry neither and yield `null`.
- * The body path is defensive (a `modified_by` without an `id` is treated as
- * absent, not malformed); the token path keeps the strict
- * {@link mapPeekTokenUser} check that a present `user` block must carry an `id`.
+ * The body is preferred only when its `modified_by` carries a *real* id — an
+ * absent, empty, or `"null"` id (see {@link cleanTokenString}) is treated as no
+ * user and defers to the token. {@link mapPeekTokenUser} then maps whichever
+ * block wins, tolerating any missing/nullable field.
  */
 function resolveInstallUser(
   bodyUser: RawPeekTokenUser | null | undefined,
   tokenUser: RawPeekTokenUser | null | undefined,
 ): InstallWebhook["user"] {
-  if (bodyUser?.id) return mapPeekTokenUser(bodyUser);
-  return tokenUser ? mapPeekTokenUser(tokenUser) : null;
+  if (cleanTokenString(bodyUser?.id) !== null) return mapPeekTokenUser(bodyUser);
+  return mapPeekTokenUser(tokenUser);
 }
 
 /**
@@ -184,6 +186,6 @@ export function verifyInstallWebhook(
     account: { id: payload.account?.id ?? "" },
     status: payload.status ?? "",
     displayVersion: payload.display_version ?? "",
-    user: payload.user ? mapPeekTokenUser(payload.user) : null,
+    user: mapPeekTokenUser(payload.user),
   };
 }

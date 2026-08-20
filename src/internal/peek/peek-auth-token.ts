@@ -11,7 +11,7 @@
  * Internal only — never re-exported from `src/index.ts`.
  */
 import * as jwt from "jsonwebtoken";
-import { InvalidPeekTokenError } from "../../errors.js";
+import { PEEK_PLATFORMS } from "../../models/peek/auth-token.js";
 import type { PeekAuthTokenUser, PeekPlatform } from "../../models/peek/auth-token.js";
 
 /** JWT issuer set by the Peek app registry on all tokens it issues. */
@@ -35,14 +35,42 @@ function stripBearer(token: string): string {
     : trimmed;
 }
 
-/** The raw, snake_case user block embedded in an `app_registry_v2` token. */
+/**
+ * The raw, snake_case user block embedded in an `app_registry_v2` token. Every
+ * field is optional/nullable: the block is untrusted attacker- **or** registry-
+ * shaped input, so a field may be missing, `null`, or a sentinel string. The
+ * clean {@link PeekAuthTokenUser} is produced by {@link mapPeekTokenUser}.
+ */
 export interface RawPeekTokenUser {
-  email: string;
-  id: string;
-  is_admin: boolean;
-  locale: string;
-  name: string;
-  platform: PeekPlatform;
+  email?: string | null;
+  id?: string | null;
+  is_admin?: boolean | null;
+  locale?: string | null;
+  name?: string | null;
+  platform?: string | null;
+}
+
+/** Strings Peek is known to emit in place of an absent value. */
+const NULLISH_STRINGS = new Set(["", "null"]);
+
+/**
+ * Normalizes an untrusted string claim: trims it, then collapses an empty string
+ * or the literal `"null"` (case-insensitive) — both of which Peek has been seen
+ * to send for an absent value — to `null`. A non-string (a real `null`,
+ * `undefined`, or wrong-typed claim) also becomes `null`.
+ */
+export function cleanTokenString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return NULLISH_STRINGS.has(trimmed.toLowerCase()) ? null : trimmed;
+}
+
+/** Narrows an untrusted platform claim to a known {@link PeekPlatform}, else `null`. */
+function cleanTokenPlatform(value: unknown): PeekPlatform | null {
+  const cleaned = cleanTokenString(value);
+  return cleaned !== null && (PEEK_PLATFORMS as readonly string[]).includes(cleaned)
+    ? (cleaned as PeekPlatform)
+    : null;
 }
 
 /**
@@ -66,20 +94,25 @@ export function verifyPeekJwt<T>(token: string, secret: string): T {
 /**
  * Maps the raw snake_case user block to the clean {@link PeekAuthTokenUser}.
  *
- * @throws {InvalidPeekTokenError} when the user block carries no `id` — the
- * signature is already verified at this point, so an absent id means a
- * structurally malformed token rather than a forged one.
+ * The block is untrusted even after the signature verifies: it may be absent
+ * entirely (system-initiated events, malformed tokens) and any field inside it
+ * may be missing, `null`, or a sentinel like `""`/`"null"`. An absent block
+ * yields `null`; a present block yields a user whose every field is
+ * independently nullable (garbage strings normalized to `null` via
+ * {@link cleanTokenString}). No field is required, so this never throws — in
+ * particular `id` is the user's own id, not an account/partner id, and its
+ * absence is not treated as an error.
  */
-export function mapPeekTokenUser(u: RawPeekTokenUser): PeekAuthTokenUser {
-  if (!u.id) {
-    throw new InvalidPeekTokenError("user.id");
-  }
+export function mapPeekTokenUser(
+  u: RawPeekTokenUser | null | undefined,
+): PeekAuthTokenUser | null {
+  if (!u) return null;
   return {
-    email: u.email,
-    id: u.id,
-    isAdmin: u.is_admin,
-    locale: u.locale,
-    name: u.name,
-    platform: u.platform,
+    email: cleanTokenString(u.email),
+    id: cleanTokenString(u.id),
+    isAdmin: typeof u.is_admin === "boolean" ? u.is_admin : null,
+    locale: cleanTokenString(u.locale),
+    name: cleanTokenString(u.name),
+    platform: cleanTokenPlatform(u.platform),
   };
 }

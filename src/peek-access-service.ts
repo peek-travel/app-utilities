@@ -69,7 +69,7 @@ const DEFAULT_V2_BASE_URL =
 interface RawPeekTokenPayload {
   sub: string;
   display_version: string;
-  user: RawPeekTokenUser;
+  user?: RawPeekTokenUser | null;
 }
 
 /**
@@ -188,13 +188,15 @@ export class PeekAccessService {
    *   malformed
    * - `TokenExpiredError` — past `exp`
    * - `NotBeforeError` — before `nbf`
-   * - `InvalidPeekTokenError` — signature valid but the `user` block is missing
-   *   its `id`
+   *
+   * Claim *extraction* is defensive: once the signature verifies, a token with
+   * no `user` block yields `claims.user === null`, and any individual user field
+   * that is absent or a sentinel (`""`, `"null"`) is normalized to `null`. This
+   * method never throws on a shape problem — only on a verification failure.
    *
    * @throws {JsonWebTokenError} signature invalid or token malformed
    * @throws {TokenExpiredError} token has expired
    * @throws {NotBeforeError} token not yet valid
-   * @throws {InvalidPeekTokenError} verified token has no `user.id`
    */
   verifyPeekAuthToken(token: string): PeekAuthTokenClaims {
     const payload = verifyPeekJwt<RawPeekTokenPayload>(token, this.jwtSecret);

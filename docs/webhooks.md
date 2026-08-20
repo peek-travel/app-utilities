@@ -265,9 +265,10 @@ The **JSON body is the source of the event data**; the fields it shares with the
 token (`installId`, `accountId`, `status`, `displayVersion`, `user`) fall back to
 the **verified token** when the body omits them. The token authenticates the
 whole delivery — only Peek can mint a valid one — so the body is trusted within a
-verified request. Unlike `verifyPeekAuthToken`, `user` is nullable: install
-lifecycle events are often system-initiated (no acting user), so the parser
-tolerates a missing `modified_by`/`user`.
+verified request. `user` is nullable here — as it is on `verifyPeekAuthToken` —
+because install lifecycle events are often system-initiated (no acting user), so
+the parser tolerates a missing `modified_by`/`user`, and every field inside a
+present `user` is itself nullable (a sentinel `""`/`"null"` id becomes `null`).
 
 > **Migrating from `verifyInstallWebhook` / `parseInstallEvent`?**
 > `verifyInstallWebhook(token, secret)` still works but is `@deprecated` — it

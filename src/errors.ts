@@ -82,25 +82,6 @@ export class PeekHttpError extends Error {
 }
 
 /**
- * Thrown when an `app_registry_v2` token passes signature/issuer/audience
- * verification but its `user` block is missing a required `id`. The signature is
- * authentic, so this signals a structurally malformed token from the app
- * registry rather than a forged one — distinct from the `jsonwebtoken`
- * `JsonWebTokenError` family. The offending field is preserved on
- * {@link InvalidPeekTokenError.field}.
- */
-export class InvalidPeekTokenError extends Error {
-  /** The token field that was missing or empty (e.g. `"user.id"`). */
-  public readonly field: string;
-
-  constructor(field: string) {
-    super(`Peek token is missing required field "${field}"`);
-    this.name = "InvalidPeekTokenError";
-    this.field = field;
-  }
-}
-
-/**
  * Thrown when a payment or booking-modification operation is called on an
  * access service that was constructed without `fullCustomerAccess` (PII access
  * disabled). These operations — pulling payment sources, charging/refunding,

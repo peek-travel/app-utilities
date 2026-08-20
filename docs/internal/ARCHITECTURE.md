@@ -60,12 +60,13 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
   underlying service, e.g. `peek.getAllProducts()` → `peek.getProductService().getAllProducts()`. Every public service method has a named proxy on `PeekAccessService`; the names are prefixed with the resource noun where disambiguation is needed (e.g. `getBookingById`, `getTimeslotById`).
 - Exposes `verifyPeekAuthToken(token)` to verify HMAC-signed JWTs issued by
   the Peek app registry (`iss: "app_registry_v2"`, `aud: "Joken"`), returning
-  a fully typed `PeekAuthTokenClaims` (including the nested `PeekAuthTokenUser`
-  object). Throws `JsonWebTokenError` / `TokenExpiredError` / `NotBeforeError`
-  from `jsonwebtoken` on failure, plus `InvalidPeekTokenError` when the
-  signature is valid but the `user` block carries no `id` (the check lives in
-  the shared `mapPeekTokenUser`, so it guards `verifyInstallWebhook`'s user
-  block too). The signature-check core (issuer + audience + user mapping) lives
+  a fully typed `PeekAuthTokenClaims` (including the nested `PeekAuthTokenUser`,
+  which is now nullable). Throws `JsonWebTokenError` / `TokenExpiredError` /
+  `NotBeforeError` from `jsonwebtoken` on failure. Claim *extraction* is
+  defensive and never throws: the shared `mapPeekTokenUser` returns `null` for
+  an absent `user` block and normalizes every field independently (a sentinel
+  `""`/`"null"` id becomes `null`), so `verifyInstallWebhook` inherits the same
+  tolerance. The signature-check core (issuer + audience + user mapping) lives
   in the internal `peek-auth-token.ts` module, shared with the standalone
   `verifyInstallWebhook` (§ install webhooks) so the two can't drift apart. That
   core (`verifyPeekJwt`) also strips a leading `Bearer ` prefix from the token,
@@ -416,7 +417,7 @@ options/result types callers need), all data-model **types** (including
 `InstallWebhookClaims`/`InstallWebhookAccount`), the `Logger` interface +
 `noopLogger`, and the typed error classes (`AdminAccountRequiredError`,
 `RateLimitError`, `PeekGraphQLError`, `PeekHttpError`, `PiiAccessDisabledError`,
-`InvalidPeekTokenError`, `CngApiError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
+`CngApiError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and

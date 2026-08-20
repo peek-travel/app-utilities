@@ -12,6 +12,45 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 0.7.3
+
+### `[breaking]` Token `user` and all its fields are now nullable; sentinel ids normalize to `null`
+
+- **What:** `PeekAuthTokenClaims.user` (from `verifyPeekAuthToken`) can now be
+  `null`, and every field on `PeekAuthTokenUser` — `id`, `email`, `isAdmin`,
+  `locale`, `name`, `platform` — is now nullable (`string | null` / `boolean |
+  null` / `PeekPlatform | null`). A `user` block missing from the token yields
+  `user: null`; a field that is absent, `null`, or a sentinel string (`""` or the
+  literal `"null"`, case-insensitive) is normalized to `null`; an unrecognized
+  `platform` also becomes `null`. This applies uniformly to `verifyPeekAuthToken`,
+  `parseInstallWebhook`, and `verifyInstallWebhook`.
+- **Why:** real `app_registry_v2` tokens do not guarantee a `user` block, and Peek
+  has been observed to send `""` or `"null"` for `user.id`. The old code passed
+  `"null"` straight through (so callers keyed users by the literal string
+  `"null"`) and threw on an empty id. `user.id` is the signed-in **person's** id —
+  not the account or partner id (that is `InstallWebhook.accountId`) — so its
+  absence is not an error.
+- **Caller action:** null-check `claims.user` before use, and treat every user
+  field as possibly `null`. If you relied on a non-null `user.id`, handle `null`
+  (do not persist the literal `"null"`). If you branched on the old thrown error
+  for a missing id, see the removal below.
+
+### `[breaking]` `InvalidPeekTokenError` removed
+
+- **What:** the `InvalidPeekTokenError` class is no longer exported and is never
+  thrown. It previously signaled a signature-valid token whose `user` block had no
+  `id`.
+- **Why:** a missing/empty `user.id` is no longer treated as an error — it maps to
+  `user.id === null` (see above). With nothing left to throw it, the public error
+  became dead surface.
+- **Caller action:** remove any `import { InvalidPeekTokenError }` and any
+  `instanceof InvalidPeekTokenError` / `.field === "user.id"` branch; check for a
+  `null` `user`/`user.id` instead. Signature/expiry/issuer/audience failures still
+  throw the `jsonwebtoken` errors (`JsonWebTokenError` / `TokenExpiredError` /
+  `NotBeforeError`) unchanged.
+
+---
+
 ## 0.7.2
 
 ### `[fix]` `parseInstallWebhook` now reads the event from the JSON body (token is the fallback)

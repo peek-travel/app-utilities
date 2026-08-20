@@ -184,7 +184,6 @@ export {
   AcmeApiError,
   AdminAccountRequiredError,
   CngApiError,
-  InvalidPeekTokenError,
   PeekGraphQLError,
   PeekHttpError,
   PiiAccessDisabledError,
