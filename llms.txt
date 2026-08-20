@@ -250,6 +250,13 @@ effect; read-only state props (`isOpen`/`isVisible`) ignore the write (drive the
 via a `ref`'s imperative methods). No `only a getter` crash. TS still types them
 read-only — the setters are a runtime safety net.
 
+Registration is idempotent (importing twice never throws). Lazy registration:
+`odyssey.css` ships a `:not(:defined){visibility:hidden}` guard so un-upgraded
+`<ody-*>` never flash as raw text (load the CSS eagerly), and `whenOdysseyReady()`
+(`Promise<void>`) resolves once every imported element has upgraded — gate first
+render on it. `registeredTags()` returns the registered tag list. A failed
+dynamic import rejects at the `import()` call site.
+
 Tags by tier (see `docs/ui.md` for attributes/events/examples per component):
 - display: `ody-button`, `ody-tag`, `ody-alert`, `ody-card`, `ody-horizontal-divider`
   (1px rule with a default `margin-block: var(--gap16)`; `spacing="tight"|"none"`),

@@ -390,6 +390,12 @@ function addReactSafeSetters(ctor: CustomElementConstructor): void {
 }
 
 /**
+ * Every `<ody-*>` tag registered via {@link define}, in registration order.
+ * Backs {@link whenOdysseyReady} and the `:not(:defined)` FOUC-guard drift test.
+ */
+const registered: string[] = [];
+
+/**
  * Register a custom element under `tag`, guarding against double registration
  * (and against running in a non-DOM environment such as a Node import).
  */
@@ -398,4 +404,27 @@ export function define(tag: string, ctor: CustomElementConstructor): void {
   if (customElements.get(tag)) return;
   addReactSafeSetters(ctor);
   customElements.define(tag, ctor);
+  registered.push(tag);
+}
+
+/** A snapshot of the `<ody-*>` tags registered so far, in registration order. */
+export function registeredTags(): readonly string[] {
+  return registered.slice();
+}
+
+/**
+ * Resolve once every `<ody-*>` element imported so far has upgraded, giving an
+ * app a single readiness signal to gate its first render on — so it never paints
+ * an un-upgraded element as its raw text content (the FOUC the `:not(:defined)`
+ * guard in `odyssey.css` also covers). Because importing
+ * `@peektravel/app-utilities/ui` registers synchronously, this is typically
+ * already resolved by the time a consumer can await it; it earns its keep when
+ * registration is loaded lazily/async.
+ *
+ * Note: a *failed* dynamic import of the registration chunk rejects at the
+ * `import()` call site, not here — this reflects only elements that did register.
+ */
+export function whenOdysseyReady(): Promise<void> {
+  if (typeof customElements === 'undefined') return Promise.resolve();
+  return Promise.all(registered.map((tag) => customElements.whenDefined(tag))).then(() => undefined);
 }

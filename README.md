@@ -374,6 +374,23 @@ attribute. Exported classes/types and helpers (`iconSvg`, `registerIcon`,
 `portal`, `position`, `toast`) are available from `@peektravel/app-utilities/ui`
 for subclassing or typing.
 
+### Lazy registration & avoiding a flash of raw text
+
+Registration is a side effect and **idempotent** — importing `/ui` twice (or from
+two bundles) never throws. If you register lazily (a dynamic `import()`), two
+things keep un-upgraded elements from flashing as their raw text: `odyssey.css`
+ships a `:not(:defined) { visibility: hidden }` guard (load the CSS eagerly for it
+to apply before first paint), and `whenOdysseyReady()` resolves once every
+imported element has upgraded, so you can gate your first render on it:
+
+```ts
+import { whenOdysseyReady } from '@peektravel/app-utilities/ui';
+await whenOdysseyReady();
+```
+
+A failed dynamic import still rejects at the `import()` call site — handle load
+failures there.
+
 ### Using the components from React 19
 
 React 19 sets JSX props on a custom element as DOM **properties**

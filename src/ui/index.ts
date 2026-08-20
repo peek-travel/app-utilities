@@ -72,7 +72,14 @@ import './components/table.js';
 import './brand-icons.js';
 
 // ---- Base + helpers --------------------------------------------------------
-export { OdyElement, escapeHtml, classes, define } from './base.js';
+export {
+  OdyElement,
+  escapeHtml,
+  classes,
+  define,
+  registeredTags,
+  whenOdysseyReady,
+} from './base.js';
 export {
   iconSvg,
   renderIconSvg,

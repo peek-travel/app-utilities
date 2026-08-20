@@ -9,6 +9,36 @@
  * dependency-free.
  */
 
+/* ---- unupgraded-element guard (FOUC) ------------------------------------- */
+/*
+ * Hide each <ody-*> element until its definition upgrades it, so it never
+ * flashes as its raw text content (an un-upgraded `<ody-button>Save</ody-button>`
+ * would otherwise render the bare word "Save"). `visibility` (not `display`)
+ * preserves layout, so there is no reflow when the element upgrades; wrapping
+ * the tags in `:where` keeps specificity at zero so a consumer can override
+ * trivially. If the
+ * registration bundle never loads, elements stay hidden rather than showing raw
+ * text. This selector list is kept in sync with the component registry by the
+ * `defined-guard` drift test — add any new tag here when you register it.
+ */
+:where(
+  ody-accordion, ody-alert, ody-app-page-container, ody-brand-icon, ody-breadcrumb,
+  ody-breadcrumb-item, ody-button, ody-card, ody-check-in-status, ody-checkbox,
+  ody-checkbox-group, ody-collapsible, ody-collapsible-collapsed, ody-collapsible-content,
+  ody-collapsible-section, ody-copy-button, ody-datepicker, ody-divider, ody-dropdown-multi,
+  ody-dropdown-single, ody-empty-state, ody-horizontal-divider, ody-icon, ody-inline-input,
+  ody-inline-list, ody-inline-list-item, ody-input, ody-list-item, ody-loading-bar,
+  ody-loading-spinner, ody-message, ody-modal, ody-money-input, ody-option, ody-page-container,
+  ody-panel, ody-percentage-input, ody-popover, ody-product-indicator, ody-radio-button-group,
+  ody-search-input, ody-section-column-item, ody-section-columns, ody-section-row-item,
+  ody-section-rows, ody-split-button, ody-stat, ody-stat-detail, ody-stat-summary,
+  ody-stat-summary-detail, ody-status-dot, ody-table, ody-table-header, ody-tabs, ody-tag,
+  ody-toast-host, ody-toggle-button, ody-tooltip, ody-two-column, ody-two-column-main,
+  ody-two-column-secondary, ody-two-column-secondary-header
+):not(:defined) {
+  visibility: hidden;
+}
+
 /* ---- base ---------------------------------------------------------------- */
 ody-icon, ody-button, ody-tag, ody-alert, ody-card, ody-divider, ody-horizontal-divider,
 ody-status-dot, ody-message, ody-loading-spinner, ody-loading-bar {
