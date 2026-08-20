@@ -1,7 +1,14 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../../src/ui/index.js';
-import { cssColor, define, OdyElement } from '../../src/ui/base.js';
+import {
+  cssColor,
+  define,
+  OdyElement,
+  registeredTags,
+  whenOdysseyReady,
+} from '../../src/ui/base.js';
+import { OdySelectBase } from '../../src/ui/select-base.js';
 
 /** Render HTML, flush the deferred first render, and return the first element. */
 async function mount<T extends Element = Element>(html: string): Promise<T> {
@@ -215,5 +222,56 @@ describe('pre-upgrade property capture (finding 7)', () => {
 
     expect(Object.getOwnPropertyDescriptor(el, 'val')).toBeUndefined(); // own prop removed
     expect(el.val).toBe('shadowed'); // re-applied through the setter
+  });
+});
+
+describe('React 19 getter-only props stay assignable (addReactSafeSetters)', () => {
+  it('assigning a reflected getter-only prop writes the attribute instead of throwing', async () => {
+    const el = await mount<OdyElement & { searchable: boolean }>(
+      '<ody-dropdown-single></ody-dropdown-single>',
+    );
+    // React 19 sets `el.searchable = true`; a getter-only accessor would throw.
+    expect(() => {
+      el.searchable = true;
+    }).not.toThrow();
+    expect(el.hasAttribute('searchable')).toBe(true);
+    el.searchable = false;
+    expect(el.hasAttribute('searchable')).toBe(false);
+  });
+
+  it('registration gives every getter-only accessor a setter', () => {
+    const desc = Object.getOwnPropertyDescriptor(OdySelectBase.prototype, 'searchable');
+    expect(desc?.get).toBeTypeOf('function');
+    expect(desc?.set).toBeTypeOf('function');
+  });
+});
+
+describe('light-DOM slotting reconciles reconciler child mutations (P3 regression)', () => {
+  it('host.removeChild of a slotted child does not throw and updates the DOM', async () => {
+    const el = await mount<OdyElement>(
+      '<ody-card><span id="x">A</span><span id="y">B</span></ody-card>',
+    );
+    const y = el.querySelector('#y')!;
+    // A framework calls host.removeChild(child); the child lives in the slot now.
+    expect(() => el.removeChild(y)).not.toThrow();
+    expect(el.querySelector('#y')).toBeNull();
+    expect(el.querySelector('#x')).not.toBeNull();
+  });
+
+  it('host.insertBefore places a new child relative to a slotted reference node', async () => {
+    const el = await mount<OdyElement>('<ody-card><span id="x">A</span></ody-card>');
+    const x = el.querySelector('#x')!;
+    const z = document.createElement('span');
+    z.id = 'z';
+    expect(() => el.insertBefore(z, x)).not.toThrow();
+    const ids = [...el.querySelectorAll('span')].map((s) => s.id);
+    expect(ids).toEqual(['z', 'x']);
+  });
+});
+
+describe('whenOdysseyReady + registeredTags', () => {
+  it('registers every imported <ody-*> tag and resolves ready', async () => {
+    expect(registeredTags()).toContain('ody-button');
+    await expect(whenOdysseyReady()).resolves.toBeUndefined();
   });
 });

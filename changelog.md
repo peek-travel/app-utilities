@@ -12,6 +12,40 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## Unreleased
+
+### `[fix]` `/ui`: unupgraded `<ody-*>` elements no longer flash as raw text
+
+- **What:** `odyssey.css` now hides every registered `<ody-*>` element until its
+  definition upgrades it (`:where(…ody-*…):not(:defined) { visibility: hidden }`).
+  Before, an element rendered its raw text content in the window between first
+  paint and registration — e.g. `<ody-button>Save</ody-button>` briefly showed the
+  bare word "Save" — which is permanent if the registration bundle never loads.
+- **Why:** apps that register the bundle lazily (a dynamic `import()` to avoid
+  SSR/hydration mismatches) hit this flash on every load. The guard is global CSS
+  the library owns, so every consumer gets it for free.
+- **Caller action:** none, if you already import `@peektravel/app-utilities/ui/odyssey.css`.
+  Load that stylesheet **eagerly** (before first paint) for the guard to apply.
+  `visibility` (not `display`) is used, so layout is preserved and there is no
+  reflow when elements upgrade; the selector has zero specificity (`:where`), so
+  you can override it if you deliberately want a fallback rendering.
+
+### `[additive]` `/ui`: `whenOdysseyReady()` readiness signal + `registeredTags()`
+
+- **What:** the `/ui` entry now exports `whenOdysseyReady(): Promise<void>`, which
+  resolves once every imported `<ody-*>` element has upgraded, and
+  `registeredTags(): readonly string[]`, the list of registered tags.
+- **Why:** apps that register lazily wanted a single signal to gate their first
+  render on (instead of racing element upgrades), and a way to introspect the
+  registered set. Registration is synchronous on import, so the promise is
+  typically already resolved; it earns its keep with async/lazy registration.
+- **Caller action:** none. Optionally `await whenOdysseyReady()` before your first
+  render. Note a *failed* dynamic import of the bundle still rejects at the
+  `import()` call site — handle load failures there; `whenOdysseyReady()` reflects
+  only the elements that did register.
+
+---
+
 ## 0.7.3
 
 ### `[breaking]` Token `user` and all its fields are now nullable; sentinel ids normalize to `null`

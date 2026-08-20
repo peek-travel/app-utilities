@@ -521,7 +521,8 @@ Odyssey design system, plus the Odyssey design tokens and component CSS.
 src/ui/
   tokens.css            Odyssey design tokens as :root CSS custom properties
   odyssey.css           component styles (SCSS → token-var-based plain CSS)
-  base.ts               OdyElement base class + classes()/escapeHtml()/define()
+  base.ts               OdyElement base class + classes()/escapeHtml()/define()/
+                        registeredTags()/whenOdysseyReady()
   icons.ts              curated inline-SVG set (iconSvg/registerIcon/hasIcon)
   overlay.ts            portal()/removePortal()/position() helper for overlays
   i18n.ts               built-in-string localization (registerTranslation, terms)
@@ -601,7 +602,19 @@ Load-bearing rules:
 - **Registration is a side effect** of importing `./ui` (or an individual
   component file). `package.json` `"sideEffects"` is therefore an allow-list
   (`**/ui/**`, `**/*.css`) rather than `false`, so bundlers don't tree-shake the
-  registrations away.
+  registrations away. `define()` is **idempotent** (guards on
+  `customElements.get(tag)`), records each tag in a module registry, and never
+  throws on a re-import.
+- **FOUC guard + readiness signal.** `odyssey.css` opens with a
+  `:where(…all ody-* tags…):not(:defined) { visibility: hidden }` rule so an
+  un-upgraded element never flashes as its raw text before registration
+  (`visibility`, not `display`, so there's no reflow on upgrade; zero specificity
+  via `:where` so consumers can override). The selector list is pinned to the
+  runtime tag registry by the `test/ui/defined-guard.test.ts` **drift guard** —
+  add a component's tag there when you register it. `whenOdysseyReady()` (backed
+  by the same registry via `customElements.whenDefined`) resolves once every
+  imported element has upgraded, and `registeredTags()` exposes the registry;
+  both are exported from `./ui` for apps that register lazily.
 - **React 19 safety at registration.** `define()` (in `base.ts`) runs
   `addReactSafeSetters` on the class before `customElements.define`: it walks the
   component's own prototypes (up to `OdyElement`) and gives every getter-only

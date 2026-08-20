@@ -40,6 +40,33 @@ CSS can also be linked instead of imported:
 <link rel="stylesheet" href="…/@peektravel/app-utilities/ui/odyssey.css" />
 ```
 
+Registration is **idempotent** — importing the module more than once (or from
+more than one bundle) re-registers nothing and never throws, so lazy or
+duplicated imports are safe.
+
+If you register the bundle **lazily** (e.g. a dynamic `import()` to dodge SSR /
+hydration mismatches), two things stop un-upgraded elements from flashing as
+their raw text content (`<ody-button>Save</ody-button>` briefly showing the bare
+word "Save"):
+
+- `odyssey.css` ships a `:not(:defined) { visibility: hidden }` guard, so every
+  `<ody-*>` stays invisible — layout preserved, no reflow — until it upgrades.
+  Load the CSS **eagerly** so this applies before first paint. It has zero
+  specificity, so you can override it for a deliberate fallback.
+- `whenOdysseyReady()` resolves once every imported element has upgraded, so you
+  can gate your first render on it:
+
+  ```ts
+  import { whenOdysseyReady } from '@peektravel/app-utilities/ui';
+  await whenOdysseyReady();
+  // …now render your <ody-*> tree
+  ```
+
+  A *failed* dynamic import rejects at the `import()` call site — handle load
+  failures there; `whenOdysseyReady()` reflects only the elements that did
+  register. `registeredTags()` returns the registered tag list if you need to
+  introspect it.
+
 Named exports for advanced use:
 
 ```ts
