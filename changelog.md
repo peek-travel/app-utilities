@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 0.7.3
 
 ### `[breaking]` Token `user` and all its fields are now nullable; sentinel ids normalize to `null`
 
