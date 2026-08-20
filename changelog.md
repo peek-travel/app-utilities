@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 0.7.4
 
 ### `[fix]` `/ui`: unupgraded `<ody-*>` elements no longer flash as raw text
 
