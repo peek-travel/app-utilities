@@ -124,10 +124,12 @@ Two kinds of failures surface as exceptions:
 - `PiiAccessDisabledError` — a payment / booking-modification operation was
   called on an access service created without `fullCustomerAccess` (see [Access options
   / PII](#access-options--pii)). Carries `.operation` (the blocked method name).
-- `InvalidPeekTokenError` — `verifyPeekAuthToken` (or `parseInstallWebhook` /
-  `verifyInstallWebhook`)
-  received a token whose signature is valid but whose `user` block has no `id`.
-  Carries `.field` (`"user.id"`). Thrown alongside the `jsonwebtoken` errors.
+
+Once a token's signature verifies, claim *extraction* never throws: the whole
+`user` block may be absent (`claims.user === null`) and every field inside it is
+independently nullable, with a sentinel value (`""` or `"null"`) normalized to
+`null`. `user.id` is the signed-in person's own id — not an account or partner
+id — so its absence is not an error.
 
 **Plain `Error` validation/precondition failures** thrown by the service layer
 *before* any network call — e.g. an empty config field, a `bookingId` that
@@ -306,8 +308,7 @@ signed `app_registry_v2` JWT plus a JSON body. Peek sends the token in the
 `x-peek-auth` header — pass that value straight in (`token` accepts it with or
 without a `Bearer ` prefix). It validates the HMAC signature,
 expiry, issuer, and `"Joken"` audience (the same checks as `verifyPeekAuthToken`,
-throwing the underlying `jsonwebtoken` error — or `InvalidPeekTokenError` when a
-present `user` block has no `id`), then returns one flat, JSON-safe
+throwing the underlying `jsonwebtoken` error), then returns one flat, JSON-safe
 `InstallWebhook`: `installId`, `accountId` (**also called the partner ID**),
 `accountName`, `platform`, `isTest`, `timezone`, `apiUrl`, `status`, `rawStatus`,
 `displayVersion`, and a **nullable** `user`. The **JSON body is the source of the

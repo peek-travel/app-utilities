@@ -14,7 +14,7 @@ import { ReviewService } from "../../src/internal/peek/reviews/review-service.js
 import { ResourcePoolService } from "../../src/internal/peek/resource-pools/resource-pool-service.js";
 import { TimeslotService } from "../../src/internal/peek/timeslots/timeslot-service.js";
 import type { Logger } from "../../src/logger.js";
-import { InvalidPeekTokenError, PiiAccessDisabledError } from "../../src/errors.js";
+import { PiiAccessDisabledError } from "../../src/errors.js";
 import { PeekAccessService } from "../../src/peek-access-service.js";
 
 const REQUIRED_CONFIG = {
@@ -278,7 +278,7 @@ const PEEK_REGISTRY_AUDIENCE = "Joken"; // still used when minting test tokens
 
 const SAMPLE_USER_PAYLOAD = {
   email: "admin@peek.com",
-  id: "null",
+  id: "usr_9f21",
   is_admin: false,
   locale: "en",
   name: "Admin User",
@@ -333,12 +333,12 @@ describe("PeekAccessService.verifyPeekAuthToken", () => {
 
     const { user } = service.verifyPeekAuthToken(token);
 
-    expect(user.email).toBe("admin@peek.com");
-    expect(user.id).toBe("null");
-    expect(user.isAdmin).toBe(false);
-    expect(user.locale).toBe("en");
-    expect(user.name).toBe("Admin User");
-    expect(user.platform).toBe("peek");
+    expect(user?.email).toBe("admin@peek.com");
+    expect(user?.id).toBe("usr_9f21");
+    expect(user?.isAdmin).toBe(false);
+    expect(user?.locale).toBe("en");
+    expect(user?.name).toBe("Admin User");
+    expect(user?.platform).toBe("peek");
   });
 
   it("propagates the platform claim", () => {
@@ -347,7 +347,16 @@ describe("PeekAccessService.verifyPeekAuthToken", () => {
       user: { ...SAMPLE_USER_PAYLOAD, platform: "cng" },
     });
 
-    expect(service.verifyPeekAuthToken(token).user.platform).toBe("cng");
+    expect(service.verifyPeekAuthToken(token).user?.platform).toBe("cng");
+  });
+
+  it("normalizes an unrecognized platform claim to null", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const token = mintRegistryToken(REQUIRED_CONFIG.jwtSecret, {
+      user: { ...SAMPLE_USER_PAYLOAD, platform: "shopify" },
+    });
+
+    expect(service.verifyPeekAuthToken(token).user?.platform).toBeNull();
   });
 
   it("maps is_admin: true correctly", () => {
@@ -356,7 +365,7 @@ describe("PeekAccessService.verifyPeekAuthToken", () => {
       user: { ...SAMPLE_USER_PAYLOAD, is_admin: true },
     });
 
-    expect(service.verifyPeekAuthToken(token).user.isAdmin).toBe(true);
+    expect(service.verifyPeekAuthToken(token).user?.isAdmin).toBe(true);
   });
 
   it("throws on a token signed with a different secret", () => {
@@ -410,17 +419,19 @@ describe("PeekAccessService.verifyPeekAuthToken", () => {
     expect(() => service.verifyPeekAuthToken("not.a.jwt")).toThrow();
   });
 
-  it("throws InvalidPeekTokenError when the verified user block has an empty id", () => {
+  it("normalizes a sentinel id (\"\" or \"null\") to a null id without throwing", () => {
     const service = new PeekAccessService(REQUIRED_CONFIG);
-    const token = mintRegistryToken(REQUIRED_CONFIG.jwtSecret, {
-      user: { ...SAMPLE_USER_PAYLOAD, id: "" },
-    });
 
-    expect(() => service.verifyPeekAuthToken(token)).toThrow(InvalidPeekTokenError);
-    expect(() => service.verifyPeekAuthToken(token)).toThrow(/user\.id/);
+    for (const id of ["", "null", "NULL", "  "]) {
+      const token = mintRegistryToken(REQUIRED_CONFIG.jwtSecret, {
+        user: { ...SAMPLE_USER_PAYLOAD, id },
+      });
+
+      expect(service.verifyPeekAuthToken(token).user?.id).toBeNull();
+    }
   });
 
-  it("throws InvalidPeekTokenError when the verified user block omits id", () => {
+  it("maps a user block that omits id to a null id, keeping the other fields", () => {
     const service = new PeekAccessService(REQUIRED_CONFIG);
     const userWithoutId = {
       email: SAMPLE_USER_PAYLOAD.email,
@@ -433,7 +444,17 @@ describe("PeekAccessService.verifyPeekAuthToken", () => {
       user: userWithoutId,
     });
 
-    expect(() => service.verifyPeekAuthToken(token)).toThrow(InvalidPeekTokenError);
+    const { user } = service.verifyPeekAuthToken(token);
+    expect(user?.id).toBeNull();
+    expect(user?.email).toBe("admin@peek.com");
+    expect(user?.isAdmin).toBe(false);
+  });
+
+  it("returns a null user when the token carries no user block", () => {
+    const service = new PeekAccessService(REQUIRED_CONFIG);
+    const token = mintRegistryToken(REQUIRED_CONFIG.jwtSecret, { user: undefined });
+
+    expect(service.verifyPeekAuthToken(token).user).toBeNull();
   });
 });
 
