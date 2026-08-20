@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## 0.7.2
+## Unreleased
 
 ### `[breaking]` Token `user` and all its fields are now nullable; sentinel ids normalize to `null`
 
@@ -48,6 +48,10 @@ action needed; `[additive]` only adds capability.
   `null` `user`/`user.id` instead. Signature/expiry/issuer/audience failures still
   throw the `jsonwebtoken` errors (`JsonWebTokenError` / `TokenExpiredError` /
   `NotBeforeError`) unchanged.
+
+---
+
+## 0.7.2
 
 ### `[fix]` `parseInstallWebhook` now reads the event from the JSON body (token is the fallback)
 
