@@ -24,7 +24,8 @@ action needed; `[additive]` only adds capability.
   non-alphanumerics stripped; must match exactly one), and the value is validated
   by question type — checkbox (`yes/no/true/false`), text (verbatim), or
   select-one/location (option matched by id `cqao_…` or lenient label). The
-  resolved answers are attached to the booking quote.
+  resolved answers are attached to the booking quote. Per-guest questions are
+  **not yet supported** — answering one fails creation.
 - **Why:** Callers can now capture custom-question responses at booking time
   without hand-building the quote payload or pre-resolving option ids.
 - **Caller action:** None to keep current behavior — the field is optional and

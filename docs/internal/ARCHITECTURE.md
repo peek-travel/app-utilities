@@ -359,9 +359,12 @@ Recurring patterns inside services:
   is supplied, `create` first fetches the activity's custom questions
   (`ProductService.getCustomQuestions`) and runs the pure resolver in
   `bookings/custom-question-answer.ts` (`resolveCustomQuestionAnswers`) to match
-  each answer (by id or lenient text) and validate its value by question type —
-  checkbox → `isChecked`, text → `questionAnswerText`, select-one/location →
-  `questionAnswerOptionId` (option matched by id or lenient label). This runs
+  each answer (by id or lenient text) and validate its value by question type.
+  Every resolved answer carries `questionAnswerText` (required by the gateway):
+  the raw value for text, the option's exact label for select-one/location
+  (which also set `questionAnswerOptionId`), and `"Yes"`/`"No"` for a checkbox
+  (which also sets `isChecked`). Options are matched by id or lenient label.
+  Per-guest questions are rejected (`not yet supported`). This runs
   before the first `createQuoteV2`, so a bad answer fails before any quote
   exists; the service then tags each resolved answer with a fresh `refid` and
   attaches them as the quote's `questionAnswers`. `addAddon` and `removeAddon` first call

@@ -1035,8 +1035,16 @@ describe("BookingService.create", () => {
     const answers = bookingQuoteOf(calls).questionAnswers as Array<Record<string, unknown>>;
     expect(answers).toHaveLength(3);
     expect(answers[0]).toMatchObject({ questionId: "cq_text", questionAnswerText: "No nuts" });
-    expect(answers[1]).toMatchObject({ questionId: "cq_check", isChecked: true });
-    expect(answers[2]).toMatchObject({ questionId: "cq_pick", questionAnswerOptionId: "cqao_b" });
+    expect(answers[1]).toMatchObject({
+      questionId: "cq_check",
+      isChecked: true,
+      questionAnswerText: "Yes",
+    });
+    expect(answers[2]).toMatchObject({
+      questionId: "cq_pick",
+      questionAnswerOptionId: "cqao_b",
+      questionAnswerText: "Option B",
+    });
     // Each answer carries a fresh, unique refid.
     const refids = answers.map((a) => a.refid as string);
     expect(refids.every((id) => typeof id === "string" && id.length > 0)).toBe(true);
@@ -1068,6 +1076,18 @@ describe("BookingService.create", () => {
         customQuestionAnswers: [{ questionIdOrText: "cq_check", value: "maybe" }],
       }),
     ).rejects.toThrow(/must be yes\/no\/true\/false/);
+    expect(calls.every((c) => !c.query.includes("createQuoteV2"))).toBe(true);
+  });
+
+  it("rejects a per-guest question before making a quote", async () => {
+    const perGuest = [q({ id: "cq_pg", questionText: "Waiver", questionType: "TEXT", perGuest: true })];
+    const { service, calls } = makeService(createHandler(), [], undefined, perGuest);
+    await expect(
+      service.create({
+        ...validCreate,
+        customQuestionAnswers: [{ questionIdOrText: "cq_pg", value: "x" }],
+      }),
+    ).rejects.toThrow(/not yet supported/);
     expect(calls.every((c) => !c.query.includes("createQuoteV2"))).toBe(true);
   });
 

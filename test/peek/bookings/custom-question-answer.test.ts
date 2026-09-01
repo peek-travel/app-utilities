@@ -67,16 +67,16 @@ describe("resolveCustomQuestionAnswers — question matching", () => {
 
 describe("resolveCustomQuestionAnswers — checkbox", () => {
   it.each([
-    ["yes", true],
-    ["true", true],
-    ["YES", true],
-    ["no", false],
-    ["false", false],
-    ["  False  ", false],
-  ])("maps %s to isChecked=%s", (value, isChecked) => {
+    ["yes", true, "Yes"],
+    ["true", true, "Yes"],
+    ["YES", true, "Yes"],
+    ["no", false, "No"],
+    ["false", false, "No"],
+    ["  False  ", false, "No"],
+  ])("maps %s to isChecked=%s with text %s", (value, isChecked, text) => {
     expect(
       resolveCustomQuestionAnswers([{ questionIdOrText: "cq_check", value: String(value) }], ALL),
-    ).toEqual([{ questionId: "cq_check", isChecked }]);
+    ).toEqual([{ questionId: "cq_check", isChecked, questionAnswerText: text }]);
   });
 
   it("throws on an invalid checkbox value", () => {
@@ -95,16 +95,20 @@ describe("resolveCustomQuestionAnswers — text", () => {
 });
 
 describe("resolveCustomQuestionAnswers — select_one / location options", () => {
-  it("matches an option by id", () => {
+  it("matches an option by id and sets text to the exact label", () => {
     expect(
       resolveCustomQuestionAnswers([{ questionIdOrText: "cq_pick", value: "cqao_b" }], ALL),
-    ).toEqual([{ questionId: "cq_pick", questionAnswerOptionId: "cqao_b" }]);
+    ).toEqual([
+      { questionId: "cq_pick", questionAnswerOptionId: "cqao_b", questionAnswerText: "Hilton Chicago" },
+    ]);
   });
 
-  it("matches an option by lenient label", () => {
+  it("matches an option by lenient label but stores the exact label", () => {
     expect(
       resolveCustomQuestionAnswers([{ questionIdOrText: "cq_loc", value: "hilton chicago" }], ALL),
-    ).toEqual([{ questionId: "cq_loc", questionAnswerOptionId: "cqao_b" }]);
+    ).toEqual([
+      { questionId: "cq_loc", questionAnswerOptionId: "cqao_b", questionAnswerText: "Hilton Chicago" },
+    ]);
   });
 
   it("throws on an unknown option id", () => {
@@ -145,8 +149,8 @@ describe("resolveCustomQuestionAnswers — misc", () => {
       ALL,
     );
     expect(resolved).toEqual([
-      { questionId: "cq_check", isChecked: false },
-      { questionId: "cq_pick", questionAnswerOptionId: "cqao_a" },
+      { questionId: "cq_check", isChecked: false, questionAnswerText: "No" },
+      { questionId: "cq_pick", questionAnswerOptionId: "cqao_a", questionAnswerText: "Loyola University" },
     ]);
   });
 
@@ -159,5 +163,12 @@ describe("resolveCustomQuestionAnswers — misc", () => {
     expect(() =>
       resolveCustomQuestionAnswers([{ questionIdOrText: "cq_weird", value: "x" }], [weird]),
     ).toThrow(/unsupported type "SIGNATURE"/);
+  });
+
+  it("throws on a per-guest question (not yet supported)", () => {
+    const perGuest = q({ id: "cq_pg", questionType: "TEXT", perGuest: true });
+    expect(() =>
+      resolveCustomQuestionAnswers([{ questionIdOrText: "cq_pg", value: "x" }], [perGuest]),
+    ).toThrow(/Per-guest custom question "cq_pg" is not yet supported/);
   });
 });

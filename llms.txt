@@ -172,6 +172,7 @@ stay internal.
   type (checkbox `yes/no/true/false`; text verbatim; select-one/location by
   option id or lenient label) before the quote is made — an unmatched/ambiguous
   question or option, or an invalid checkbox value, fails creation up front.
+  Per-guest questions are not yet supported (answering one fails creation).
 
 ## Errors
 

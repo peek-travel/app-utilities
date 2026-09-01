@@ -346,6 +346,8 @@ export interface CustomQuestionAnswerInput {
    * For **location** questions you only select the option — Peek holds each
    * option's configured lat/long and applies it, so no coordinates are (or can
    * be) supplied here.
+   *
+   * Per-guest questions are **not yet supported**: answering one fails creation.
    */
   value: string;
 }
