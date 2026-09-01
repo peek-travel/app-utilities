@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 0.8.0
 
 ### `[additive]` `createBooking` accepts custom-question answers
 
