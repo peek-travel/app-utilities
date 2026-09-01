@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## 0.8.0
+## 0.8.1
 
 ### `[additive]` `createBooking` can enforce required custom questions
 
@@ -31,6 +31,8 @@ action needed; `[additive]` only adds capability.
   `requireRequiredQuestions: true`, and be sure to supply
   `customQuestionAnswers` for every required (non-per-guest) question or creation
   will throw.
+
+## 0.8.0
 
 ### `[additive]` `createBooking` accepts custom-question answers
 
