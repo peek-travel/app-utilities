@@ -162,6 +162,21 @@ models in `src/models/peek/`, CNG models in `src/models/cng/`.
 - `getAllActivities()` — fetches only the `activities` connection (one request, no add-on pagination).
 - `getAllAddons()` — fetches only the `itemOptions` connection, paginated.
 
+It also carries a second, single-activity read: `getCustomQuestions(productId)`
+returns an activity's operator-configured custom questions as a `CustomQuestion[]`
+(each with `options: CustomQuestionOption[]` for choice-style questions). This is
+a distinct sub-domain triad living beside the products triad —
+`custom-question-queries.ts` (the `activity(id)` → `questionActivityConfigurations`
+query and raw nodes, internal) and the pure `custom-question-converter.ts`
+(`fromQuestionConfigurations`) — with the service method on `ProductService`. The
+query resolves the choice options via an inline `... on ChoiceQuestion` fragment;
+the converter maps `question.text` → `questionText`, `hint` → `hintText`,
+`answerDefaultValue` → `defaultValue`, and lifts `order`/`isRequired` from the
+configuration node. These are **question definitions, not customer answers**, so
+they carry no PII and are unaffected by `fullCustomerAccess`. The method throws on
+a blank `productId` before any network call and returns `[]` for an unknown
+activity. `CustomQuestion`/`CustomQuestionOption` are exported from `src/index.ts`.
+
 `ProductService` also surfaces each activity's `currency` on the clean
 `Product` (empty string for add-ons, which have none) — the field pricing
 consumers need to set the currency on fixed-price overrides.
@@ -340,7 +355,19 @@ Recurring patterns inside services:
 - **Multi-step mutations** — booking creation (`createQuoteV2` →
   `createOrderFromQuote`) and both add-on mutations (`createQuoteFromOrder` →
   `updateQuoteV2` → `amendOrder`) are orchestrated as ordered request chains
-  with per-step error checks. `addAddon` and `removeAddon` first call
+  with per-step error checks. When `CreateBookingInput.customQuestionAnswers`
+  is supplied, `create` first fetches the activity's custom questions
+  (`ProductService.getCustomQuestions`) and runs the pure resolver in
+  `bookings/custom-question-answer.ts` (`resolveCustomQuestionAnswers`) to match
+  each answer (by id or lenient text) and validate its value by question type.
+  Every resolved answer carries `questionAnswerText` (required by the gateway):
+  the raw value for text, the option's exact label for select-one/location
+  (which also set `questionAnswerOptionId`), and `"Yes"`/`"No"` for a checkbox
+  (which also sets `isChecked`). Options are matched by id or lenient label.
+  Per-guest questions are rejected (`not yet supported`). This runs
+  before the first `createQuoteV2`, so a bad answer fails before any quote
+  exists; the service then tags each resolved answer with a fresh `refid` and
+  attaches them as the quote's `questionAnswers`. `addAddon` and `removeAddon` first call
   `listAddons` (the `sales` add-ons query) to derive the order id from the
   booking and reuse existing item/option refids — `addAddon` reuses a
   non-canceled add-on's item refid rather than minting a duplicate, and

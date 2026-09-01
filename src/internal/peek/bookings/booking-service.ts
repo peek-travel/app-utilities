@@ -43,6 +43,7 @@ import {
   parseSaleNode,
   toBookingAddon,
 } from "./addon-converter.js";
+import { resolveCustomQuestionAnswers } from "./custom-question-answer.js";
 import {
   ADDON_OPTION_STATUS_CANCELED,
   RESERVATION_STATUS_CONFIRMED,
@@ -778,6 +779,11 @@ export class BookingService {
   async create(input: CreateBookingInput): Promise<CreatedBooking> {
     validateCreateInput(input);
 
+    // Resolve custom-question answers before anything is created: fetch the
+    // activity's questions and validate/map each answer, so a bad answer fails
+    // here rather than after a quote exists.
+    const questionAnswers = await this.buildQuestionAnswers(input);
+
     const tickets = input.tickets.flatMap((ticket) =>
       Array.from({ length: ticket.quantity }, () => ({
         resourceOptionId: ticket.resourceOptionId,
@@ -804,6 +810,9 @@ export class BookingService {
     };
     if (input.operatorNotes) {
       bookingQuote.operatorNotes = input.operatorNotes;
+    }
+    if (questionAnswers) {
+      bookingQuote.questionAnswers = questionAnswers;
     }
 
     const quoteInput: Record<string, unknown> = { bookingQuotes: [bookingQuote] };
@@ -854,6 +863,28 @@ export class BookingService {
     }
 
     return created;
+  }
+
+  /**
+   * Resolves the input's custom-question answers into the quote's
+   * `questionAnswers` payload (each tagged with a fresh `refid`), or `null` when
+   * none were supplied. Fetches the activity's custom questions to validate
+   * against; throws on the first unmatched/ambiguous/invalid answer.
+   */
+  private async buildQuestionAnswers(
+    input: CreateBookingInput,
+  ): Promise<Array<Record<string, unknown>> | null> {
+    const answers = input.customQuestionAnswers;
+    if (!answers || answers.length === 0) {
+      return null;
+    }
+    const questions = await this.deps.productService.getCustomQuestions(
+      input.activityId,
+    );
+    return resolveCustomQuestionAnswers(answers, questions).map((resolved) => ({
+      ...resolved,
+      refid: randomUUID(),
+    }));
   }
 
   private async markCreatedBookingPaid(

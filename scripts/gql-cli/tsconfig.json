@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "incremental": true,
+    "tsBuildInfoFile": "./.build/tsconfig.tsbuildinfo",
+    "rootDir": "../..",
+    "outDir": "./.build"
+  },
+  "include": ["cli.ts"],
+  "exclude": []
+}

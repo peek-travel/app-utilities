@@ -12,7 +12,9 @@ import {
   RENTAL_PRODUCT_TYPE,
   type Product,
 } from "../../../models/peek/product.js";
+import type { CustomQuestion } from "../../../models/peek/custom-question.js";
 import { fromActivities, fromItemOptionNodes } from "./product-converter.js";
+import { fromQuestionConfigurations } from "./custom-question-converter.js";
 import {
   ITEM_OPTIONS_QUERY,
   PRODUCTS_QUERY,
@@ -20,6 +22,13 @@ import {
   type ItemOptionsData,
   type ProductsResponse,
 } from "./product-queries.js";
+import {
+  CUSTOM_QUESTIONS_QUERY,
+  type CustomQuestionsResponse,
+} from "./custom-question-queries.js";
+
+/** Thrown-error message when a product id is missing or blank. */
+const ERROR_PRODUCT_ID_REQUIRED = "A non-empty product id is required.";
 
 /** Default page size for cursor-paginated item options. */
 const DEFAULT_ITEM_OPTIONS_PAGE_SIZE = 50;
@@ -80,6 +89,36 @@ export class ProductService {
   async getAllAddons(): Promise<Product[]> {
     const nodes = await this.fetchAllItemOptionNodes();
     return fromItemOptionNodes(nodes);
+  }
+
+  /**
+   * Returns every custom question configured on a single activity, in the order
+   * Peek reports them. Choice-style questions (`SELECT_ONE`, `LOCATION`, …)
+   * carry their selectable {@link CustomQuestion.options}; free-text/checkbox
+   * questions return an empty option list.
+   *
+   * These are question **definitions**, not customer answers — no PII is
+   * involved, so the result is unaffected by `fullCustomerAccess`.
+   *
+   * @param productId The activity's id.
+   * @returns The activity's custom questions, or an empty list when the activity
+   *   has none or is not found.
+   * @throws Error when `productId` is missing or blank.
+   */
+  async getCustomQuestions(productId: string): Promise<CustomQuestion[]> {
+    if (!productId?.trim()) {
+      throw new Error(ERROR_PRODUCT_ID_REQUIRED);
+    }
+
+    const body: GraphQLBody<CustomQuestionsResponse> =
+      await this.client.request<CustomQuestionsResponse>(
+        SALES_ENDPOINT,
+        CUSTOM_QUESTIONS_QUERY,
+        { id: productId },
+      );
+
+    const configs = body.data?.activity?.questionActivityConfigurations ?? [];
+    return fromQuestionConfigurations(configs);
   }
 
   private async fetchActivities(): Promise<ProductsResponse["activities"]> {

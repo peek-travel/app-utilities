@@ -12,6 +12,44 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 0.8.0
+
+### `[additive]` `createBooking` accepts custom-question answers
+
+- **What:** `CreateBookingInput` gains an optional
+  `customQuestionAnswers?: CustomQuestionAnswerInput[]` (exported), where each
+  entry is `{ questionIdOrText, value }`. When supplied, `create` fetches the
+  activity's custom questions and resolves every answer **before** the booking is
+  made: the question is matched by id (`cq_…`) or lenient text (lowercased,
+  non-alphanumerics stripped; must match exactly one), and the value is validated
+  by question type — checkbox (`yes/no/true/false`), text (verbatim), or
+  select-one/location (option matched by id `cqao_…` or lenient label). The
+  resolved answers are attached to the booking quote. Per-guest questions are
+  **not yet supported** — answering one fails creation.
+- **Why:** Callers can now capture custom-question responses at booking time
+  without hand-building the quote payload or pre-resolving option ids.
+- **Caller action:** None to keep current behavior — the field is optional and
+  omitting it is unchanged. If you do pass answers, note that an unmatched or
+  ambiguous question/option, or an invalid checkbox value, now **throws before
+  any quote is created** (no partial booking). Resolve ids with
+  `getCustomQuestions(productId)` if you prefer exact matching over text.
+
+### `[additive]` `ProductService.getCustomQuestions(productId)` — read an activity's custom questions
+
+- **What:** New read on `ProductService` (with the `PeekAccessService.getCustomQuestions(productId)`
+  short-form) that returns an activity's operator-configured custom questions as
+  a `CustomQuestion[]`. Each `CustomQuestion` carries `id`, `order`, `isRequired`,
+  `questionText`, `hintText`, `questionType` (`CHECK_BOX`/`TEXT`/`LOCATION`/
+  `SELECT_ONE`/…), `internalLabel`, `perGuest`, `defaultValue`, and
+  `options: CustomQuestionOption[]` (`{ id, order, value }`, empty for
+  free-text/checkbox questions). Both types are exported from the package root.
+- **Why:** Consumers need the question definitions attached to an activity (e.g.
+  to render or validate booking-time inputs) without touching raw GraphQL.
+- **Caller action:** None — additive. Note these are question **definitions**,
+  not customer answers, so the call carries no PII and is unaffected by
+  `fullCustomerAccess`. A blank `productId` throws before any network call; an
+  unknown activity returns `[]`.
+
 ## 0.7.4
 
 ### `[fix]` `/ui`: unupgraded `<ody-*>` elements no longer flash as raw text
