@@ -1,0 +1,5 @@
+.build/
+.env
+
+# Root .gitignore's ".env.*" would swallow this template — keep it tracked.
+!.env.example
