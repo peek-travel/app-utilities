@@ -4,16 +4,17 @@
  * package — it lives outside `src/` and is never bundled.
  *
  * Auth model (see the folder README): the gateway only checks two headers,
- * `pk-api-key` (the gateway key) and `X-Peek-Auth: Bearer <token>`. The static
- * config (gateway key, app id, base url) lives in a gitignored `.env`; the
- * bearer token changes/expires, so it is passed as the first CLI argument on
- * every call. Because the token is supplied directly, this harness skips the
- * JWT-minting machinery in `PeekAccessService` and builds the internal
- * `GraphQLClient` itself, then wires the real resource services onto it — so it
- * exercises the exact same service + converter code a consumer would.
+ * `pk-api-key` (the gateway key) and `X-Peek-Auth: Bearer <token>`. All config —
+ * gateway key, app id, base url, and the bearer token — lives in a gitignored
+ * `.env`. The token changes/expires; when `PEEK_AUTH_TOKEN` is unset the harness
+ * prompts for it (hidden input) at call time. Because the token is supplied
+ * directly, this harness skips the JWT-minting machinery in `PeekAccessService`
+ * and builds the internal `GraphQLClient` itself, then wires the real resource
+ * services onto it — so it exercises the exact same service + converter code a
+ * consumer would.
  *
  * Usage:
- *   run.sh <authToken> <functionName> [param1] [param2] ...
+ *   run.sh <functionName> [param1] [param2] ...
  *   run.sh help
  *   run.sh help <functionName>
  */
@@ -59,6 +60,78 @@ import type {
 
 /** Gateway default when `.env` sets no `PEEK_BASE_URL`/`PEEK_API_URL`. */
 const DEFAULT_BASE_URL = "https://apps.peekapis.com/backoffice-gql";
+
+// ─── Auth token resolution ───────────────────────────────────────────────────
+
+/**
+ * Reads a secret from the terminal without echoing it. Falls back to reading a
+ * piped line when stdin is not a TTY (`echo "$TOKEN" | run.sh …`).
+ */
+function promptSecret(label: string): Promise<string> {
+  const { stdin, stdout } = process;
+  if (!stdin.isTTY) {
+    return new Promise((resolve, reject) => {
+      let data = "";
+      stdin.setEncoding("utf8");
+      stdin.on("data", (chunk) => (data += chunk.toString()));
+      stdin.on("end", () => resolve(data.trim()));
+      stdin.on("error", reject);
+    });
+  }
+  return new Promise((resolve, reject) => {
+    stdout.write(label);
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.setEncoding("utf8");
+    let value = "";
+    const onData = (chunk: Buffer | string): void => {
+      for (const ch of chunk.toString()) {
+        const code = ch.charCodeAt(0);
+        // Enter (LF/CR) or Ctrl-D (EOT) ends input.
+        if (code === 10 || code === 13 || code === 4) {
+          stdin.setRawMode(false);
+          stdin.pause();
+          stdin.removeListener("data", onData);
+          stdout.write("\n");
+          resolve(value);
+          return;
+        }
+        if (code === 3) {
+          // Ctrl-C aborts.
+          stdin.setRawMode(false);
+          stdin.pause();
+          stdout.write("\n");
+          reject(new Error("Aborted."));
+          return;
+        }
+        if (code === 127 || code === 8) {
+          // Backspace / delete.
+          value = value.slice(0, -1);
+          continue;
+        }
+        value += ch;
+      }
+    };
+    stdin.on("data", onData);
+  });
+}
+
+/**
+ * Resolves the `X-Peek-Auth` bearer token: `PEEK_AUTH_TOKEN` from `.env`/env if
+ * set, otherwise prompts for it. Prompting happens only at call time, so `help`
+ * and arg errors never ask for a token.
+ */
+async function resolveAuthToken(): Promise<string> {
+  const fromEnv = process.env.PEEK_AUTH_TOKEN?.trim();
+  if (fromEnv) return fromEnv;
+  const entered = (await promptSecret("X-Peek-Auth token: ")).trim();
+  if (!entered) {
+    throw new Error(
+      "No auth token. Set PEEK_AUTH_TOKEN in .env or enter it when prompted.",
+    );
+  }
+  return entered;
+}
 
 // ─── .env loading (no dependency) ────────────────────────────────────────────
 
@@ -300,12 +373,13 @@ function signature(fn: FnSpec): string {
 }
 
 function printHelp(): void {
-  console.log("Usage: run.sh <authToken> <functionName> [params...]\n");
+  console.log("Usage: run.sh <functionName> [params...]\n");
   console.log("       run.sh help                  list all functions");
   console.log("       run.sh help <functionName>   show a function's params\n");
-  console.log("Static config comes from .env (PEEK_GATEWAY_KEY, PEEK_APP_ID,");
+  console.log("Config comes from .env (PEEK_AUTH_TOKEN, PEEK_GATEWAY_KEY, PEEK_APP_ID,");
   console.log("PEEK_BASE_URL or PEEK_API_URL). PEEK_FULL_CUSTOMER_ACCESS=1 enables");
-  console.log("PII-gated calls (marked [PII]). The auth token is passed per call.\n");
+  console.log("PII-gated calls (marked [PII]). If PEEK_AUTH_TOKEN is unset you are");
+  console.log("prompted for the token at call time.\n");
   let group = "";
   for (const fn of REGISTRY) {
     if (fn.group !== group) {
@@ -362,25 +436,17 @@ async function main(): Promise<void> {
     return;
   }
 
-  const [authToken, fnName, ...rest] = argv;
-  if (!fnName) {
-    console.error("Missing function name. Run: help");
-    process.exitCode = 1;
-    return;
-  }
-  const fn = BY_NAME.get(fnName);
+  const [fnName, ...rest] = argv;
+  const fn = BY_NAME.get(fnName!);
   if (!fn) {
     console.error(`Unknown function "${fnName}". Run: help`);
     process.exitCode = 1;
     return;
   }
-  if (!authToken) {
-    console.error("Missing auth token (first argument).");
-    process.exitCode = 1;
-    return;
-  }
 
+  // Coerce args first so bad input fails fast without prompting for a token.
   const args = coerce(fn, rest);
+  const authToken = await resolveAuthToken();
   const ctx = buildContext(authToken);
   const result = await fn.run(ctx, args);
   console.log(JSON.stringify(result ?? null, null, 2));

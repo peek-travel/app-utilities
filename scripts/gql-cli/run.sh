@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 #
 # Compile the CLI (with the repo's own tsc — no extra dependency) and run it.
-# Static config is read from ./.env; the auth token is the first argument.
+# Config (incl. PEEK_AUTH_TOKEN) is read from ./.env; if the token is unset the
+# CLI prompts for it.
 #
-#   ./run.sh <authToken> <functionName> [params...]
+#   ./run.sh <functionName> [params...]
 #   ./run.sh help
 #   ./run.sh help <functionName>
 #
