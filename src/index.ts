@@ -138,6 +138,7 @@ export type {
   CreateBookingTicket,
   CreatedBooking,
   CustomQuestionAnswer,
+  CustomQuestionAnswerInput,
   Guest,
   GuestMetadata,
   NoteMode,

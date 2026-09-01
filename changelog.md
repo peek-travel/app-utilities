@@ -14,6 +14,25 @@ action needed; `[additive]` only adds capability.
 
 ## Unreleased
 
+### `[additive]` `createBooking` accepts custom-question answers
+
+- **What:** `CreateBookingInput` gains an optional
+  `customQuestionAnswers?: CustomQuestionAnswerInput[]` (exported), where each
+  entry is `{ questionIdOrText, value }`. When supplied, `create` fetches the
+  activity's custom questions and resolves every answer **before** the booking is
+  made: the question is matched by id (`cq_…`) or lenient text (lowercased,
+  non-alphanumerics stripped; must match exactly one), and the value is validated
+  by question type — checkbox (`yes/no/true/false`), text (verbatim), or
+  select-one/location (option matched by id `cqao_…` or lenient label). The
+  resolved answers are attached to the booking quote.
+- **Why:** Callers can now capture custom-question responses at booking time
+  without hand-building the quote payload or pre-resolving option ids.
+- **Caller action:** None to keep current behavior — the field is optional and
+  omitting it is unchanged. If you do pass answers, note that an unmatched or
+  ambiguous question/option, or an invalid checkbox value, now **throws before
+  any quote is created** (no partial booking). Resolve ids with
+  `getCustomQuestions(productId)` if you prefer exact matching over text.
+
 ### `[additive]` `ProductService.getCustomQuestions(productId)` — read an activity's custom questions
 
 - **What:** New read on `ProductService` (with the `PeekAccessService.getCustomQuestions(productId)`

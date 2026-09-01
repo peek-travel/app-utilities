@@ -164,8 +164,14 @@ stay internal.
 - Payment source ids: `ps_…` or `cash/cash` | `custom/other` | `custom/voucher`.
   Payment ids (refunds): `pmt_…`.
 - Idempotency key required on `makePayment`, `refund`, `create({markAsPaid:true})`.
-- `create()` uses pre-resolved ids only (resolve via product + availability
-  services); no free-text matching.
+- `create()` uses pre-resolved ids for product/ticket/time (resolve via product
+  + availability services); no free-text matching there. The one exception is
+  `CreateBookingInput.customQuestionAnswers?: CustomQuestionAnswerInput[]`
+  (`{questionIdOrText, value}`): when supplied, the activity's custom questions
+  are fetched and each answer is matched (id or lenient text) and validated by
+  type (checkbox `yes/no/true/false`; text verbatim; select-one/location by
+  option id or lenient label) before the quote is made — an unmatched/ambiguous
+  question or option, or an invalid checkbox value, fails creation up front.
 
 ## Errors
 

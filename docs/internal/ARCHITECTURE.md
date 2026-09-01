@@ -355,7 +355,16 @@ Recurring patterns inside services:
 - **Multi-step mutations** — booking creation (`createQuoteV2` →
   `createOrderFromQuote`) and both add-on mutations (`createQuoteFromOrder` →
   `updateQuoteV2` → `amendOrder`) are orchestrated as ordered request chains
-  with per-step error checks. `addAddon` and `removeAddon` first call
+  with per-step error checks. When `CreateBookingInput.customQuestionAnswers`
+  is supplied, `create` first fetches the activity's custom questions
+  (`ProductService.getCustomQuestions`) and runs the pure resolver in
+  `bookings/custom-question-answer.ts` (`resolveCustomQuestionAnswers`) to match
+  each answer (by id or lenient text) and validate its value by question type —
+  checkbox → `isChecked`, text → `questionAnswerText`, select-one/location →
+  `questionAnswerOptionId` (option matched by id or lenient label). This runs
+  before the first `createQuoteV2`, so a bad answer fails before any quote
+  exists; the service then tags each resolved answer with a fresh `refid` and
+  attaches them as the quote's `questionAnswers`. `addAddon` and `removeAddon` first call
   `listAddons` (the `sales` add-ons query) to derive the order id from the
   booking and reuse existing item/option refids — `addAddon` reuses a
   non-canceled add-on's item refid rather than minting a duplicate, and

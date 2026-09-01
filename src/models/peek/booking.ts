@@ -324,6 +324,33 @@ export interface CreateBookingGuest {
 }
 
 /**
+ * An answer to one of an activity's custom questions, supplied when creating a
+ * booking. The question is identified by id **or** text, and the value is
+ * resolved against the question's type at create time (see
+ * {@link CreateBookingInput.customQuestionAnswers}).
+ */
+export interface CustomQuestionAnswerInput {
+  /**
+   * The question to answer — either its id (`cq_…`) or its question text. Text
+   * is matched leniently (lowercased, non-alphanumerics stripped); it must match
+   * exactly one question or creation fails.
+   */
+  questionIdOrText: string;
+  /**
+   * The answer. How it is interpreted depends on the question's type:
+   * - **checkbox** — `yes`/`no`/`true`/`false` (case-insensitive).
+   * - **text** — used verbatim.
+   * - **select-one / location** — an option id (`cqao_…`) or the option's label,
+   *   matched leniently the same way as `questionIdOrText`.
+   *
+   * For **location** questions you only select the option — Peek holds each
+   * option's configured lat/long and applies it, so no coordinates are (or can
+   * be) supplied here.
+   */
+  value: string;
+}
+
+/**
  * Input for creating a booking. IDs must already be resolved — the package does
  * not do free-text product/ticket/time matching (that stays in the caller).
  */
@@ -338,6 +365,13 @@ export interface CreateBookingInput {
   guest: CreateBookingGuest;
   /** Operator notes to attach. */
   operatorNotes?: string;
+  /**
+   * Answers to the activity's custom questions. When non-empty, the activity's
+   * custom questions are fetched and each answer is validated/resolved before
+   * the booking is created — an unmatched question, ambiguous text/option, or
+   * invalid checkbox value fails creation before any quote is made.
+   */
+  customQuestionAnswers?: CustomQuestionAnswerInput[];
   /** Suppress the customer confirmation email. Default: false. */
   skipCustomerEmail?: boolean;
   /** Clone the quote from an existing order. */

@@ -10,6 +10,7 @@ import type { AccessOptions } from "../../../src/access-options.js";
 import { PiiAccessDisabledError } from "../../../src/errors.js";
 import { noopLogger } from "../../../src/logger.js";
 import type { Product } from "../../../src/models/peek/product.js";
+import type { CustomQuestion } from "../../../src/models/peek/custom-question.js";
 
 interface RecordedCall {
   query: string;
@@ -22,6 +23,7 @@ function makeService(
   handler: Handler,
   addOnProducts: Product[] = [],
   accessOptions: AccessOptions = { fullCustomerAccess: true },
+  customQuestions: CustomQuestion[] = [],
 ): {
   service: BookingService;
   calls: RecordedCall[];
@@ -44,6 +46,7 @@ function makeService(
   };
   const productService = {
     getAllProducts: async () => addOnProducts,
+    getCustomQuestions: async () => customQuestions,
   } as unknown as ProductService;
   return {
     service: new BookingService(
@@ -980,6 +983,92 @@ describe("BookingService.create", () => {
     await service.create({ ...validCreate, parentOrderId: "o_parent" });
     const quoteInput = (calls[0]!.variables.input as { quoteInput: { source?: { clonedFromId: string } } }).quoteInput;
     expect(quoteInput.source).toEqual({ clonedFromId: "o_parent" });
+  });
+
+  const q = (over: Partial<CustomQuestion>): CustomQuestion => ({
+    id: "cq_x",
+    order: 1,
+    isRequired: false,
+    questionText: "Question",
+    hintText: null,
+    questionType: "TEXT",
+    internalLabel: null,
+    perGuest: false,
+    defaultValue: null,
+    options: [],
+    ...over,
+  });
+
+  const QUESTIONS: CustomQuestion[] = [
+    q({ id: "cq_check", questionText: "Adult Only?", questionType: "CHECK_BOX" }),
+    q({ id: "cq_text", questionText: "Dietary Notes", questionType: "TEXT" }),
+    q({
+      id: "cq_pick",
+      questionText: "Pickup Spot",
+      questionType: "SELECT_ONE",
+      options: [
+        { id: "cqao_a", order: 1, value: "Option A" },
+        { id: "cqao_b", order: 2, value: "Option B" },
+      ],
+    }),
+  ];
+
+  function bookingQuoteOf(calls: RecordedCall[]): Record<string, unknown> {
+    const input = calls.find((c) => c.query.includes("createQuoteV2"))!.variables.input as {
+      quoteInput: { bookingQuotes: Array<Record<string, unknown>> };
+    };
+    return input.quoteInput.bookingQuotes[0]!;
+  }
+
+  it("resolves custom-question answers (by id and text) onto the quote", async () => {
+    const { service, calls } = makeService(createHandler(), [], undefined, QUESTIONS);
+
+    await service.create({
+      ...validCreate,
+      customQuestionAnswers: [
+        { questionIdOrText: "cq_text", value: "No nuts" },
+        { questionIdOrText: "Adult Only?", value: "yes" }, // text match → checkbox
+        { questionIdOrText: "cq_pick", value: "option b" }, // fuzzy option label
+      ],
+    });
+
+    const answers = bookingQuoteOf(calls).questionAnswers as Array<Record<string, unknown>>;
+    expect(answers).toHaveLength(3);
+    expect(answers[0]).toMatchObject({ questionId: "cq_text", questionAnswerText: "No nuts" });
+    expect(answers[1]).toMatchObject({ questionId: "cq_check", isChecked: true });
+    expect(answers[2]).toMatchObject({ questionId: "cq_pick", questionAnswerOptionId: "cqao_b" });
+    // Each answer carries a fresh, unique refid.
+    const refids = answers.map((a) => a.refid as string);
+    expect(refids.every((id) => typeof id === "string" && id.length > 0)).toBe(true);
+    expect(new Set(refids).size).toBe(3);
+  });
+
+  it("omits questionAnswers when none are supplied", async () => {
+    const { service, calls } = makeService(createHandler(), [], undefined, QUESTIONS);
+    await service.create({ ...validCreate });
+    expect(bookingQuoteOf(calls).questionAnswers).toBeUndefined();
+  });
+
+  it("fails an unmatched question before making a quote", async () => {
+    const { service, calls } = makeService(createHandler(), [], undefined, QUESTIONS);
+    await expect(
+      service.create({
+        ...validCreate,
+        customQuestionAnswers: [{ questionIdOrText: "cq_missing", value: "x" }],
+      }),
+    ).rejects.toThrow(/No custom question matches id/);
+    expect(calls.every((c) => !c.query.includes("createQuoteV2"))).toBe(true);
+  });
+
+  it("fails an invalid checkbox value before making a quote", async () => {
+    const { service, calls } = makeService(createHandler(), [], undefined, QUESTIONS);
+    await expect(
+      service.create({
+        ...validCreate,
+        customQuestionAnswers: [{ questionIdOrText: "cq_check", value: "maybe" }],
+      }),
+    ).rejects.toThrow(/must be yes\/no\/true\/false/);
+    expect(calls.every((c) => !c.query.includes("createQuoteV2"))).toBe(true);
   });
 
   it.each(["o_abc123", "O-123ABC"])("accepts a valid parentOrderId: %s", async (parentOrderId) => {
