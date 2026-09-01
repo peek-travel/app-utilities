@@ -172,3 +172,51 @@ describe("resolveCustomQuestionAnswers — misc", () => {
     ).toThrow(/Per-guest custom question "cq_pg" is not yet supported/);
   });
 });
+
+describe("resolveCustomQuestionAnswers — requireRequired", () => {
+  const REQ_TEXT = q({ id: "cq_req", questionText: "Dietary Notes", questionType: "TEXT", isRequired: true });
+
+  it("throws when a required question is unanswered (empty answers)", () => {
+    expect(() =>
+      resolveCustomQuestionAnswers([], [REQ_TEXT], { requireRequired: true }),
+    ).toThrow(/Custom question "Dietary Notes" \(cq_req\) is required but was not answered/);
+  });
+
+  it("throws when a required question is unanswered among other answers", () => {
+    expect(() =>
+      resolveCustomQuestionAnswers(
+        [{ questionIdOrText: "cq_check", value: "yes" }],
+        [CHECK, REQ_TEXT],
+        { requireRequired: true },
+      ),
+    ).toThrow(/\(cq_req\) is required but was not answered/);
+  });
+
+  it("passes when every required question is answered", () => {
+    const resolved = resolveCustomQuestionAnswers(
+      [{ questionIdOrText: "cq_req", value: "vegan" }],
+      [REQ_TEXT],
+      { requireRequired: true },
+    );
+    expect(resolved).toEqual([{ questionId: "cq_req", questionAnswerText: "vegan" }]);
+  });
+
+  it("counts a required checkbox answered 'no' as answered", () => {
+    const reqCheck = q({ id: "cq_rc", questionType: "CHECK_BOX", isRequired: true });
+    const resolved = resolveCustomQuestionAnswers(
+      [{ questionIdOrText: "cq_rc", value: "no" }],
+      [reqCheck],
+      { requireRequired: true },
+    );
+    expect(resolved).toEqual([{ questionId: "cq_rc", isChecked: false, questionAnswerText: "No" }]);
+  });
+
+  it("ignores required per-guest questions", () => {
+    const reqPerGuest = q({ id: "cq_rpg", questionType: "TEXT", isRequired: true, perGuest: true });
+    expect(resolveCustomQuestionAnswers([], [reqPerGuest], { requireRequired: true })).toEqual([]);
+  });
+
+  it("does not enforce coverage when requireRequired is off", () => {
+    expect(resolveCustomQuestionAnswers([], [REQ_TEXT])).toEqual([]);
+  });
+});

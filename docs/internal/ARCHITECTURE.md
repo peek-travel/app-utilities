@@ -364,7 +364,10 @@ Recurring patterns inside services:
   the raw value for text, the option's exact label for select-one/location
   (which also set `questionAnswerOptionId`), and `"Yes"`/`"No"` for a checkbox
   (which also sets `isChecked`). Options are matched by id or lenient label.
-  Per-guest questions are rejected (`not yet supported`). This runs
+  Per-guest questions are rejected (`not yet supported`). When
+  `CreateBookingInput.requireRequiredQuestions` is set, the resolver also runs
+  even if no answers were supplied and throws for the first required,
+  non-per-guest question left unanswered. This runs
   before the first `createQuoteV2`, so a bad answer fails before any quote
   exists; the service then tags each resolved answer with a fresh `refid` and
   attaches them as the quote's `questionAnswers`. `addAddon` and `removeAddon` first call

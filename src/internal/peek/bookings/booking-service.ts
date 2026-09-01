@@ -773,8 +773,9 @@ export class BookingService {
    *
    * @throws {Error} when `activityId`, `availabilityTimeId`, a ticket
    * `resourceOptionId`/positive `quantity`, or the guest `name` is missing; when
-   * `markAsPaid` is set without an `idempotencyKey`; or when the quote/order
-   * mutations fail.
+   * `markAsPaid` is set without an `idempotencyKey`; when
+   * `requireRequiredQuestions` is set and a required custom question is left
+   * unanswered; or when the quote/order mutations fail.
    */
   async create(input: CreateBookingInput): Promise<CreatedBooking> {
     validateCreateInput(input);
@@ -874,15 +875,24 @@ export class BookingService {
   private async buildQuestionAnswers(
     input: CreateBookingInput,
   ): Promise<Array<Record<string, unknown>> | null> {
-    const answers = input.customQuestionAnswers;
-    if (!answers || answers.length === 0) {
+    const answers = input.customQuestionAnswers ?? [];
+    const requireRequired = input.requireRequiredQuestions ?? false;
+    // Nothing to resolve and no required-coverage check to enforce — skip the
+    // questions fetch entirely.
+    if (answers.length === 0 && !requireRequired) {
       return null;
     }
     const questions = await this.deps.productService.getCustomQuestions(
       input.activityId,
     );
-    return resolveCustomQuestionAnswers(answers, questions).map((resolved) => ({
-      ...resolved,
+    const resolved = resolveCustomQuestionAnswers(answers, questions, {
+      requireRequired,
+    });
+    if (resolved.length === 0) {
+      return null;
+    }
+    return resolved.map((answer) => ({
+      ...answer,
       refid: randomUUID(),
     }));
   }

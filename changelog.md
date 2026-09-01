@@ -12,6 +12,26 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 0.8.1
+
+### `[additive]` `createBooking` can enforce required custom questions
+
+- **What:** `CreateBookingInput` gains an optional
+  `requireRequiredQuestions?: boolean` (default `false`). When `true`, `create`
+  fetches the activity's custom questions and fails if any question the activity
+  marks required (per-guest questions excluded) is left unanswered — the error
+  names the offending question and is thrown **before any quote is created**.
+  Because it enforces coverage, custom-question validation now runs even when
+  `customQuestionAnswers` is empty or omitted.
+- **Why:** Callers that must not create a booking with unanswered required
+  questions can now delegate that check instead of re-implementing it against
+  `getCustomQuestions`.
+- **Caller action:** None to keep current behavior — the flag defaults to
+  `false`, and omitting it leaves creation exactly as before. Opt in with
+  `requireRequiredQuestions: true`, and be sure to supply
+  `customQuestionAnswers` for every required (non-per-guest) question or creation
+  will throw.
+
 ## 0.8.0
 
 ### `[additive]` `createBooking` accepts custom-question answers

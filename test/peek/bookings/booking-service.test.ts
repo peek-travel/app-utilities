@@ -1091,6 +1091,38 @@ describe("BookingService.create", () => {
     expect(calls.every((c) => !c.query.includes("createQuoteV2"))).toBe(true);
   });
 
+  it("requireRequiredQuestions fails when a required question is unanswered", async () => {
+    const required = [
+      q({ id: "cq_req", questionText: "Dietary Notes", questionType: "TEXT", isRequired: true }),
+    ];
+    const { service, calls } = makeService(createHandler(), [], undefined, required);
+    await expect(
+      service.create({ ...validCreate, requireRequiredQuestions: true }),
+    ).rejects.toThrow(/\(cq_req\) is required but was not answered/);
+    expect(calls.every((c) => !c.query.includes("createQuoteV2"))).toBe(true);
+  });
+
+  it("requireRequiredQuestions passes when the required question is answered", async () => {
+    const required = [
+      q({ id: "cq_req", questionText: "Dietary Notes", questionType: "TEXT", isRequired: true }),
+    ];
+    const { service, calls } = makeService(createHandler(), [], undefined, required);
+    await service.create({
+      ...validCreate,
+      requireRequiredQuestions: true,
+      customQuestionAnswers: [{ questionIdOrText: "cq_req", value: "vegan" }],
+    });
+    const answers = bookingQuoteOf(calls).questionAnswers as Array<Record<string, unknown>>;
+    expect(answers).toHaveLength(1);
+    expect(answers[0]).toMatchObject({ questionId: "cq_req", questionAnswerText: "vegan" });
+  });
+
+  it("requireRequiredQuestions omits questionAnswers when nothing is required or answered", async () => {
+    const { service, calls } = makeService(createHandler(), [], undefined, QUESTIONS);
+    await service.create({ ...validCreate, requireRequiredQuestions: true });
+    expect(bookingQuoteOf(calls).questionAnswers).toBeUndefined();
+  });
+
   it.each(["o_abc123", "O-123ABC"])("accepts a valid parentOrderId: %s", async (parentOrderId) => {
     const { service } = makeService(createHandler());
     await expect(service.create({ ...validCreate, parentOrderId })).resolves.toBeDefined();
