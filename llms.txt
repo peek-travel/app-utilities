@@ -173,6 +173,10 @@ stay internal.
   option id or lenient label) before the quote is made — an unmatched/ambiguous
   question or option, or an invalid checkbox value, fails creation up front.
   Per-guest questions are not yet supported (answering one fails creation).
+  `CreateBookingInput.requireRequiredQuestions?: boolean` (default `false`)
+  additionally enforces that every required (non-per-guest) custom question is
+  answered — validation runs even when `customQuestionAnswers` is empty/omitted,
+  and an unanswered required question fails creation before the quote.
 
 ## Errors
 

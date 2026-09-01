@@ -374,6 +374,14 @@ export interface CreateBookingInput {
    * invalid checkbox value fails creation before any quote is made.
    */
   customQuestionAnswers?: CustomQuestionAnswerInput[];
+  /**
+   * When `true`, creation fails if any of the activity's required custom
+   * questions (per-guest questions excluded) is left unanswered. Because this
+   * enforces coverage against the activity's questions, it forces custom-question
+   * validation to run even when `customQuestionAnswers` is empty or omitted.
+   * Default: `false`.
+   */
+  requireRequiredQuestions?: boolean;
   /** Suppress the customer confirmation email. Default: false. */
   skipCustomerEmail?: boolean;
   /** Clone the quote from an existing order. */

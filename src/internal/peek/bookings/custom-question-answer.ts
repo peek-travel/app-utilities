@@ -52,6 +52,8 @@ const errNoOptionMatch = (v: string, id: string): string =>
   `No option matches "${v}" for question "${id}"`;
 const errAmbiguousOption = (v: string, id: string): string =>
   `Option "${v}" matches more than one option for question "${id}"`;
+const errMissingRequired = (text: string, id: string): string =>
+  `Custom question "${text}" (${id}) is required but was not answered`;
 
 /**
  * A resolved answer, minus the `refid` the service mints. `questionAnswerText`
@@ -153,14 +155,47 @@ function resolveOne(
   }
 }
 
+/** Options controlling how the answer set as a whole is validated. */
+export interface ResolveCustomQuestionOptions {
+  /**
+   * When `true`, every question the activity marks `isRequired` must have an
+   * answer — resolution throws for the first required question left unanswered.
+   * Per-guest questions are excluded (they cannot be answered here anyway).
+   */
+  requireRequired?: boolean;
+}
+
 /**
  * Resolves every caller-supplied answer against the activity's custom questions,
  * throwing on the first unmatched question, ambiguous match, or invalid value.
  * The returned objects carry no `refid` — the service adds one per answer.
+ *
+ * With `requireRequired`, the resolved set is additionally checked for coverage:
+ * any required, non-per-guest question with no answer throws. This check runs
+ * even when `answers` is empty, so an activity with unanswered required
+ * questions fails rather than booking without them.
  */
 export function resolveCustomQuestionAnswers(
   answers: CustomQuestionAnswerInput[],
   questions: CustomQuestion[],
+  options?: ResolveCustomQuestionOptions,
 ): ResolvedCustomAnswer[] {
-  return answers.map((answer) => resolveOne(answer, questions));
+  const resolved = answers.map((answer) => resolveOne(answer, questions));
+  if (options?.requireRequired) {
+    assertRequiredAnswered(resolved, questions);
+  }
+  return resolved;
+}
+
+/** Throws for the first required, non-per-guest question left unanswered. */
+function assertRequiredAnswered(
+  resolved: ResolvedCustomAnswer[],
+  questions: CustomQuestion[],
+): void {
+  const answered = new Set(resolved.map((answer) => answer.questionId));
+  for (const question of questions) {
+    if (question.isRequired && !question.perGuest && !answered.has(question.id)) {
+      throw new Error(errMissingRequired(question.questionText, question.id));
+    }
+  }
 }
