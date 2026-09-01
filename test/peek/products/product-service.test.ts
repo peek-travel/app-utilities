@@ -422,3 +422,106 @@ describe("ProductService.getAllAddons", () => {
     await expect(service.getAllAddons()).resolves.toEqual([]);
   });
 });
+
+const CUSTOM_QUESTIONS_ACTIVITY = {
+  id: "act-1",
+  name: "Downtown Bike Tour",
+  questionActivityConfigurations: [
+    {
+      isRequired: false,
+      order: 1,
+      question: {
+        id: "cq_anq67",
+        questionType: "CHECK_BOX",
+        text: "Check box - Per Guest - Adult Only",
+        answerDefaultValue: null,
+        hint: null,
+        internalLabel: null,
+        perGuest: true,
+      },
+    },
+    {
+      isRequired: false,
+      order: 3,
+      question: {
+        id: "cq_bq48e",
+        questionType: "SELECT_ONE",
+        text: "Multiple Choice",
+        answerDefaultValue: null,
+        hint: null,
+        internalLabel: null,
+        perGuest: false,
+        options: [
+          { id: "cqao_mwdgvw", text: "Option A", order: 1 },
+          { id: "cqao_va78v7", text: "Option B", order: 2 },
+        ],
+      },
+    },
+  ],
+};
+
+describe("ProductService.getCustomQuestions", () => {
+  it("passes the product id and maps configurations into custom questions", async () => {
+    const { fetchFn, calls } = makeFetch((query, variables) => {
+      expect(query).toContain("questionActivityConfigurations");
+      expect(query).toContain("ChoiceQuestion");
+      expect(variables.id).toBe("act-1");
+      return jsonResponse({ data: { activity: CUSTOM_QUESTIONS_ACTIVITY } });
+    });
+
+    const service = new ProductService(buildClient(fetchFn));
+    const questions = await service.getCustomQuestions("act-1");
+
+    expect(questions).toEqual([
+      {
+        id: "cq_anq67",
+        order: 1,
+        isRequired: false,
+        questionText: "Check box - Per Guest - Adult Only",
+        hintText: null,
+        questionType: "CHECK_BOX",
+        internalLabel: null,
+        perGuest: true,
+        defaultValue: null,
+        options: [],
+      },
+      {
+        id: "cq_bq48e",
+        order: 3,
+        isRequired: false,
+        questionText: "Multiple Choice",
+        hintText: null,
+        questionType: "SELECT_ONE",
+        internalLabel: null,
+        perGuest: false,
+        defaultValue: null,
+        options: [
+          { id: "cqao_mwdgvw", order: 1, value: "Option A" },
+          { id: "cqao_va78v7", order: 2, value: "Option B" },
+        ],
+      },
+    ]);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("returns an empty list when the activity is not found", async () => {
+    const { fetchFn } = makeFetch(() => jsonResponse({ data: { activity: null } }));
+    const service = new ProductService(buildClient(fetchFn));
+    await expect(service.getCustomQuestions("missing")).resolves.toEqual([]);
+  });
+
+  it("returns an empty list when a 200 response carries no data", async () => {
+    const { fetchFn } = makeFetch(() => jsonResponse({}));
+    const service = new ProductService(buildClient(fetchFn));
+    await expect(service.getCustomQuestions("act-1")).resolves.toEqual([]);
+  });
+
+  it("throws without hitting the network when the id is blank", async () => {
+    const { fetchFn, calls } = makeFetch(() => jsonResponse({}));
+    const service = new ProductService(buildClient(fetchFn));
+    await expect(service.getCustomQuestions("  ")).rejects.toThrow(
+      "A non-empty product id is required.",
+    );
+    expect(calls).toHaveLength(0);
+  });
+});

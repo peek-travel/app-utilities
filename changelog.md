@@ -12,6 +12,24 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## Unreleased
+
+### `[additive]` `ProductService.getCustomQuestions(productId)` — read an activity's custom questions
+
+- **What:** New read on `ProductService` (with the `PeekAccessService.getCustomQuestions(productId)`
+  short-form) that returns an activity's operator-configured custom questions as
+  a `CustomQuestion[]`. Each `CustomQuestion` carries `id`, `order`, `isRequired`,
+  `questionText`, `hintText`, `questionType` (`CHECK_BOX`/`TEXT`/`LOCATION`/
+  `SELECT_ONE`/…), `internalLabel`, `perGuest`, `defaultValue`, and
+  `options: CustomQuestionOption[]` (`{ id, order, value }`, empty for
+  free-text/checkbox questions). Both types are exported from the package root.
+- **Why:** Consumers need the question definitions attached to an activity (e.g.
+  to render or validate booking-time inputs) without touching raw GraphQL.
+- **Caller action:** None — additive. Note these are question **definitions**,
+  not customer answers, so the call carries no PII and is unaffected by
+  `fullCustomerAccess`. A blank `productId` throws before any network call; an
+  unknown activity returns `[]`.
+
 ## 0.7.4
 
 ### `[fix]` `/ui`: unupgraded `<ody-*>` elements no longer flash as raw text

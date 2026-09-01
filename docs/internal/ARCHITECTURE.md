@@ -162,6 +162,21 @@ models in `src/models/peek/`, CNG models in `src/models/cng/`.
 - `getAllActivities()` — fetches only the `activities` connection (one request, no add-on pagination).
 - `getAllAddons()` — fetches only the `itemOptions` connection, paginated.
 
+It also carries a second, single-activity read: `getCustomQuestions(productId)`
+returns an activity's operator-configured custom questions as a `CustomQuestion[]`
+(each with `options: CustomQuestionOption[]` for choice-style questions). This is
+a distinct sub-domain triad living beside the products triad —
+`custom-question-queries.ts` (the `activity(id)` → `questionActivityConfigurations`
+query and raw nodes, internal) and the pure `custom-question-converter.ts`
+(`fromQuestionConfigurations`) — with the service method on `ProductService`. The
+query resolves the choice options via an inline `... on ChoiceQuestion` fragment;
+the converter maps `question.text` → `questionText`, `hint` → `hintText`,
+`answerDefaultValue` → `defaultValue`, and lifts `order`/`isRequired` from the
+configuration node. These are **question definitions, not customer answers**, so
+they carry no PII and are unaffected by `fullCustomerAccess`. The method throws on
+a blank `productId` before any network call and returns `[]` for an unknown
+activity. `CustomQuestion`/`CustomQuestionOption` are exported from `src/index.ts`.
+
 `ProductService` also surfaces each activity's `currency` on the clean
 `Product` (empty string for add-ons, which have none) — the field pricing
 consumers need to set the currency on fixed-price overrides.

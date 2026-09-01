@@ -108,6 +108,12 @@ final authority and may still reject the request.
   carries `minPrice`/`maxPrice` (`PricingMoney | null`, `null` for add-ons and
   when Peek reports no range); every `PricingMoney` includes a `displayPrice`
   string (e.g. `"$50.00"`) on values read back from the gateway.
+  `getCustomQuestions(productId)` returns an activity's operator-configured
+  custom questions as `CustomQuestion[]` — each with `id`, `order`, `isRequired`,
+  `questionText`, `hintText`, `questionType` (`CHECK_BOX`/`TEXT`/`LOCATION`/
+  `SELECT_ONE`/…), `internalLabel`, `perGuest`, `defaultValue`, and
+  `options: CustomQuestionOption[]` (`{ id, order, value }`, empty for
+  free-text/checkbox questions). Question definitions, not answers — no PII.
 - `getAccountUserService()` — `getAll()`, `getById(userId)`
 - `getResourcePoolService()` — `getAll(mode?)`
 - `getTimeslotService()` — `getForDay(productId, date, filter?)`, `getById(id)`,

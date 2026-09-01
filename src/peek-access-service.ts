@@ -364,6 +364,9 @@ export class PeekAccessService {
   /** All add-on products. Delegates to {@link ProductService.getAllAddons}. */
   getAllAddons() { return this.getProductService().getAllAddons(); }
 
+  /** An activity's custom questions. Delegates to {@link ProductService.getCustomQuestions}. */
+  getCustomQuestions(productId: string) { return this.getProductService().getCustomQuestions(productId); }
+
   // ─── Account-user short-forms ─────────────────────────────────────────────
 
   /** All active account users. Delegates to {@link AccountUserService.getAll}. */
