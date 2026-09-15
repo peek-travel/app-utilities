@@ -14,6 +14,48 @@ action needed; `[additive]` only adds capability.
 
 ## 0.8.1
 
+### `[additive]` CNG missing-permission 403s throw a typed `CngPermissionError`
+
+- **What:** When the CNG gateway rejects a request with HTTP 403 because the app
+  lacks a permission (body `{ errors: { permission: ["The app does not have the
+  required permission: products:read"] }, message: "Forbidden" }`), the package
+  now throws the exported `CngPermissionError` instead of a generic
+  `CngApiError`. It carries `.permissions` (the parsed permission names, e.g.
+  `["products:read"]`), `.statusCode` (`403`), and the raw `.body`, and its
+  message names the missing permissions. The transport also logs it at `warn`
+  rather than `error`, so a misconfigured install no longer produces a
+  console-level error entry.
+- **Why:** A missing permission is an expected configuration state for an
+  install, not a transport fault. Callers can branch on the type and surface
+  `.permissions` however their UI prefers, instead of pattern-matching a 403
+  body. The package only classifies and reports the error — presentation stays
+  entirely with the caller.
+- **Caller action:** Code that catches `CngApiError` to handle 403s must also
+  catch `CngPermissionError` — it is a separate class and is **not** a subclass
+  of `CngApiError`. Every other non-2xx status is unchanged.
+
+### `[fix]` CNG `getAllActivities` parses the real products payload
+
+- **What:** CNG product parsing was written against a guessed response shape and
+  did not match what the gateway actually returns, so `getAllActivities()`
+  produced empty/garbage activities. It now reads the real
+  `api/v2/app-registry/products` payload: the `{ data: [...] }` resource
+  collection, `productId` from the numeric `id` (stringified), `name` from
+  `name`, and `color` from `access_control_color_hex`. The earlier `{ products:
+  [...] }`/bare-array envelopes and the `product_type`/`color_hex`/`tickets`
+  fields do not exist and are no longer read. The request also now sends
+  `active=1`, so only active products are returned — inactive/archived ones are
+  filtered out by the gateway.
+- **Why:** The confirmed payload has no type discriminator and no sub-options, so
+  `Activity.type` is now always `"ACTIVITY"` and `Activity.tickets` is always
+  `[]` — both fields are kept for parity with the Peek `Product` and the ACME
+  `AcmeActivity`.
+- **Caller action:** None for `productId`/`name`/`color` — the `Activity` shape is
+  unchanged. Do not branch on `Activity.type` or read `Activity.tickets` for CNG
+  activities; treat them as constant. Note `productId` is now a stringified
+  numeric id (e.g. `"1000171"`).
+
+
 ### `[additive]` `createBooking` can enforce required custom questions
 
 - **What:** `CreateBookingInput` gains an optional

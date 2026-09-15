@@ -36,17 +36,17 @@ describe("CngAccessService", () => {
     const calls: string[] = [];
     const fetchFn = (async (url: string) => {
       calls.push(url);
-      return textResponse({ products: [{ id: "p1", name: "Tour" }] });
+      return textResponse({ data: [{ id: 1000171, name: "Tour" }] });
     }) as unknown as typeof fetch;
 
     const cng = new CngAccessService({ ...baseConfig, fetch: fetchFn });
     const activities = await cng.getAllActivities();
 
     expect(activities).toEqual([
-      { productId: "p1", name: "Tour", type: "ACTIVITY", color: "", tickets: [] },
+      { productId: "1000171", name: "Tour", type: "ACTIVITY", color: "", tickets: [] },
     ]);
     expect(calls[0]).toBe(
-      "https://app-registry.peeklabs.com/installations-api/app-1/cng_backoffice_api-v1/api/v2/commerce-config/products",
+      "https://app-registry.peeklabs.com/installations-api/app-1/cng_backoffice_api-v1/api/v2/app-registry/products?active=1",
     );
   });
 
@@ -54,7 +54,7 @@ describe("CngAccessService", () => {
     const calls: string[] = [];
     const fetchFn = (async (url: string) => {
       calls.push(url);
-      return textResponse({ products: [] });
+      return textResponse({ data: [] });
     }) as unknown as typeof fetch;
 
     const cng = new CngAccessService({
@@ -65,7 +65,7 @@ describe("CngAccessService", () => {
     await cng.getAllActivities();
 
     expect(calls[0]).toBe(
-      "https://custom.test/base/app-1/cng_backoffice_api-v1/api/v2/commerce-config/products",
+      "https://custom.test/base/app-1/cng_backoffice_api-v1/api/v2/app-registry/products?active=1",
     );
   });
 
@@ -73,7 +73,7 @@ describe("CngAccessService", () => {
     const calls: string[] = [];
     const fetchFn = (async (url: string) => {
       calls.push(url);
-      return textResponse({ products: [] });
+      return textResponse({ data: [] });
     }) as unknown as typeof fetch;
 
     const cng = new CngAccessService({
@@ -86,7 +86,7 @@ describe("CngAccessService", () => {
     await cng.getAllActivities();
 
     expect(calls[0]).toBe(
-      "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app/api/v2/commerce-config/products",
+      "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app/api/v2/app-registry/products?active=1",
     );
   });
 

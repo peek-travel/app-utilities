@@ -147,7 +147,13 @@ the app-registry installations API default. `createAccessServiceForInstall` rout
 
 - `CngAccessService` — `getProductService().getAllActivities()` (short-form
   `getAllActivities()`) → `Activity[]` (`Activity`/`ActivityTicket` models).
-  Errors surface as `CngApiError`.
+  Only `productId`/`name`/`color` are populated: `type` is always `"ACTIVITY"`
+  and `tickets` is always empty (CNG's products endpoint exposes neither). Only
+  active products are returned.
+  Errors surface as `CngApiError`, except HTTP 403 — a missing app permission —
+  which surfaces as `CngPermissionError` (`.permissions` lists the permission
+  names, e.g. `["products:read"]`; logged at `warn`, meant to be caught and
+  shown to the operator).
 - `AcmeAccessService` — `getProductService().getAllActivities()` (short-form
   `getAllActivities()`) → `AcmeActivity[]` (`AcmeActivity`/`AcmeActivityTicket`
   models). Errors surface as `AcmeApiError`.
@@ -186,8 +192,9 @@ stay internal.
   418/429 with no GraphQL `errors` — e.g. 401/404/5xx; carries `.statusCode`,
   `.url`, and raw `.body`; surfaced before JSON parsing so non-JSON error pages
   keep their status), `PiiAccessDisabledError` (a payment/booking-modification op
-  was called without `fullCustomerAccess`), and the REST-sibling `CngApiError` /
-  `AcmeApiError` — all importable; branch with `instanceof`. Token claim
+  was called without `fullCustomerAccess`), the REST-sibling `CngApiError` /
+  `AcmeApiError`, and `CngPermissionError` (CNG HTTP 403; `.permissions`,
+  `.statusCode`, raw `.body`) — all importable; branch with `instanceof`. Token claim
   extraction never throws once the signature verifies: a missing `user` block
   gives `user: null`, and each user field (including `id`, the person's own id —
   not an account/partner id) is nullable, with `""`/`"null"` normalized to `null`.
