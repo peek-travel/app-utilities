@@ -25,11 +25,7 @@ export class CngProductService {
    * ```
    */
   async getAllActivities(): Promise<Activity[]> {
-    const body = await this.client.get<ProductsResponse | ProductsResponse["products"]>(
-      PRODUCTS_PATH,
-    );
-    // Tolerate either a { products: [...] } envelope or a bare array.
-    const nodes = Array.isArray(body) ? body : (body?.products ?? []);
-    return fromProductNodes(nodes ?? []);
+    const body = await this.client.get<ProductsResponse>(PRODUCTS_PATH);
+    return fromProductNodes(body?.data ?? []);
   }
 }

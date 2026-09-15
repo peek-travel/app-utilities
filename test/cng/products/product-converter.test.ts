@@ -7,31 +7,39 @@ describe("cng fromProductNodes", () => {
   it("maps a fully-populated node to an Activity", () => {
     const nodes: ProductNode[] = [
       {
-        id: "prod-1",
-        name: "Kayak Tour",
-        product_type: "ACTIVITY",
-        color_hex: "#1A2B3C",
-        tickets: [{ id: "t1", name: "Adult" }],
+        id: 1000171,
+        name: "10 students + Complimentary chaperone",
+        slug: "10-students-complimentary-chaperone",
+        status: "ACTIVE",
+        access_control_color_hex: "#1A2B3C",
+        custom_access_control_color: true,
       },
     ];
 
     expect(fromProductNodes(nodes)).toEqual([
       {
-        productId: "prod-1",
-        name: "Kayak Tour",
+        productId: "1000171",
+        name: "10 students + Complimentary chaperone",
         type: "ACTIVITY",
         color: "#1A2B3C",
-        tickets: [{ id: "t1", name: "Adult" }],
+        tickets: [],
       },
     ]);
   });
 
   it("applies defaults for missing/null optional fields", () => {
-    const nodes = [{ id: "prod-2", name: "Bare" }] as ProductNode[];
+    const nodes: ProductNode[] = [
+      {
+        id: 1000171,
+        name: "Bare",
+        access_control_color_hex: null,
+        custom_access_control_color: false,
+      },
+    ];
 
     expect(fromProductNodes(nodes)).toEqual([
       {
-        productId: "prod-2",
+        productId: "1000171",
         name: "Bare",
         type: "ACTIVITY",
         color: "",
@@ -40,13 +48,19 @@ describe("cng fromProductNodes", () => {
     ]);
   });
 
-  it("coerces missing id/name to empty strings and null color to empty", () => {
-    const nodes = [
-      { product_type: "TOUR", color_hex: null, tickets: [] },
-    ] as unknown as ProductNode[];
+  it("accepts a string id as-is and coerces a missing name to an empty string", () => {
+    const nodes = [{ id: "1000171" }] as ProductNode[];
 
     expect(fromProductNodes(nodes)).toEqual([
-      { productId: "", name: "", type: "TOUR", color: "", tickets: [] },
+      { productId: "1000171", name: "", type: "ACTIVITY", color: "", tickets: [] },
+    ]);
+  });
+
+  it("coerces a missing id to an empty string", () => {
+    const nodes = [{ name: "No id" }] as unknown as ProductNode[];
+
+    expect(fromProductNodes(nodes)).toEqual([
+      { productId: "", name: "No id", type: "ACTIVITY", color: "", tickets: [] },
     ]);
   });
 

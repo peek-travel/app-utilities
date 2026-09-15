@@ -55,33 +55,32 @@ function buildClient(
 }
 
 const PRODUCT = {
-  id: "prod-1",
-  name: "Kayak Tour",
-  product_type: "ACTIVITY",
-  color_hex: "#1A2B3C",
-  tickets: [{ id: "t1", name: "Adult" }],
+  id: 1000171,
+  name: "10 students + Complimentary chaperone",
+  slug: "10-students-complimentary-chaperone",
+  status: "ACTIVE",
+  access_control_color_hex: "#1A2B3C",
+  custom_access_control_color: true,
 };
 
 const EXPECTED = {
-  productId: "prod-1",
-  name: "Kayak Tour",
+  productId: "1000171",
+  name: "10 students + Complimentary chaperone",
   type: "ACTIVITY",
   color: "#1A2B3C",
-  tickets: [{ id: "t1", name: "Adult" }],
+  tickets: [],
 };
 
 describe("CngProductService.getAllActivities", () => {
-  it("maps a { products: [...] } envelope and sets auth headers + URL", async () => {
-    const { fetchFn, calls } = makeFetch(() =>
-      textResponse({ products: [PRODUCT] }),
-    );
+  it("maps a { data: [...] } envelope and sets auth headers + URL", async () => {
+    const { fetchFn, calls } = makeFetch(() => textResponse({ data: [PRODUCT] }));
     const service = new CngProductService(buildClient(fetchFn));
 
     await expect(service.getAllActivities()).resolves.toEqual([EXPECTED]);
 
     expect(calls).toHaveLength(1);
     expect(calls[0]!.url).toBe(
-      "https://gw.test/api/app-1/cng_backoffice_api-v1/api/v2/commerce-config/products",
+      "https://gw.test/api/app-1/cng_backoffice_api-v1/api/v2/app-registry/products?active=1",
     );
     expect(calls[0]!.init.method).toBe("GET");
     const headers = calls[0]!.init.headers as Record<string, string>;
@@ -90,13 +89,7 @@ describe("CngProductService.getAllActivities", () => {
     expect(headers["pk-api-key"]).toBeUndefined();
   });
 
-  it("tolerates a bare array response", async () => {
-    const { fetchFn } = makeFetch(() => textResponse([PRODUCT]));
-    const service = new CngProductService(buildClient(fetchFn));
-    await expect(service.getAllActivities()).resolves.toEqual([EXPECTED]);
-  });
-
-  it("returns an empty list when the payload has no products", async () => {
+  it("returns an empty list when the payload has no data array", async () => {
     const { fetchFn } = makeFetch(() => textResponse({}));
     const service = new CngProductService(buildClient(fetchFn));
     await expect(service.getAllActivities()).resolves.toEqual([]);
@@ -105,7 +98,7 @@ describe("CngProductService.getAllActivities", () => {
   it("retries on HTTP 429 then succeeds", async () => {
     let n = 0;
     const { fetchFn } = makeFetch(() =>
-      (n += 1) === 1 ? textResponse({}, 429) : textResponse({ products: [] }),
+      (n += 1) === 1 ? textResponse({}, 429) : textResponse({ data: [] }),
     );
     const service = new CngProductService(buildClient(fetchFn, { retryDelaysMs: [5] }));
 
@@ -129,7 +122,7 @@ describe("CngProductService.getAllActivities", () => {
     );
     expect(logger.info).toHaveBeenCalledWith(
       "Making CNG request",
-      expect.objectContaining({ path: "api/v2/commerce-config/products" }),
+      expect.objectContaining({ path: "api/v2/app-registry/products?active=1" }),
     );
     expect(logger.warn).toHaveBeenCalled();
   });

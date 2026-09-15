@@ -14,6 +14,28 @@ action needed; `[additive]` only adds capability.
 
 ## 0.8.1
 
+### `[fix]` CNG `getAllActivities` parses the real products payload
+
+- **What:** CNG product parsing was written against a guessed response shape and
+  did not match what the gateway actually returns, so `getAllActivities()`
+  produced empty/garbage activities. It now reads the real
+  `api/v2/app-registry/products` payload: the `{ data: [...] }` resource
+  collection, `productId` from the numeric `id` (stringified), `name` from
+  `name`, and `color` from `access_control_color_hex`. The earlier `{ products:
+  [...] }`/bare-array envelopes and the `product_type`/`color_hex`/`tickets`
+  fields do not exist and are no longer read. The request also now sends
+  `active=1`, so only active products are returned — inactive/archived ones are
+  filtered out by the gateway.
+- **Why:** The confirmed payload has no type discriminator and no sub-options, so
+  `Activity.type` is now always `"ACTIVITY"` and `Activity.tickets` is always
+  `[]` — both fields are kept for parity with the Peek `Product` and the ACME
+  `AcmeActivity`.
+- **Caller action:** None for `productId`/`name`/`color` — the `Activity` shape is
+  unchanged. Do not branch on `Activity.type` or read `Activity.tickets` for CNG
+  activities; treat them as constant. Note `productId` is now a stringified
+  numeric id (e.g. `"1000171"`).
+
+
 ### `[additive]` `createBooking` can enforce required custom questions
 
 - **What:** `CreateBookingInput` gains an optional

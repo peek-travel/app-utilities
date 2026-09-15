@@ -13,9 +13,10 @@
  *
  * `CngAccessService.getAllActivities()` returns these as a flat list.
  *
- * NOTE: field mapping is a best-guess placeholder until the real
- * `commerce-config/products` response shape is confirmed — see
- * `internal/cng/products/product-queries.ts`.
+ * Mapped from the `app-registry/products` REST payload — see
+ * `internal/cng/products/product-queries.ts`. That payload carries no
+ * product-type discriminator and no sub-options, so `type` is always
+ * {@link ACTIVITY_PRODUCT_TYPE} and `tickets` is always empty.
  */
 export interface Activity {
   /** Stable unique identifier for the activity. */
@@ -24,16 +25,22 @@ export interface Activity {
   /** Human-readable display name. */
   name: string;
 
-  /** Product type reported by CNG (e.g. `"ACTIVITY"`). */
+  /**
+   * Product type. Always {@link ACTIVITY_PRODUCT_TYPE} — the CNG products
+   * payload has no type discriminator. Kept for parity with the Peek `Product`.
+   */
   type: string;
 
   /**
-   * Display color as a hex string (e.g. `"#1A2B3C"`). Empty string when no
-   * color is set.
+   * Display color as a hex string (e.g. `"#1A2B3C"`), from the product's
+   * access-control color. Empty string when no color is set.
    */
   color: string;
 
-  /** The bookable sub-options (tickets) of this activity. */
+  /**
+   * The bookable sub-options (tickets) of this activity. Always empty — CNG
+   * exposes no tickets on the products endpoint today.
+   */
   tickets: ActivityTicket[];
 }
 

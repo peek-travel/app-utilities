@@ -10,5 +10,9 @@
  */
 export const CNG_EXTENDABLE_SLUG = "cng_backoffice_api-v1";
 
-/** REST path (relative to the extendable) for the commerce-config products list. */
-export const PRODUCTS_PATH = "api/v2/commerce-config/products";
+/**
+ * REST path (relative to the extendable) for the app-registry products list.
+ * `active=1` keeps the gateway from returning inactive/archived products, so
+ * only bookable activities come back.
+ */
+export const PRODUCTS_PATH = "api/v2/app-registry/products?active=1";

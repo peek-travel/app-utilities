@@ -147,6 +147,9 @@ the app-registry installations API default. `createAccessServiceForInstall` rout
 
 - `CngAccessService` — `getProductService().getAllActivities()` (short-form
   `getAllActivities()`) → `Activity[]` (`Activity`/`ActivityTicket` models).
+  Only `productId`/`name`/`color` are populated: `type` is always `"ACTIVITY"`
+  and `tickets` is always empty (CNG's products endpoint exposes neither). Only
+  active products are returned.
   Errors surface as `CngApiError`.
 - `AcmeAccessService` — `getProductService().getAllActivities()` (short-form
   `getAllActivities()`) → `AcmeActivity[]` (`AcmeActivity`/`AcmeActivityTicket`

@@ -480,10 +480,17 @@ plumbing rather than forking the package.
   resource: `product-queries.ts` (raw REST `ProductNode`/`ProductsResponse`
   interfaces, internal), `product-converter.ts` (pure `fromProductNodes` →
   `Activity`), `product-service.ts` (`CngProductService.getAllActivities()`,
-  tolerating a `{ products: [...] }` envelope or a bare array). Endpoint segments
-  live in `src/internal/cng/endpoints.ts`.
+  reading the `{ data: [...] }` resource collection). Endpoint segments live in
+  `src/internal/cng/endpoints.ts` — the products path
+  `api/v2/app-registry/products?active=1`; the `active=1` filter is applied by
+  the gateway, so inactive/archived products never reach the converter (ACME
+  filters client-side instead, on `reviewState`).
 - **Model** `src/models/cng/product.ts` — `Activity`/`ActivityTicket`, mirroring
-  the Peek `Product` shape so both brands read uniformly.
+  the Peek `Product` shape so both brands read uniformly. The CNG products
+  payload carries no type discriminator and no sub-options, so `type` is always
+  `ACTIVITY` and `tickets` is always empty (same as ACME); `productId` is the
+  numeric REST `id` stringified, and `color` comes from
+  `access_control_color_hex`.
 - **Shared, not duplicated:** the config contract (`BaseAccessServiceConfig` +
   the `createTokenManager`/`requireNonEmpty` helpers and shared TTL/leeway/retry
   defaults, all in `src/access-service-config.ts`), `TokenManager`,
@@ -497,13 +504,6 @@ plumbing rather than forking the package.
   `CngProductService`, the `Activity`/`ActivityTicket` types, and `CngApiError`
   (added to the errors export). REST paths and raw response interfaces stay
   internal.
-
-> ⚠️ **Guessed response shape.** The real `commerce-config/products` payload is
-> not yet confirmed. `ProductNode`, the converter mapping, and the `Activity`
-> field set are best-guess placeholders (snake_case REST fields, defensive
-> defaults). Confirm against a live sample and adjust — touch only
-> `cng/products/product-queries.ts`, `product-converter.ts`, and
-> `models/cng/product.ts`.
 
 ### 5c. ACME accessor (REST)
 `src/acme-access-service.ts`, `src/internal/acme/`, `src/models/acme/product.ts`
