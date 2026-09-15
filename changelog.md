@@ -26,8 +26,10 @@ action needed; `[additive]` only adds capability.
   rather than `error`, so a misconfigured install no longer produces a
   console-level error entry.
 - **Why:** A missing permission is an expected configuration state for an
-  install, not a transport fault. Callers can catch it and toast "grant
-  products:read" instead of pattern-matching a 403 body.
+  install, not a transport fault. Callers can branch on the type and surface
+  `.permissions` however their UI prefers, instead of pattern-matching a 403
+  body. The package only classifies and reports the error — presentation stays
+  entirely with the caller.
 - **Caller action:** Code that catches `CngApiError` to handle 403s must also
   catch `CngPermissionError` — it is a separate class and is **not** a subclass
   of `CngApiError`. Every other non-2xx status is unchanged.

@@ -138,8 +138,9 @@ export class CngApiError extends Error {
  * Thrown when the CNG REST gateway responds with HTTP 403 because the app lacks
  * a permission the endpoint requires (e.g. `products:read`). This is an
  * **expected** failure for a misconfigured install — not a bug — so the
- * transport logs it at `warn` rather than `error`, and callers are meant to
- * catch it and tell the operator which permission to grant.
+ * transport logs it at `warn` rather than `error` and leaves presentation to the
+ * caller, which can branch on the type and surface the missing permission
+ * however its UI prefers.
  *
  * The permission names the gateway named are on
  * {@link CngPermissionError.permissions} (empty when the body does not name
