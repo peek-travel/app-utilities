@@ -9,10 +9,18 @@
  * array), and there is no `pk-api-key` header — the CNG gateway authenticates on
  * the app JWT (`X-Peek-Auth`) alone. Both transports share the same
  * `TokenManager`, `Logger`, base error types, and retry loop.
+ *
+ * HTTP 403 is special-cased: the gateway uses it for "this app is missing
+ * permission X", which is an expected misconfiguration rather than a fault, so
+ * it is logged at `warn` (no stack, no body dump) and raised as the typed
+ * {@link CngPermissionError} carrying the named permissions.
  */
-import { CngApiError } from "../../errors.js";
+import { CngApiError, CngPermissionError, FORBIDDEN_STATUS } from "../../errors.js";
 import { parseBody, requestWithRetry } from "../http-transport.js";
 import type { Logger } from "../../logger.js";
+
+/** Separator between the gateway's prose and the permission name it names. */
+const PERMISSION_SEPARATOR = ": ";
 
 export interface RestClientOptions {
   /**
@@ -51,6 +59,7 @@ export class RestClient {
    *
    * @throws {AdminAccountRequiredError} on HTTP 418
    * @throws {RateLimitError} on HTTP 429 after retries are exhausted
+   * @throws {CngPermissionError} on HTTP 403 (app missing a permission)
    * @throws {CngApiError} on any other non-2xx response
    */
   async get<T>(path: string): Promise<T> {
@@ -66,6 +75,13 @@ export class RestClient {
       path,
       async (response) => {
         const body = await parseBody(response);
+
+        if (response.status === FORBIDDEN_STATUS) {
+          const permissions = extractMissingPermissions(body);
+          // Expected for a misconfigured install — warn, don't error.
+          logger.warn(`Missing permission for ${path} (HTTP 403)`, { url, permissions });
+          throw new CngPermissionError(permissions, body);
+        }
 
         if (!response.ok) {
           logger.error(`CNG request failed with HTTP ${response.status}`, { url });
@@ -90,4 +106,26 @@ export class RestClient {
       "Content-Type": "application/json",
     };
   }
+}
+
+/** Shape of the gateway's 403 body: `{ errors: { permission: [...] }, message }`. */
+interface ForbiddenBody {
+  errors?: { permission?: unknown } | null;
+}
+
+/**
+ * Pulls the permission names out of a 403 body. The gateway reports them as
+ * sentences (`"The app does not have the required permission: products:read"`),
+ * so the trailing token after the last `": "` is the permission itself; a
+ * sentence without one is kept verbatim. Returns an empty list for any body
+ * that does not carry `errors.permission` strings.
+ */
+function extractMissingPermissions(body: unknown): string[] {
+  if (typeof body !== "object" || body === null) return [];
+  const raw = (body as ForbiddenBody).errors?.permission;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.split(PERMISSION_SEPARATOR).pop()!.trim())
+    .filter((permission) => permission.length > 0);
 }

@@ -4,9 +4,21 @@
  * type rather than parsing messages.
  *
  * `AdminAccountRequiredError` and `RateLimitError` are shared by all gateways.
- * `PeekGraphQLError` is Peek-only; `CngApiError` is CNG-only; `AcmeApiError` is
- * ACME-only.
+ * `PeekGraphQLError` is Peek-only; `CngApiError` and `CngPermissionError` are
+ * CNG-only; `AcmeApiError` is ACME-only.
  */
+
+/** The HTTP status the CNG gateway uses for a missing-permission rejection. */
+export const FORBIDDEN_STATUS = 403;
+
+const PERMISSION_MESSAGE_PREFIX = "CNG request forbidden: the app is missing the required permission";
+const PERMISSION_MESSAGE_UNKNOWN = "CNG request forbidden: the app is missing a required permission";
+
+/** Builds the {@link CngPermissionError} message from the named permissions. */
+function buildPermissionMessage(permissions: string[]): string {
+  if (permissions.length === 0) return PERMISSION_MESSAGE_UNKNOWN;
+  return `${PERMISSION_MESSAGE_PREFIX}${permissions.length > 1 ? "s" : ""}: ${permissions.join(", ")}`;
+}
 
 /**
  * Thrown when the gateway responds with HTTP 418, indicating the install is not
@@ -118,6 +130,38 @@ export class CngApiError extends Error {
     super(message ?? `CNG request failed with HTTP ${statusCode}`);
     this.name = "CngApiError";
     this.statusCode = statusCode;
+    this.body = body;
+  }
+}
+
+/**
+ * Thrown when the CNG REST gateway responds with HTTP 403 because the app lacks
+ * a permission the endpoint requires (e.g. `products:read`). This is an
+ * **expected** failure for a misconfigured install — not a bug — so the
+ * transport logs it at `warn` rather than `error`, and callers are meant to
+ * catch it and tell the operator which permission to grant.
+ *
+ * The permission names the gateway named are on
+ * {@link CngPermissionError.permissions} (empty when the body does not name
+ * any), so a caller can render them without re-parsing the raw body. Thrown in
+ * place of {@link CngApiError} for 403s only; every other non-2xx status still
+ * throws `CngApiError`.
+ */
+export class CngPermissionError extends Error {
+  /** The HTTP status that triggered this error. */
+  public readonly statusCode = FORBIDDEN_STATUS;
+  /**
+   * The permissions the gateway reported as missing, e.g. `["products:read"]`.
+   * Empty when the response body did not name any.
+   */
+  public readonly permissions: string[];
+  /** The raw response body (parsed JSON when possible, otherwise text). */
+  public readonly body: unknown;
+
+  constructor(permissions: string[], body: unknown, message?: string) {
+    super(message ?? buildPermissionMessage(permissions));
+    this.name = "CngPermissionError";
+    this.permissions = permissions;
     this.body = body;
   }
 }

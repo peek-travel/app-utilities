@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   AdminAccountRequiredError,
   CngApiError,
+  CngPermissionError,
   RateLimitError,
 } from "../../../src/errors.js";
 import {
@@ -125,6 +126,93 @@ describe("CngProductService.getAllActivities", () => {
       expect.objectContaining({ path: "api/v2/app-registry/products?active=1" }),
     );
     expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it("throws CngPermissionError naming the missing permission on HTTP 403", async () => {
+    const logger: Logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const body = {
+      errors: {
+        permission: ["The app does not have the required permission: products:read"],
+      },
+      message: "Forbidden",
+    };
+    const { fetchFn } = makeFetch(() => textResponse(body, 403));
+    const service = new CngProductService(buildClient(fetchFn, { logger }));
+
+    const err = await service.getAllActivities().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(CngPermissionError);
+    expect(err).not.toBeInstanceOf(CngApiError);
+    const permissionError = err as CngPermissionError;
+    expect(permissionError.statusCode).toBe(403);
+    expect(permissionError.permissions).toEqual(["products:read"]);
+    expect(permissionError.body).toEqual(body);
+    expect(permissionError.message).toBe(
+      "CNG request forbidden: the app is missing the required permission: products:read",
+    );
+  });
+
+  it("logs a 403 at warn with the permissions and never at error", async () => {
+    const logger: Logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const { fetchFn } = makeFetch(() =>
+      textResponse(
+        { errors: { permission: ["needs: products:read"] }, message: "Forbidden" },
+        403,
+      ),
+    );
+    const service = new CngProductService(buildClient(fetchFn, { logger }));
+
+    await expect(service.getAllActivities()).rejects.toBeInstanceOf(CngPermissionError);
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Missing permission for api/v2/app-registry/products?active=1 (HTTP 403)",
+      expect.objectContaining({ permissions: ["products:read"] }),
+    );
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it("pluralizes the message when several permissions are named", async () => {
+    const { fetchFn } = makeFetch(() =>
+      textResponse(
+        {
+          errors: {
+            permission: [
+              "The app does not have the required permission: products:read",
+              "bookings:read",
+            ],
+          },
+        },
+        403,
+      ),
+    );
+    const service = new CngProductService(buildClient(fetchFn));
+
+    const err = (await service
+      .getAllActivities()
+      .catch((e: unknown) => e)) as CngPermissionError;
+    expect(err.permissions).toEqual(["products:read", "bookings:read"]);
+    expect(err.message).toBe(
+      "CNG request forbidden: the app is missing the required permissions: products:read, bookings:read",
+    );
+  });
+
+  it.each([
+    ["a non-object body", "Forbidden"],
+    ["a null body", null],
+    ["no errors block", { message: "Forbidden" }],
+    ["a non-array permission", { errors: { permission: "products:read" } }],
+    ["non-string permission entries", { errors: { permission: [42, null] } }],
+    ["an empty permission string", { errors: { permission: ["  "] } }],
+  ])("falls back to an unnamed-permission message for %s", async (_label, body) => {
+    const { fetchFn } = makeFetch(() => textResponse(body, 403));
+    const service = new CngProductService(buildClient(fetchFn));
+
+    const err = (await service
+      .getAllActivities()
+      .catch((e: unknown) => e)) as CngPermissionError;
+    expect(err).toBeInstanceOf(CngPermissionError);
+    expect(err.permissions).toEqual([]);
+    expect(err.message).toBe(
+      "CNG request forbidden: the app is missing a required permission",
+    );
   });
 
   it("throws CngApiError carrying status and parsed body for other non-2xx", async () => {

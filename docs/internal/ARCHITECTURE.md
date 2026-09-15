@@ -447,7 +447,7 @@ options/result types callers need), all data-model **types** (including
 `InstallWebhookClaims`/`InstallWebhookAccount`), the `Logger` interface +
 `noopLogger`, and the typed error classes (`AdminAccountRequiredError`,
 `RateLimitError`, `PeekGraphQLError`, `PeekHttpError`, `PiiAccessDisabledError`,
-`CngApiError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
+`CngApiError`, `CngPermissionError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and
@@ -474,8 +474,13 @@ plumbing rather than forking the package.
   (no `pk-api-key`, no `{query,variables}` body), and runs through the shared
   `requestWithRetry` loop. Reads the body with the shared `parseBody` helper
   (`http-transport.ts`) — JSON with a raw-text fallback when unparseable — the
-  same helper the Peek `GraphQLClient` and ACME `RestClient` use; non-2xx (other
-  than 418/429) → `CngApiError` (status + body).
+  same helper the Peek `GraphQLClient` and ACME `RestClient` use. Status mapping:
+  403 → `CngPermissionError` (the gateway's "app is missing permission X"
+  rejection — the permission names are parsed off `errors.permission` onto
+  `.permissions`, and it is logged at **`warn`**, not `error`, because a
+  misconfigured install is expected rather than a fault); any other non-2xx
+  (other than 418/429) → `CngApiError` (status + body). The 403 branch is
+  CNG-only — ACME and Peek still surface 403 as their generic HTTP error.
 - **Products triad** (`src/internal/cng/products/`) — same shape as every Peek
   resource: `product-queries.ts` (raw REST `ProductNode`/`ProductsResponse`
   interfaces, internal), `product-converter.ts` (pure `fromProductNodes` →
@@ -501,9 +506,9 @@ plumbing rather than forking the package.
   nothing. So the only real per-accessor difference is the transport built and the
   services exposed.
 - **Public exports:** `CngAccessService` + `CngAccessServiceConfig`,
-  `CngProductService`, the `Activity`/`ActivityTicket` types, and `CngApiError`
-  (added to the errors export). REST paths and raw response interfaces stay
-  internal.
+  `CngProductService`, the `Activity`/`ActivityTicket` types, and
+  `CngApiError`/`CngPermissionError` (added to the errors export). REST paths and
+  raw response interfaces stay internal.
 
 ### 5c. ACME accessor (REST)
 `src/acme-access-service.ts`, `src/internal/acme/`, `src/models/acme/product.ts`

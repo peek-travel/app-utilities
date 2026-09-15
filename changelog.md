@@ -14,6 +14,24 @@ action needed; `[additive]` only adds capability.
 
 ## 0.8.1
 
+### `[additive]` CNG missing-permission 403s throw a typed `CngPermissionError`
+
+- **What:** When the CNG gateway rejects a request with HTTP 403 because the app
+  lacks a permission (body `{ errors: { permission: ["The app does not have the
+  required permission: products:read"] }, message: "Forbidden" }`), the package
+  now throws the exported `CngPermissionError` instead of a generic
+  `CngApiError`. It carries `.permissions` (the parsed permission names, e.g.
+  `["products:read"]`), `.statusCode` (`403`), and the raw `.body`, and its
+  message names the missing permissions. The transport also logs it at `warn`
+  rather than `error`, so a misconfigured install no longer produces a
+  console-level error entry.
+- **Why:** A missing permission is an expected configuration state for an
+  install, not a transport fault. Callers can catch it and toast "grant
+  products:read" instead of pattern-matching a 403 body.
+- **Caller action:** Code that catches `CngApiError` to handle 403s must also
+  catch `CngPermissionError` — it is a separate class and is **not** a subclass
+  of `CngApiError`. Every other non-2xx status is unchanged.
+
 ### `[fix]` CNG `getAllActivities` parses the real products payload
 
 - **What:** CNG product parsing was written against a guessed response shape and
