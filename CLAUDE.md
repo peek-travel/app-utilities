@@ -78,13 +78,15 @@ out, and the clean data models — never raw GraphQL.
     apply). The one deliberate exception is a single, low-key `GraphQLClient`
     reference in the `PeekAccessService` description; keep it deemphasized (do not
     reintroduce it into the hero subtitle or elsewhere).
-- **`docs/html/ui.html` is the live UI-component reference** — the HTML twin of
-  `docs/ui.md`, in the same shell (left-nav, filter, light/dark toggle) but with
-  every `<ody-*>` component **rendered live**. It renders the real components by
-  loading vendored build artifacts from `docs/html/assets/`: `odyssey.iife.js`
-  (a classic-script IIFE bundle of `src/ui`, chosen over an ESM module so it also
-  works when the file is opened over `file://`), plus `odyssey.css` and
-  `tokens.css`. Keep `ui.html` in sync with `docs/ui.md` and the components, and
+- **`docs/html/ui.html` is the canonical UI-component reference** — the same shell
+  as the platform pages (left-nav, filter, light/dark toggle) but with every
+  `<ody-*>` component **rendered live**. (It supersedes the old `docs/ui.md`,
+  which was removed; the authoritative per-component contract is the shipped
+  `dist/ui/index.d.ts` TSDoc.) It renders the real components by loading vendored
+  build artifacts from `docs/html/assets/`: `odyssey.iife.js` (a classic-script
+  IIFE bundle of `src/ui`, chosen over an ESM module so it also works when the
+  file is opened over `file://`), plus `odyssey.css` and `tokens.css`. Keep
+  `ui.html` in sync with the components (`src/ui`) and their TSDoc, and
   **regenerate the vendored assets whenever `src/ui` changes**:
 
   ```bash

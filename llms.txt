@@ -251,8 +251,9 @@ an external system** (App Store config), not from code.
 
 Browser-only, framework-agnostic Web Components (Custom Elements, light DOM,
 dependency-free) ported from the Peek Odyssey design system. The server library
-above stays DOM-free. **Full guide: `docs/ui.md` (shipped). Authoritative
-per-component contract: `dist/ui/index.d.ts` (TSDoc) — read via go-to-definition.**
+above stays DOM-free. **Authoritative per-component contract: `dist/ui/index.d.ts`
+(TSDoc, shipped) — read via go-to-definition. Interactive reference (in-repo, not
+shipped): `docs/html/ui.html`.**
 
 Setup — importing the entry registers every `<ody-*>` element as a side effect:
 
@@ -281,7 +282,7 @@ Registration is idempotent (importing twice never throws). Lazy registration:
 render on it. `registeredTags()` returns the registered tag list. A failed
 dynamic import rejects at the `import()` call site.
 
-Tags by tier (see `docs/ui.md` for attributes/events/examples per component):
+Tags by tier (see `dist/ui/index.d.ts` TSDoc for attributes/events/examples per component):
 - display: `ody-button`, `ody-tag`, `ody-alert`, `ody-card`, `ody-horizontal-divider`
   (1px rule with a default `margin-block: var(--gap16)`; `spacing="tight"|"none"`),
   `ody-status-dot`, `ody-message`, `ody-icon`, `ody-loading-spinner`, `ody-loading-bar`

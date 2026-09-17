@@ -662,8 +662,8 @@ Load-bearing rules:
   attribute (booleans as presence, objects as JSON, scalars as strings) so the
   prop takes effect; otherwise it is a no-op for derived/imperative state
   (`isOpen`). The static `.d.ts` types keep these accessors read-only — the
-  setters are a runtime-only safety net. Documented for consumers in `docs/ui.md`
-  §3.5 and the README.
+  setters are a runtime-only safety net. Documented for consumers in the shipped
+  `dist/ui/index.d.ts` TSDoc and the README.
 - **Dependency-free & token-based.** No `ember-power-select`/`-calendar`,
   `svg-jar`, or bootstrap. Colours/spacing reference the `tokens.css` custom
   properties; icons are inlined; button variant colours (which live in a
