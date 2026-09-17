@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CNG Domain — @peektravel/app-utilities</title>
+<script>(function(){try{var u=new URLSearchParams(location.search).get("theme");var s=u||localStorage.getItem("theme");var t=(s==="light"||s==="dark")?s:"light";document.documentElement.setAttribute("data-theme",t);if(u==="light"||u==="dark"){try{localStorage.setItem("theme",u);}catch(e){}}}catch(e){}})();</script>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2a3441;
+    --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --accent2:#3fb950;
+    --type:#79c0ff; --null:#f0883e; --danger:#f85149; --pii:#d2a8ff;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  html[data-theme="light"]{
+    --bg:#f6f8fa; --panel:#ffffff; --panel2:#eef1f5; --border:#d0d7de;
+    --text:#1f2328; --muted:#59636e; --accent:#0969da; --accent2:#1a7f37;
+    --type:#0550ae; --null:#bc4c00; --danger:#cf222e; --pii:#8250df;
+  }
+  html[data-theme="light"] .desc,
+  html[data-theme="light"] .ctor,
+  html[data-theme="light"] .notes li,
+  html[data-theme="light"] .sig{color:#24292f}
+  html[data-theme="light"] .badge.opt{background:#eaeef2;color:#59636e}
+  html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#d0d7de;border-color:#f6f8fa}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;display:flex}
+  a{color:var(--accent);text-decoration:none}
+  code,.mono{font-family:var(--mono)}
+  /* sidebar */
+  #sidebar{width:300px;min-width:300px;height:100vh;overflow-y:auto;background:var(--panel);border-right:1px solid var(--border);position:sticky;top:0;padding:0 0 40px}
+  #brand{padding:18px 20px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:2}
+  #brand h1{margin:0;font-size:16px;letter-spacing:.3px}
+  #brand .tag{display:inline-block;margin-top:6px;font-size:11px;color:var(--bg);background:var(--accent2);padding:2px 8px;border-radius:10px;font-weight:600}
+  #brand .links{margin-top:10px;font-size:12px;display:flex;gap:12px}
+  .themebtn{margin-left:auto;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:2px 9px;cursor:pointer;font-size:13px;line-height:1.4}
+  .themebtn:hover{border-color:var(--accent);color:var(--accent)}
+  #search{width:100%;margin-top:12px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px}
+  .navgroup{padding:14px 12px 4px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  .navitem{display:block;padding:5px 20px 5px 24px;color:var(--text);font-size:13px;border-left:2px solid transparent;cursor:pointer}
+  .navitem:hover{background:var(--panel2)}
+  .navitem.active{border-left-color:var(--accent);background:var(--panel2);color:var(--accent)}
+  .navitem .k{font-family:var(--mono);font-size:12px}
+  /* main */
+  #main{flex:1;min-width:0;height:100vh;overflow-y:auto;padding:0 48px 120px}
+  #hero{padding:40px 0 20px;border-bottom:1px solid var(--border);margin-bottom:8px}
+  #hero h2{margin:0 0 8px;font-size:28px}
+  #hero p{color:var(--muted);max-width:820px;margin:6px 0}
+  section.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:22px 24px;margin:26px 0;scroll-margin-top:20px}
+  section.card h3{margin:0 0 4px;font-size:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .pill{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600}
+  .pill.svc{background:#1f6feb33;color:var(--accent);border:1px solid #1f6feb55}
+  .pill.model{background:#3fb95033;color:var(--accent2);border:1px solid #3fb95055}
+  .pill.pii{background:#8957e533;color:var(--pii);border:1px solid #8957e555}
+  .file{font-family:var(--mono);font-size:12px;color:var(--muted);margin:2px 0 12px}
+  .desc{color:#c9d1d9;margin:8px 0 14px;max-width:900px}
+  .ctor{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:6px 0 14px;color:#c9d1d9}
+  .notes{list-style:none;padding:0;margin:6px 0 12px}
+  .notes li{padding:6px 10px 6px 28px;position:relative;background:var(--panel2);border:1px solid var(--border);border-radius:6px;margin:5px 0;font-size:12.5px;color:#c9d1d9}
+  .notes li:before{content:"›";position:absolute;left:11px;color:var(--accent);font-weight:700}
+  table{width:100%;border-collapse:collapse;margin:8px 0 4px;font-size:13px}
+  th{text-align:left;padding:8px 10px;border-bottom:2px solid var(--border);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--panel2)}
+  .m-name{font-family:var(--mono);color:var(--accent);white-space:nowrap;font-weight:600}
+  .sig{font-family:var(--mono);color:#c9d1d9;font-size:12px}
+  .type{font-family:var(--mono);color:var(--type);font-size:12.5px}
+  a.mlink{color:var(--accent);text-decoration:none;border-bottom:1px dashed #58a6ff66;cursor:pointer}
+  a.mlink:hover{border-bottom-style:solid;color:#79c0ff}
+  .type a.mlink{color:var(--type);border-bottom-color:#79c0ff66}
+  .null-y{color:var(--null);font-weight:600}
+  .null-n{color:var(--muted)}
+  .subhead{margin:20px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+  .hidden{display:none !important}
+  .fieldname{font-family:var(--mono);font-weight:600}
+  .badge{display:inline-block;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:6px;vertical-align:middle}
+  .badge.opt{background:#30363d;color:var(--muted)}
+  .badge.inh{background:#1f6feb22;color:var(--muted);border:1px solid var(--border);font-weight:500}
+  .extends{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin:-4px 0 12px}
+  tr.inh-row .fieldname{opacity:.92}
+  .empty{color:var(--muted);font-style:italic;padding:12px 0}
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-thumb{background:#30363d;border-radius:6px;border:2px solid var(--bg)}
+</style>
+</head>
+<body>
+<nav id="sidebar">
+  <div id="brand">
+    <h1>CNG Domain</h1>
+    <span class="tag">@peektravel/app-utilities</span>
+    <div class="links">
+      <a href="peek.html">Peek →</a><a href="acme.html">ACME →</a>
+      <button id="themeBtn" class="themebtn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
+    </div>
+    <input id="search" placeholder="Filter services & models…" autocomplete="off"/>
+  </div>
+  <div id="nav"></div>
+</nav>
+<main id="main">
+  <div id="hero">
+    <h2 id="heroTitle"></h2>
+    <p id="heroSub"></p>
+  </div>
+  <div id="content"></div>
+</main>
+<script>
+/* ---------- shared renderer ---------- */
+function nullCell(n){return n===true?'<span class="null-y">nullable</span>':n==="opt"?'<span class="null-y">optional</span>':'<span class="null-n">—</span>';}
+function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+function slug(s){return s.replace(/[^a-zA-Z0-9]+/g,'-');}
+let LINK_RE=null,LINK_MAP=null;
+function linkify(str){
+  if(!str||!LINK_RE)return str;
+  return str.replace(LINK_RE,m=>'<a class="mlink" href="#'+LINK_MAP[m]+'">'+m+'</a>');
+}
+
+function render(DATA){
+  document.title = DATA.title+" Domain — @peektravel/app-utilities";
+  heroTitle.textContent = DATA.hero;
+  heroSub.innerHTML = DATA.heroSub;
+  // sort: root *AccessService first, other services A–Z; models A–Z
+  DATA.services.sort((a,b)=>{
+    const ra=/AccessService$/.test(a.name), rb=/AccessService$/.test(b.name);
+    if(ra!==rb)return ra?-1:1;
+    return a.name.localeCompare(b.name);
+  });
+  DATA.models.sort((a,b)=>a.name.localeCompare(b.name));
+  LINK_MAP={};
+  DATA.models.forEach(m=>{LINK_MAP[m.name]='mdl-'+slug(m.name);});
+  DATA.services.forEach(x=>{LINK_MAP[x.name]='svc-'+slug(x.name);});
+  const _names=Object.keys(LINK_MAP).sort((a,b)=>b.length-a.length);
+  LINK_RE=new RegExp('\\b('+_names.join('|')+')\\b','g');
+  const nav=document.getElementById('nav'), content=document.getElementById('content');
+
+  nav.appendChild(el('div','navgroup','Service Classes'));
+  DATA.services.forEach(s=>{
+    const a=el('a','navitem');a.dataset.target='svc-'+slug(s.name);
+    a.innerHTML='<span class="k">'+s.name+'</span>';nav.appendChild(a);
+  });
+  nav.appendChild(el('div','navgroup','Data Models'));
+  DATA.models.forEach(m=>{
+    const a=el('a','navitem');a.dataset.target='mdl-'+slug(m.name);
+    a.innerHTML='<span class="k">'+m.name+'</span>';nav.appendChild(a);
+  });
+
+  // services
+  DATA.services.forEach(s=>{
+    const c=el('section','card');c.id='svc-'+slug(s.name);c.dataset.search=(s.name+' '+s.desc).toLowerCase();
+    let h='<h3>'+s.name+' <span class="pill svc">service</span></h3>';
+    h+='<div class="file">'+s.file+'</div>';
+    if(s.desc)h+='<div class="desc">'+s.desc+'</div>';
+    if(s.ctor)h+='<div class="subhead">Constructor</div><div class="ctor">'+linkify(s.ctor)+'</div>';
+    if(s.obtain)h+='<div class="subhead">Obtain</div><div class="ctor">'+linkify(s.obtain)+'</div>';
+    if(s.notes&&s.notes.length){h+='<div class="subhead">Behavior</div><ul class="notes">'+s.notes.map(n=>'<li>'+n+'</li>').join('')+'</ul>';}
+    if(s.methods&&s.methods.length){
+      h+='<div class="subhead">Methods</div><table><thead><tr><th>Method</th><th>Signature</th><th>Description</th></tr></thead><tbody>';
+      s.methods.forEach(m=>{
+        let notes=m.notes?'<div style="margin-top:6px;color:var(--muted);font-size:12px">'+m.notes+'</div>':'';
+        let pii=m.pii?' <span class="pill pii">PII-gated</span>':'';
+        h+='<tr><td class="m-name">'+m.name+pii+'</td><td class="sig">'+linkify(m.sig)+'</td><td>'+m.desc+notes+'</td></tr>';
+      });
+      h+='</tbody></table>';
+    }
+    c.innerHTML=h;content.appendChild(c);
+  });
+
+  // models
+  const MBN={}; DATA.models.forEach(m=>{MBN[m.name]=m;});
+  function resolveFields(m){
+    const rows=(m.fields||[]).map(f=>({f,from:null}));
+    const seen=new Set([m.name]); let pn=m.extends;
+    while(pn && !seen.has(pn)){seen.add(pn);const p=MBN[pn];if(!p)break;(p.fields||[]).forEach(f=>rows.push({f,from:p.name}));pn=p.extends;}
+    return rows;
+  }
+  DATA.models.forEach(m=>{
+    const c=el('section','card');c.id='mdl-'+slug(m.name);c.dataset.search=(m.name+' '+(m.desc||'')+' '+(m.extends||'')).toLowerCase();
+    let h='<h3>'+m.name+' <span class="pill model">'+(m.kind||'model')+'</span></h3>';
+    if(m.file)h+='<div class="file">'+m.file+'</div>';
+    if(m.desc)h+='<div class="desc">'+m.desc+'</div>';
+    if(m.extends)h+='<div class="extends">Extends '+linkify(m.extends)+'</div>';
+    if(m.def)h+='<div class="ctor">'+linkify(m.def)+'</div>';
+    const rows=resolveFields(m);
+    if(rows.length){
+      h+='<table><thead><tr><th>Field</th><th>Type</th><th>Nullability</th><th>Description</th></tr></thead><tbody>';
+      rows.forEach(r=>{
+        const f=r.f;
+        const inh=r.from?' <span class="badge inh">inherited from '+linkify(r.from)+'</span>':'';
+        h+='<tr'+(r.from?' class="inh-row"':'')+'><td class="fieldname">'+f.name+inh+'</td><td class="type">'+linkify(f.type)+'</td><td>'+nullCell(f.n)+'</td><td>'+f.desc+'</td></tr>';
+      });
+      h+='</tbody></table>';
+    }
+    c.innerHTML=h;content.appendChild(c);
+  });
+
+  // nav interactions
+  const items=[...document.querySelectorAll('.navitem')];
+  items.forEach(a=>a.addEventListener('click',()=>{
+    const t=document.getElementById(a.dataset.target);
+    if(t)t.scrollIntoView({behavior:'smooth',block:'start'});
+  }));
+  const cards=[...document.querySelectorAll('section.card')];
+  const io=new IntersectionObserver(es=>{
+    es.forEach(e=>{if(e.isIntersecting){
+      const id=e.target.id;items.forEach(a=>a.classList.toggle('active',a.dataset.target===id));
+    }});
+  },{rootMargin:'-10% 0px -80% 0px'});
+  cards.forEach(c=>io.observe(c));
+
+  // model cross-links
+  document.addEventListener('click',ev=>{
+    const a=ev.target.closest&&ev.target.closest('.mlink');if(!a)return;
+    ev.preventDefault();
+    const t=document.getElementById(a.getAttribute('href').slice(1));
+    if(t){const sb=document.getElementById('search');if(sb&&sb.value){sb.value='';sb.dispatchEvent(new Event('input'));}
+      t.scrollIntoView({behavior:'smooth',block:'start'});}
+  });
+
+  // theme toggle (+ carry the choice across the sibling pages via ?theme=,
+  // since file:// localStorage is isolated per page in some browsers)
+  function _syncThemeLinks(t){
+    document.querySelectorAll('#brand .links a').forEach(a=>{
+      a.setAttribute('href', a.getAttribute('href').split('?')[0]+'?theme='+t);
+    });
+  }
+  _syncThemeLinks(document.documentElement.getAttribute('data-theme')||'light');
+  const _tb=document.getElementById('themeBtn');
+  if(_tb)_tb.addEventListener('click',()=>{
+    const cur=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';
+    document.documentElement.setAttribute('data-theme',cur);
+    try{localStorage.setItem('theme',cur);}catch(e){}
+    _syncThemeLinks(cur);
+  });
+
+  // search
+  document.getElementById('search').addEventListener('input',ev=>{
+    const q=ev.target.value.trim().toLowerCase();
+    cards.forEach(c=>{
+      const show=!q||c.dataset.search.includes(q);
+      c.classList.toggle('hidden',!show);
+      const a=document.querySelector('.navitem[data-target="'+c.id+'"]');
+      if(a)a.classList.toggle('hidden',!show);
+    });
+  });
+}
+</script>
+
+<script>
+/* ---------- CNG DATA ---------- */
+render({
+ title:"CNG",
+ hero:"CNG Domain",
+ heroSub:"REST sibling of the Peek GraphQL accessor. Reuses the shared auth (<code>TokenManager</code>), retry/backoff transport, <code>Logger</code>, and base error types — differing only in transport (REST) and gateway routing (<code>cng_backoffice_api-v1</code>). Consumers construct one <code>CngAccessService</code> per install and call typed methods returning clean plain-object models. Public exports: <code>CngAccessService</code>, <code>CngAccessServiceConfig</code>, <code>CngProductService</code>, <code>Activity</code>, <code>ActivityTicket</code>, <code>CngApiError</code>, <code>CngPermissionError</code>.",
+ services:[
+  {
+   name:"CngAccessService",
+   file:"src/cng-access-service.ts",
+   desc:"Authenticated root entry point. The CNG sibling of <code>PeekAccessService</code>. Configure one instance per install; it owns the shared authenticated transport (minting/caching tokens on demand) and hands out the <code>CngProductService</code>. Auth: the same app JWT (<code>X-Peek-Auth: Bearer</code>) minted from Peek app credentials via the shared <code>TokenManager</code>, routed through the app-registry installations API. No <code>pk-api-key</code> header.",
+   ctor:"constructor(config: CngAccessServiceConfig)",
+   notes:[
+     "<code>CngAccessServiceConfig</code> is a type alias for <code>BaseAccessServiceConfig</code> — CNG adds no fields (authenticates on the app JWT alone, no <code>gatewayKey</code>).",
+     "Validates <code>installId</code>, <code>jwtSecret</code>, <code>issuer</code> non-empty via <code>requireNonEmpty</code> — throws <code>Error</code> (<code>CngAccessService: \"&lt;field&gt;\" is required</code>).",
+     "<code>appId</code> required (non-empty) only when <code>apiUrl</code> is not set (legacy <code>baseUrl</code> mode).",
+     "Builds shared <code>TokenManager</code> + a <code>RestClient</code> with <code>extendableSlug = cng_backoffice_api-v1</code>. When <code>apiUrl</code> present it is used as-is as the base and only the REST path is appended; otherwise <code>baseUrl</code> defaults to the app-registry installations API."
+   ],
+   methods:[
+     {name:"getProductService",sig:"(): CngProductService",desc:"Returns the product service for this install, bound to the shared authenticated transport.",notes:"Lazily created and memoized — repeated calls return the same instance."},
+     {name:"getAllActivities",sig:"(): Promise&lt;Activity[]&gt;",desc:"Top-level short-form: all activities.",notes:"Delegates directly to <code>getProductService().getAllActivities()</code>."}
+   ]
+  },
+  {
+   name:"CngProductService",
+   file:"src/internal/cng/products/product-service.ts",
+   desc:"Product operations against the CNG gateway. Named <code>CngProductService</code> to disambiguate from the Peek <code>ProductService</code>.",
+   obtain:"CngAccessService.getProductService()",
+   methods:[
+     {name:"getAllActivities",sig:"(): Promise&lt;Activity[]&gt;",desc:"Returns every activity as a single flat list.",notes:"GETs <code>api/v2/app-registry/products?active=1</code> expecting a <code>{ data: [...] }</code> collection, then maps via <code>fromProductNodes</code>. Defensive: missing <code>data</code> yields <code>[]</code>. The <code>active=1</code> filter is applied gateway-side, so inactive/archived products never reach the converter."}
+   ]
+  }
+ ],
+ models:[
+  {name:"CngAccessServiceConfig",kind:"config",file:"src/cng-access-service.ts",
+   desc:"Constructor config for <code>CngAccessService</code>. A plain type alias of <code>BaseAccessServiceConfig</code> — CNG adds no fields (it authenticates on the app JWT alone, no <code>gatewayKey</code>). Required fields throw from the constructor when empty.",
+   fields:[
+    {name:"installId",type:"string",n:false,desc:"Install ID. Becomes the JWT subject. Required."},
+    {name:"jwtSecret",type:"string",n:false,desc:"HMAC secret used to sign the JWT. Required."},
+    {name:"issuer",type:"string",n:false,desc:"JWT issuer — the app name / app ID. Required."},
+    {name:"apiUrl",type:"string",n:"opt",desc:"The install's app endpoint URL (persist the install webhook's <code>apiUrl</code>). Used as the base with the REST path appended; no app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
+    {name:"appId",type:"string",n:"opt",desc:"<b>@deprecated</b> App ID inserted into the gateway endpoint path. Required only in legacy <code>baseUrl</code> mode."},
+    {name:"baseUrl",type:"string",n:"opt",desc:"<b>@deprecated</b> Override the gateway base URL. Default the app-registry installations API. Prefer <code>apiUrl</code>."},
+    {name:"tokenTtlSeconds",type:"number",n:"opt",desc:"JWT lifetime in seconds. Default 3600."},
+    {name:"tokenRefreshLeewaySeconds",type:"number",n:"opt",desc:"Re-mint the cached token this many seconds before expiry. Default 60."},
+    {name:"retryDelaysMs",type:"number[]",n:"opt",desc:"Backoff delays (ms) for HTTP 429 retries. Default <code>[1000, 2000, 4000]</code>."},
+    {name:"logger",type:"Logger",n:"opt",desc:"Optional logger. Default no-op (silent)."},
+    {name:"fetch",type:"typeof fetch",n:"opt",desc:"Custom <code>fetch</code> implementation. Default the global <code>fetch</code>."},
+    {name:"accessOptions",type:"AccessOptions",n:"opt",desc:"Cross-cutting access options (PII exposure). Inert for CNG today — CNG's only service reads no customer PII."}
+   ]},
+  {
+   name:"Activity",kind:"interface",file:"src/models/cng/product.ts",
+   desc:"A bookable activity in a CNG account. The clean, transport-agnostic model returned by <code>getAllActivities()</code>. The CNG sibling of the Peek <code>Product</code>; its shape mirrors Peek's so consumers can treat both brands uniformly. Mapped from the <code>app-registry/products</code> REST payload (no product-type discriminator, no sub-options). Sibling const: <code>ACTIVITY_PRODUCT_TYPE = \"ACTIVITY\"</code> (not re-exported from the CNG section of index.ts).",
+   fields:[
+     {name:"productId",type:"string",n:false,desc:"Stable unique id for the activity. The numeric REST <code>id</code> stringified. Empty string when raw <code>id</code> is null."},
+     {name:"name",type:"string",n:false,desc:"Human-readable display name (default-locale). Empty string when absent."},
+     {name:"type",type:"string",n:false,desc:"Product type. Always <code>\"ACTIVITY\"</code> — the CNG payload has no type discriminator. Kept for parity with Peek."},
+     {name:"color",type:"string",n:false,desc:"Display color hex (e.g. <code>#1A2B3C</code>), from <code>access_control_color_hex</code>. Empty string when no color set."},
+     {name:"tickets",type:"ActivityTicket[]",n:false,desc:"Bookable sub-options. Always empty — CNG exposes no tickets on the products endpoint today."}
+   ]
+  },
+  {
+   name:"ActivityTicket",kind:"interface",file:"src/models/cng/product.ts",
+   desc:"A single bookable sub-option of an <code>Activity</code>. Present for parity with Peek; never populated by CNG today.",
+   fields:[
+     {name:"id",type:"string",n:false,desc:"Unique identifier of the ticket."},
+     {name:"name",type:"string",n:false,desc:"Human-readable name of the ticket."}
+   ]
+  },
+  {
+   name:"CngApiError",kind:"error class",file:"src/errors.ts",
+   desc:"Thrown when the CNG REST gateway returns a non-2xx response not otherwise handled (i.e. not 418/429/403). Default message <code>CNG request failed with HTTP &lt;statusCode&gt;</code>.",
+   def:"class CngApiError extends Error { name = \"CngApiError\";  constructor(statusCode: number, body: unknown, message?: string) }",
+   fields:[
+     {name:"statusCode",type:"number",n:false,desc:"readonly — the HTTP status that triggered the error."},
+     {name:"body",type:"unknown",n:false,desc:"readonly — raw response body (parsed JSON when possible, else text)."}
+   ]
+  },
+  {
+   name:"CngPermissionError",kind:"error class",file:"src/errors.ts",
+   desc:"Thrown on HTTP 403 when the app lacks a required permission (e.g. <code>products:read</code>). Expected for a misconfigured install (not a bug); transport logs it at <code>warn</code>. Thrown in place of <code>CngApiError</code> for 403s only.",
+   def:"class CngPermissionError extends Error { name = \"CngPermissionError\";  constructor(permissions: string[], body: unknown, message?: string) }",
+   fields:[
+     {name:"statusCode",type:"number",n:false,desc:"readonly — always <code>403</code>."},
+     {name:"permissions",type:"string[]",n:false,desc:"readonly — permission names the gateway reported missing. Empty when the body named none."},
+     {name:"body",type:"unknown",n:false,desc:"readonly — raw response body."}
+   ]
+  }
+ ]
+});
+</script>
+</body>
+</html>
