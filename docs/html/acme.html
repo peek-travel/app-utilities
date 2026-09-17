@@ -33,6 +33,7 @@
   #brand{padding:18px 20px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:2}
   #brand h1{margin:0;font-size:16px;letter-spacing:.3px}
   #brand .tag{display:inline-block;margin-top:6px;font-size:11px;color:var(--bg);background:var(--accent2);padding:2px 8px;border-radius:10px;font-weight:600}
+  .pkgbadge{display:inline-block;margin:6px 0 0 6px;font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-family:var(--mono)}
   #brand .links{margin-top:10px;font-size:12px;display:flex;gap:12px}
   .themebtn{margin-left:auto;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:2px 9px;cursor:pointer;font-size:13px;line-height:1.4}
   .themebtn:hover{border-color:var(--accent);color:var(--accent)}
@@ -90,6 +91,7 @@
   <div id="brand">
     <h1>ACME Platform</h1>
     <span class="tag">@peektravel/app-utilities</span>
+    <span class="pkgbadge">TypeScript · npm package</span>
     <div class="links">
       <a href="peek.html">Peek →</a><a href="cng.html">CNG →</a>
       <button id="themeBtn" class="themebtn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
@@ -134,11 +136,11 @@ function render(DATA){
   LINK_RE=new RegExp('\\b('+_names.join('|')+')\\b','g');
   const nav=document.getElementById('nav'), content=document.getElementById('content');
 
-  nav.appendChild(el('div','navgroup','Service Classes'));
-  DATA.services.forEach(s=>{
-    const a=el('a','navitem');a.dataset.target='svc-'+slug(s.name);
-    a.innerHTML='<span class="k">'+s.name+'</span>';nav.appendChild(a);
-  });
+  const _isAccess=s=>/AccessService$/.test(s.name);
+  const _access=DATA.services.filter(_isAccess), _rest=DATA.services.filter(s=>!_isAccess(s));
+  function _navSvc(s){const a=el('a','navitem');a.dataset.target='svc-'+slug(s.name);a.innerHTML='<span class="k">'+s.name+'</span>';nav.appendChild(a);}
+  if(_access.length){nav.appendChild(el('div','navgroup','Access Service'));_access.forEach(_navSvc);}
+  if(_rest.length){nav.appendChild(el('div','navgroup','Service Classes'));_rest.forEach(_navSvc);}
   nav.appendChild(el('div','navgroup','Data Models'));
   DATA.models.forEach(m=>{
     const a=el('a','navitem');a.dataset.target='mdl-'+slug(m.name);
@@ -251,18 +253,18 @@ function render(DATA){
 render({
  title:"ACME",
  hero:"ACME Platform",
- heroSub:"REST sibling of the Peek GraphQL accessor. Reuses the shared auth (<code>TokenManager</code>), retry/backoff loop, <code>Logger</code>, and base error types — differing only in transport (REST) and gateway routing (<code>acme_backoffice_api-v1</code>). Exposes two service classes and two data models. Public exports: <code>AcmeAccessService</code>, <code>AcmeAccessServiceConfig</code>, <code>AcmeProductService</code>, <code>AcmeActivity</code>, <code>AcmeActivityTicket</code>, <code>AcmeApiError</code>. Unlike CNG, ACME surfaces 403 as the generic <code>AcmeApiError</code> (no dedicated permission error).",
+ heroSub:"Sibling of the Peek accessor. Reuses the shared auth (<code>TokenManager</code>), retry/backoff, <code>Logger</code>, and base error types. Exposes its service classes and the data models they return. Public exports: <code>AcmeAccessService</code>, <code>AcmeAccessServiceConfig</code>, <code>AcmeProductService</code>, <code>AcmeActivity</code>, <code>AcmeActivityTicket</code>, <code>AcmeApiError</code>. Unlike CNG, ACME surfaces 403 as the generic <code>AcmeApiError</code> (no dedicated permission error).",
  services:[
   {
    name:"AcmeAccessService",
    file:"src/acme-access-service.ts",
-   desc:"Authenticated root entry point to the ACME backoffice REST gateway. The ACME sibling of <code>PeekAccessService</code> / <code>CngAccessService</code>. Configure one instance per install; it owns the shared authenticated transport (minting/caching tokens on demand) and hands out the <code>AcmeProductService</code>. Auth mirrors CNG: same app JWT (<code>X-Peek-Auth: Bearer</code>) via the shared <code>TokenManager</code>, routed through the app-registry installations API. No <code>pk-api-key</code> header.",
+   desc:"Authenticated root entry point to the ACME backoffice. The ACME sibling of <code>PeekAccessService</code> / <code>CngAccessService</code>. Configure one instance per install; it owns the shared authenticated transport (minting/caching tokens on demand) and hands out the <code>AcmeProductService</code>. Auth mirrors CNG: same app JWT (<code>X-Peek-Auth: Bearer</code>) via the shared <code>TokenManager</code>, routed through the app-registry installations API. No <code>pk-api-key</code> header.",
    ctor:"constructor(config: AcmeAccessServiceConfig)",
    notes:[
      "<code>AcmeAccessServiceConfig</code> is a type alias for <code>BaseAccessServiceConfig</code> — ACME adds no fields (no <code>gatewayKey</code>).",
      "Requires non-empty <code>installId</code>, <code>jwtSecret</code>, <code>issuer</code> via <code>requireNonEmpty</code> — throws <code>Error</code> (<code>AcmeAccessService: \"&lt;field&gt;\" is required</code>).",
      "<code>appId</code> required non-empty only when <code>apiUrl</code> is not set (legacy <code>baseUrl</code> mode).",
-     "Builds <code>RestClient</code> with <code>extendableSlug = acme_backoffice_api-v1</code>. <code>apiUrl</code> used as-is when present; otherwise <code>baseUrl</code> defaults to <code>https://app-registry.peeklabs.com/installations-api</code>. <code>retryDelaysMs</code> defaults to <code>[1000, 2000, 4000]</code>; <code>fetch</code> defaults to <code>globalThis.fetch</code>; logger defaults to <code>noopLogger</code>."
+     "<code>apiUrl</code> is used as-is when present; otherwise <code>baseUrl</code> defaults to <code>https://app-registry.peeklabs.com/installations-api</code>. <code>retryDelaysMs</code> defaults to <code>[1000, 2000, 4000]</code>; <code>fetch</code> defaults to <code>globalThis.fetch</code>; logger defaults to <code>noopLogger</code>."
    ],
    methods:[
      {name:"getProductService",sig:"(): AcmeProductService",desc:"Returns the <code>AcmeProductService</code> for this install, bound to the shared authenticated transport.",notes:"Created lazily and memoized (private <code>productService</code> field)."},
@@ -275,7 +277,7 @@ render({
    desc:"Product operations against the ACME gateway. Named <code>AcmeProductService</code> to disambiguate from the Peek <code>ProductService</code> and CNG <code>CngProductService</code>.",
    obtain:"AcmeAccessService.getProductService()",
    methods:[
-     {name:"getAllActivities",sig:"(): Promise&lt;AcmeActivity[]&gt;",desc:"Returns every published event template as a single flat list of activities.",notes:"GETs <code>v2/b2b/event/templates/names?pageSize=-1&page=1</code>. Tolerates either a <code>{ list: [...] }</code> envelope or a bare array. <code>fromTemplateNodes</code> filters to published templates only (<code>reviewState === \"published\"</code>) and maps each to an <code>AcmeActivity</code>. Propagates transport errors from <code>RestClient.get</code>."}
+     {name:"getAllActivities",sig:"(): Promise&lt;AcmeActivity[]&gt;",desc:"Returns every published event template as a single flat list of activities.",notes:"Fetches the account's event templates. Tolerates either a <code>{ list: [...] }</code> envelope or a bare array. <code>fromTemplateNodes</code> filters to published templates only (<code>reviewState === \"published\"</code>) and maps each to an <code>AcmeActivity</code>."}
    ]
   }
  ],
@@ -286,7 +288,7 @@ render({
     {name:"installId",type:"string",n:false,desc:"Install ID. Becomes the JWT subject. Required."},
     {name:"jwtSecret",type:"string",n:false,desc:"HMAC secret used to sign the JWT. Required."},
     {name:"issuer",type:"string",n:false,desc:"JWT issuer — the app name / app ID. Required."},
-    {name:"apiUrl",type:"string",n:"opt",desc:"The install's app endpoint URL (persist the install webhook's <code>apiUrl</code>). Used as the base with the REST path appended; no app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
+    {name:"apiUrl",type:"string",n:"opt",desc:"The install's app endpoint URL (persist the install webhook's <code>apiUrl</code>). Used as the base with the request path appended; no app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
     {name:"appId",type:"string",n:"opt",desc:"<b>@deprecated</b> App ID inserted into the gateway endpoint path. Required only in legacy <code>baseUrl</code> mode."},
     {name:"baseUrl",type:"string",n:"opt",desc:"<b>@deprecated</b> Override the gateway base URL. Default the app-registry installations API. Prefer <code>apiUrl</code>."},
     {name:"tokenTtlSeconds",type:"number",n:"opt",desc:"JWT lifetime in seconds. Default 3600."},
@@ -317,7 +319,7 @@ render({
   },
   {
    name:"AcmeApiError",kind:"error class",file:"src/errors.ts",
-   desc:"Thrown by <code>RestClient.get</code> on any non-2xx response other than 418 (<code>AdminAccountRequiredError</code>) / 429 (<code>RateLimitError</code> after retries). Note: unlike CNG, ACME surfaces 403 as this generic error — there is no <code>AcmePermissionError</code>. Default message <code>ACME request failed with HTTP &lt;statusCode&gt;</code>.",
+   desc:"Thrown on any non-2xx response other than 418 (<code>AdminAccountRequiredError</code>) / 429 (<code>RateLimitError</code> after retries). Note: unlike CNG, ACME surfaces 403 as this generic error — there is no <code>AcmePermissionError</code>. Default message <code>ACME request failed with HTTP &lt;statusCode&gt;</code>.",
    def:"class AcmeApiError extends Error { name = \"AcmeApiError\";  constructor(statusCode: number, body: unknown, message?: string) }",
    fields:[
      {name:"statusCode",type:"number",n:false,desc:"readonly — the HTTP status that triggered the error."},

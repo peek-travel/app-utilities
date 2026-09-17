@@ -33,6 +33,7 @@
   #brand{padding:18px 20px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:2}
   #brand h1{margin:0;font-size:16px;letter-spacing:.3px}
   #brand .tag{display:inline-block;margin-top:6px;font-size:11px;color:var(--bg);background:var(--accent2);padding:2px 8px;border-radius:10px;font-weight:600}
+  .pkgbadge{display:inline-block;margin:6px 0 0 6px;font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-family:var(--mono)}
   #brand .links{margin-top:10px;font-size:12px;display:flex;gap:12px}
   .themebtn{margin-left:auto;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:2px 9px;cursor:pointer;font-size:13px;line-height:1.4}
   .themebtn:hover{border-color:var(--accent);color:var(--accent)}
@@ -90,6 +91,7 @@
   <div id="brand">
     <h1>CNG Platform</h1>
     <span class="tag">@peektravel/app-utilities</span>
+    <span class="pkgbadge">TypeScript · npm package</span>
     <div class="links">
       <a href="peek.html">Peek →</a><a href="acme.html">ACME →</a>
       <button id="themeBtn" class="themebtn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
@@ -134,11 +136,11 @@ function render(DATA){
   LINK_RE=new RegExp('\\b('+_names.join('|')+')\\b','g');
   const nav=document.getElementById('nav'), content=document.getElementById('content');
 
-  nav.appendChild(el('div','navgroup','Service Classes'));
-  DATA.services.forEach(s=>{
-    const a=el('a','navitem');a.dataset.target='svc-'+slug(s.name);
-    a.innerHTML='<span class="k">'+s.name+'</span>';nav.appendChild(a);
-  });
+  const _isAccess=s=>/AccessService$/.test(s.name);
+  const _access=DATA.services.filter(_isAccess), _rest=DATA.services.filter(s=>!_isAccess(s));
+  function _navSvc(s){const a=el('a','navitem');a.dataset.target='svc-'+slug(s.name);a.innerHTML='<span class="k">'+s.name+'</span>';nav.appendChild(a);}
+  if(_access.length){nav.appendChild(el('div','navgroup','Access Service'));_access.forEach(_navSvc);}
+  if(_rest.length){nav.appendChild(el('div','navgroup','Service Classes'));_rest.forEach(_navSvc);}
   nav.appendChild(el('div','navgroup','Data Models'));
   DATA.models.forEach(m=>{
     const a=el('a','navitem');a.dataset.target='mdl-'+slug(m.name);
@@ -251,7 +253,7 @@ function render(DATA){
 render({
  title:"CNG",
  hero:"CNG Platform",
- heroSub:"REST sibling of the Peek GraphQL accessor. Reuses the shared auth (<code>TokenManager</code>), retry/backoff transport, <code>Logger</code>, and base error types — differing only in transport (REST) and gateway routing (<code>cng_backoffice_api-v1</code>). Consumers construct one <code>CngAccessService</code> per install and call typed methods returning clean plain-object models. Public exports: <code>CngAccessService</code>, <code>CngAccessServiceConfig</code>, <code>CngProductService</code>, <code>Activity</code>, <code>ActivityTicket</code>, <code>CngApiError</code>, <code>CngPermissionError</code>.",
+ heroSub:"Sibling of the Peek accessor. Reuses the shared auth (<code>TokenManager</code>), retry/backoff, <code>Logger</code>, and base error types. Consumers construct one <code>CngAccessService</code> per install and call typed methods returning clean plain-object models. Public exports: <code>CngAccessService</code>, <code>CngAccessServiceConfig</code>, <code>CngProductService</code>, <code>Activity</code>, <code>ActivityTicket</code>, <code>CngApiError</code>, <code>CngPermissionError</code>.",
  services:[
   {
    name:"CngAccessService",
@@ -262,7 +264,7 @@ render({
      "<code>CngAccessServiceConfig</code> is a type alias for <code>BaseAccessServiceConfig</code> — CNG adds no fields (authenticates on the app JWT alone, no <code>gatewayKey</code>).",
      "Validates <code>installId</code>, <code>jwtSecret</code>, <code>issuer</code> non-empty via <code>requireNonEmpty</code> — throws <code>Error</code> (<code>CngAccessService: \"&lt;field&gt;\" is required</code>).",
      "<code>appId</code> required (non-empty) only when <code>apiUrl</code> is not set (legacy <code>baseUrl</code> mode).",
-     "Builds shared <code>TokenManager</code> + a <code>RestClient</code> with <code>extendableSlug = cng_backoffice_api-v1</code>. When <code>apiUrl</code> present it is used as-is as the base and only the REST path is appended; otherwise <code>baseUrl</code> defaults to the app-registry installations API."
+     "When <code>apiUrl</code> is present it is used as-is as the base and the request path is appended; otherwise <code>baseUrl</code> defaults to the app-registry installations API."
    ],
    methods:[
      {name:"getProductService",sig:"(): CngProductService",desc:"Returns the product service for this install, bound to the shared authenticated transport.",notes:"Lazily created and memoized — repeated calls return the same instance."},
@@ -275,7 +277,7 @@ render({
    desc:"Product operations against the CNG gateway. Named <code>CngProductService</code> to disambiguate from the Peek <code>ProductService</code>.",
    obtain:"CngAccessService.getProductService()",
    methods:[
-     {name:"getAllActivities",sig:"(): Promise&lt;Activity[]&gt;",desc:"Returns every activity as a single flat list.",notes:"GETs <code>api/v2/app-registry/products?active=1</code> expecting a <code>{ data: [...] }</code> collection, then maps via <code>fromProductNodes</code>. Defensive: missing <code>data</code> yields <code>[]</code>. The <code>active=1</code> filter is applied gateway-side, so inactive/archived products never reach the converter."}
+     {name:"getAllActivities",sig:"(): Promise&lt;Activity[]&gt;",desc:"Returns every activity as a single flat list.",notes:"Fetches the account's active products, then maps via <code>fromProductNodes</code>. Defensive: an empty or absent payload yields <code>[]</code>. The active-only filter is applied gateway-side, so inactive/archived products never reach the converter."}
    ]
   }
  ],
@@ -286,7 +288,7 @@ render({
     {name:"installId",type:"string",n:false,desc:"Install ID. Becomes the JWT subject. Required."},
     {name:"jwtSecret",type:"string",n:false,desc:"HMAC secret used to sign the JWT. Required."},
     {name:"issuer",type:"string",n:false,desc:"JWT issuer — the app name / app ID. Required."},
-    {name:"apiUrl",type:"string",n:"opt",desc:"The install's app endpoint URL (persist the install webhook's <code>apiUrl</code>). Used as the base with the REST path appended; no app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
+    {name:"apiUrl",type:"string",n:"opt",desc:"The install's app endpoint URL (persist the install webhook's <code>apiUrl</code>). Used as the base with the request path appended; no app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
     {name:"appId",type:"string",n:"opt",desc:"<b>@deprecated</b> App ID inserted into the gateway endpoint path. Required only in legacy <code>baseUrl</code> mode."},
     {name:"baseUrl",type:"string",n:"opt",desc:"<b>@deprecated</b> Override the gateway base URL. Default the app-registry installations API. Prefer <code>apiUrl</code>."},
     {name:"tokenTtlSeconds",type:"number",n:"opt",desc:"JWT lifetime in seconds. Default 3600."},
@@ -298,9 +300,9 @@ render({
    ]},
   {
    name:"Activity",kind:"interface",file:"src/models/cng/product.ts",
-   desc:"A bookable activity in a CNG account. The clean, transport-agnostic model returned by <code>getAllActivities()</code>. The CNG sibling of the Peek <code>Product</code>; its shape mirrors Peek's so consumers can treat both brands uniformly. Mapped from the <code>app-registry/products</code> REST payload (no product-type discriminator, no sub-options). Sibling const: <code>ACTIVITY_PRODUCT_TYPE = \"ACTIVITY\"</code> (not re-exported from the CNG section of index.ts).",
+   desc:"A bookable activity in a CNG account. The clean, transport-agnostic model returned by <code>getAllActivities()</code>. The CNG sibling of the Peek <code>Product</code>; its shape mirrors Peek's so consumers can treat both brands uniformly. Mapped from the <code>app-registry/products</code> payload (no product-type discriminator, no sub-options). Sibling const: <code>ACTIVITY_PRODUCT_TYPE = \"ACTIVITY\"</code> (not re-exported from the CNG section of index.ts).",
    fields:[
-     {name:"productId",type:"string",n:false,desc:"Stable unique id for the activity. The numeric REST <code>id</code> stringified. Empty string when raw <code>id</code> is null."},
+     {name:"productId",type:"string",n:false,desc:"Stable unique id for the activity. The numeric <code>id</code> stringified. Empty string when raw <code>id</code> is null."},
      {name:"name",type:"string",n:false,desc:"Human-readable display name (default-locale). Empty string when absent."},
      {name:"type",type:"string",n:false,desc:"Product type. Always <code>\"ACTIVITY\"</code> — the CNG payload has no type discriminator. Kept for parity with Peek."},
      {name:"color",type:"string",n:false,desc:"Display color hex (e.g. <code>#1A2B3C</code>), from <code>access_control_color_hex</code>. Empty string when no color set."},
@@ -317,7 +319,7 @@ render({
   },
   {
    name:"CngApiError",kind:"error class",file:"src/errors.ts",
-   desc:"Thrown when the CNG REST gateway returns a non-2xx response not otherwise handled (i.e. not 418/429/403). Default message <code>CNG request failed with HTTP &lt;statusCode&gt;</code>.",
+   desc:"Thrown when the CNG gateway returns a non-2xx response not otherwise handled (i.e. not 418/429/403). Default message <code>CNG request failed with HTTP &lt;statusCode&gt;</code>.",
    def:"class CngApiError extends Error { name = \"CngApiError\";  constructor(statusCode: number, body: unknown, message?: string) }",
    fields:[
      {name:"statusCode",type:"number",n:false,desc:"readonly — the HTTP status that triggered the error."},

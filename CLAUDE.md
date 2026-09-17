@@ -54,6 +54,15 @@ out, and the clean data models — never raw GraphQL.
     the parent's fields as inherited rows automatically (following the chain), so
     do not re-list inherited fields on the child. The parent must exist as its
     own model entry in the same file.
+  - **Keep transport/implementation detail out of the copy.** These pages
+    document the caller-facing surface — service classes, methods, and clean
+    models — not how the package talks to the gateway. Do not mention GraphQL vs
+    REST, "…gateway"/"transport" framing, raw HTTP verbs/endpoint paths, or the
+    internal transport clients (e.g. `RestClient`). Describe behavior in terms a
+    consumer cares about (what a method returns, when it throws, what defaults
+    apply). The one deliberate exception is a single, low-key `GraphQLClient`
+    reference in the `PeekAccessService` description; keep it deemphasized (do not
+    reintroduce it into the hero subtitle or elsewhere).
 - Ensure test coverage remains above 95% (the Vitest gate enforces this on
   lines/functions/branches/statements).
 - Unless told otherwise, after everything is done, run the linter and fix any
