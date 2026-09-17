@@ -17,6 +17,43 @@ out, and the clean data models — never raw GraphQL.
   products `currency` field), update `docs/external/pricing-api.md` — it documents
   that API for consumers and must not drift. Likewise `docs/webhooks.md` for the
   webhook surface and `llms.txt` for any change to the public entry points.
+- **Keep the interactive HTML reference in sync.** `docs/html/peek.html`,
+  `docs/html/cng.html`, and `docs/html/acme.html` are self-contained, interactive
+  reference docs (left-nav, filter, light/dark toggle) for the top-level service
+  classes and the data models each returns — `peek.html` covers the Peek domain,
+  `cng.html` the CNG domain, `acme.html` the ACME domain. Whenever you add,
+  remove, rename, or change a **service class**, a **public service method** (its
+  name, parameters, return type, PII gating, validation, or error behavior), or a
+  **data model** (any field, its type, or nullability) in the matching domain, you
+  MUST update the corresponding HTML file in the same change so it never drifts
+  from the code. The content lives in the `render({ … })` data object near the
+  bottom of each file — edit the `services` and `models` arrays; service- and
+  model-name references in signatures/types auto-link, so use the exact exported
+  type names. Do not log these doc updates in `changelog.md` (they are not a
+  caller-facing API change). The three files MUST stay structurally identical:
+  same `<head>`, CSS, and `render()` renderer — **only** the `render({ … })` data
+  object differs between them. When you change the renderer or styling, apply the
+  identical change to all three. The load-bearing conventions the renderer and
+  data must follow:
+  - **Ordering is automatic — do not hand-order the arrays.** The renderer sorts
+    at runtime: the root `*AccessService` (e.g. `PeekAccessService`) is always
+    pinned first, every other service class is listed alphabetically, and every
+    data model is listed alphabetically. Both the left-nav and the cards use this
+    order. Just add a new entry anywhere in the array; it sorts into place.
+  - **Only the root access service shows a `Constructor`.** Per-resource service
+    classes are never constructed directly by callers, so document them with an
+    `obtain` field naming the access-service accessor (e.g.
+    `PeekAccessService.getBookingService()`), not a `ctor`. Reserve `ctor` for the
+    root `*AccessService`.
+  - Keep the root access-service card lean — no free-form "Behavior" `notes`
+    block on it; put per-method detail on the methods themselves.
+  - **Model inheritance is expressed with `extends`, never by copying fields.**
+    When a model type extends another (e.g. `PeekAccessServiceConfig extends
+    BaseAccessServiceConfig`), give the child model an `extends: "ParentName"`
+    key and list ONLY its own fields. The renderer links the parent and appends
+    the parent's fields as inherited rows automatically (following the chain), so
+    do not re-list inherited fields on the child. The parent must exist as its
+    own model entry in the same file.
 - Ensure test coverage remains above 95% (the Vitest gate enforces this on
   lines/functions/branches/statements).
 - Unless told otherwise, after everything is done, run the linter and fix any
@@ -198,4 +235,6 @@ install-script spawn — use `npm install --ignore-scripts`. If the
 - Update `docs/internal/ARCHITECTURE.md` if the public surface, resources, or build changed.
 - Update `docs/external/pricing-api.md` if the pricing surface changed, and
   `llms.txt` if the public entry points changed.
+- Update the matching `docs/html/*.html` reference (`peek`/`cng`/`acme`) if any
+  service class, public method, or data model in that domain changed.
 - Record any caller-visible change (and, for breaking ones, the caller's required action) in `changelog.md`.
