@@ -47,7 +47,7 @@ export type AcmeAccessServiceConfig = BaseAccessServiceConfig;
  *   appId: process.env.PEEK_APP_ID!,
  * });
  *
- * const activities: AcmeActivity[] = await acme.getAllActivities();
+ * const activities: AcmeActivity[] = await acme.getProductService().getAllActivities();
  * ```
  *
  * @throws {Error} from the constructor when any required config field
@@ -90,7 +90,7 @@ export class AcmeAccessService {
     return this.productService;
   }
 
-  /** All activities. Delegates to {@link AcmeProductService.getAllActivities}. */
+  /** All activities. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link AcmeProductService.getAllActivities}. */
   getAllActivities() {
     return this.getProductService().getAllActivities();
   }

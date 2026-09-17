@@ -47,6 +47,10 @@ out, and the clean data models — never raw GraphQL.
     root `*AccessService`.
   - Keep the root access-service card lean — no free-form "Behavior" `notes`
     block on it; put per-method detail on the methods themselves.
+  - The access-service card lists only its `get…Service()` accessors (and genuine
+    access-level methods like `verifyPeekAuthToken`) — never the deprecated
+    short-form proxies. Its `example` should reach data through a service
+    accessor (e.g. `peek.getProductService().getAllProducts()`), not a short-form.
   - **Model inheritance is expressed with `extends`, never by copying fields.**
     When a model type extends another (e.g. `PeekAccessServiceConfig extends
     BaseAccessServiceConfig`), give the child model an `extends: "ParentName"`
@@ -93,7 +97,16 @@ Preserve the structure described in `docs/internal/ARCHITECTURE.md`. The load-be
     `GraphQLClient`, then runs the converter.
 - A resource may split into more than one triad when it carries a distinct
   sub-domain (e.g. `bookings` has `booking-*` plus `addon-*`).
-- **Public API surface (`src/index.ts`) exposes only the clean contract**:
+- **An access service exposes only its resource-service accessors.** The root
+  `*AccessService` (`PeekAccessService` / `CngAccessService` / `AcmeAccessService`)
+  should hand out the per-resource service classes via its `get…Service()`
+  accessors (plus genuine access-level concerns like `verifyPeekAuthToken`), and
+  nothing else. Do **not** add new top-level "short-form" proxy methods that
+  delegate straight to a resource-service method (e.g. `getAllActivities()` →
+  `getProductService().getAllActivities()`) — callers should reach those through
+  the service accessor. The existing short-forms are retained for
+  backwards-compatibility but are marked `@deprecated`; keep them deprecated,
+  don't add more, and don't promote them in examples or docs.
   `PeekAccessService` + config, the resource service classes and the
   option/result types callers need, the data-model **types**, `Logger` /
   `noopLogger`, and the typed error classes. Query strings, raw response

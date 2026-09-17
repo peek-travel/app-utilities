@@ -352,186 +352,186 @@ export class PeekAccessService {
 
   // ─── Product short-forms ─────────────────────────────────────────────────
 
-  /** All products (activities + add-ons). Delegates to {@link ProductService.getAllProducts}. */
+  /** All products (activities + add-ons). @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link ProductService.getAllProducts}. */
   getAllProducts() { return this.getProductService().getAllProducts(); }
 
-  /** All activity products (excludes add-ons). Delegates to {@link ProductService.getAllActivities}. */
+  /** All activity products (excludes add-ons). @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link ProductService.getAllActivities}. */
   getAllActivities() { return this.getProductService().getAllActivities(); }
 
-  /** All rental products. Delegates to {@link ProductService.getAllRentals}. */
+  /** All rental products. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link ProductService.getAllRentals}. */
   getAllRentals() { return this.getProductService().getAllRentals(); }
 
-  /** All add-on products. Delegates to {@link ProductService.getAllAddons}. */
+  /** All add-on products. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link ProductService.getAllAddons}. */
   getAllAddons() { return this.getProductService().getAllAddons(); }
 
-  /** An activity's custom questions. Delegates to {@link ProductService.getCustomQuestions}. */
+  /** An activity's custom questions. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link ProductService.getCustomQuestions}. */
   getCustomQuestions(productId: string) { return this.getProductService().getCustomQuestions(productId); }
 
   // ─── Account-user short-forms ─────────────────────────────────────────────
 
-  /** All active account users. Delegates to {@link AccountUserService.getAll}. */
+  /** All active account users. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link AccountUserService.getAll}. */
   getAllAccountUsers() { return this.getAccountUserService().getAll(); }
 
-  /** Account user by id, or null. Delegates to {@link AccountUserService.getById}. */
+  /** Account user by id, or null. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link AccountUserService.getById}. */
   getAccountUserById(userId: string) { return this.getAccountUserService().getById(userId); }
 
   // ─── Resource-pool short-forms ────────────────────────────────────────────
 
-  /** All resource pools. Delegates to {@link ResourcePoolService.getAll}. */
+  /** All resource pools. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link ResourcePoolService.getAll}. */
   getAllResourcePools(mode?: ResourcePoolMode) { return this.getResourcePoolService().getAll(mode); }
 
   // ─── Timeslot short-forms ─────────────────────────────────────────────────
 
-  /** Timeslots for an activity on a given date. Delegates to {@link TimeslotService.getForDay}. */
+  /** Timeslots for an activity on a given date. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link TimeslotService.getForDay}. */
   getTimeslotsForDay(productId: string, date: string, filter?: TimeslotFilter) {
     return this.getTimeslotService().getForDay(productId, date, filter);
   }
 
-  /** Single timeslot by id. Delegates to {@link TimeslotService.getById}. */
+  /** Single timeslot by id. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link TimeslotService.getById}. */
   getTimeslotById(timeslotId: string) { return this.getTimeslotService().getById(timeslotId); }
 
-  /** Set timeslot status. Delegates to {@link TimeslotService.setAvailability}. */
+  /** Set timeslot status. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link TimeslotService.setAvailability}. */
   setTimeslotAvailability(timeslotId: string, status: string) {
     return this.getTimeslotService().setAvailability(timeslotId, status);
   }
 
-  /** Set timeslot manifest notes. Delegates to {@link TimeslotService.setNotes}. */
+  /** Set timeslot manifest notes. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link TimeslotService.setNotes}. */
   setTimeslotNotes(timeslotId: string, manifestNotes: string) {
     return this.getTimeslotService().setNotes(timeslotId, manifestNotes);
   }
 
-  /** Assign or unassign guides on timeslots. Delegates to {@link TimeslotService.assignGuide}. */
+  /** Assign or unassign guides on timeslots. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link TimeslotService.assignGuide}. */
   assignTimeslotGuide(assignment: GuideAssignment) {
     return this.getTimeslotService().assignGuide(assignment);
   }
 
   // ─── Reseller short-forms ─────────────────────────────────────────────────
 
-  /** All reseller channels. Delegates to {@link ResellerService.getAllChannels}. */
+  /** All reseller channels. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link ResellerService.getAllChannels}. */
   getAllChannels(agentsPerChannel?: number) {
     return this.getResellerService().getAllChannels(agentsPerChannel);
   }
 
   // ─── Promo-code short-forms ───────────────────────────────────────────────
 
-  /** All promo codes. Delegates to {@link PromoCodeService.getAll}. */
+  /** All promo codes. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link PromoCodeService.getAll}. */
   getAllPromoCodes() { return this.getPromoCodeService().getAll(); }
 
-  /** Create a promo code. Delegates to {@link PromoCodeService.create}. */
+  /** Create a promo code. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link PromoCodeService.create}. */
   createPromoCode(input: CreatePromoCodeInput) { return this.getPromoCodeService().create(input); }
 
   // ─── Pricing short-forms ──────────────────────────────────────────────────
 
-  /** Create a pricing engine. Delegates to {@link PricingService.createEngine}. */
+  /** Create a pricing engine. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link PricingService.createEngine}. */
   createPricingEngine(input: CreateEngineInput) { return this.getPricingService().createEngine(input); }
 
-  /** Update a pricing engine. Delegates to {@link PricingService.updateEngine}. */
+  /** Update a pricing engine. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link PricingService.updateEngine}. */
   updatePricingEngine(input: UpdateEngineInput) { return this.getPricingService().updateEngine(input); }
 
-  /** Delete a pricing engine (idempotent). Delegates to {@link PricingService.deleteEngine}. */
+  /** Delete a pricing engine (idempotent). @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link PricingService.deleteEngine}. */
   deletePricingEngine(engineId: string) { return this.getPricingService().deleteEngine(engineId); }
 
-  /** Upsert pricing overrides. Delegates to {@link PricingService.upsertOverrides}. */
+  /** Upsert pricing overrides. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link PricingService.upsertOverrides}. */
   upsertPricingOverrides(input: UpsertOverridesInput) { return this.getPricingService().upsertOverrides(input); }
 
-  /** Clear pricing overrides for a set of activities. Delegates to {@link PricingService.clearOverrides}. */
+  /** Clear pricing overrides for a set of activities. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link PricingService.clearOverrides}. */
   clearPricingOverrides(input: ClearOverridesInput) { return this.getPricingService().clearOverrides(input); }
 
   // ─── Daily-note short-forms ───────────────────────────────────────────────
 
-  /** Today's daily note. Delegates to {@link DailyNoteService.getToday}. */
+  /** Today's daily note. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link DailyNoteService.getToday}. */
   getDailyNoteToday() { return this.getDailyNoteService().getToday(); }
 
-  /** Update today's daily note. Delegates to {@link DailyNoteService.update}. */
+  /** Update today's daily note. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link DailyNoteService.update}. */
   updateDailyNote(note: string) { return this.getDailyNoteService().update(note); }
 
   // ─── Availability short-forms ─────────────────────────────────────────────
 
-  /** Availability times for an activity. Delegates to {@link AvailabilityService.getAvailabilityTimes}. */
+  /** Availability times for an activity. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link AvailabilityService.getAvailabilityTimes}. */
   getAvailabilityTimes(query: AvailabilityTimesQuery) {
     return this.getAvailabilityService().getAvailabilityTimes(query);
   }
 
   // ─── Membership short-forms ───────────────────────────────────────────────
 
-  /** All memberships. Delegates to {@link MembershipService.getAll}. */
+  /** All memberships. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link MembershipService.getAll}. */
   getAllMemberships() { return this.getMembershipService().getAll(); }
 
-  /** Purchase a membership. Delegates to {@link MembershipService.purchase}. */
+  /** Purchase a membership. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link MembershipService.purchase}. */
   purchaseMembership(input: MembershipPurchaseInput) {
     return this.getMembershipService().purchase(input);
   }
 
   // ─── Booking short-forms ──────────────────────────────────────────────────
 
-  /** Booking by id. Delegates to {@link BookingService.getById}. */
+  /** Booking by id. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.getById}. */
   getBookingById(bookingId: string, options?: BookingReadOptions) {
     return this.getBookingService().getById(bookingId, options);
   }
 
-  /** Bookings by time range. Delegates to {@link BookingService.searchByTimeRange}. */
+  /** Bookings by time range. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.searchByTimeRange}. */
   searchBookingsByTimeRange(input: BookingTimeRangeSearch) {
     return this.getBookingService().searchByTimeRange(input);
   }
 
-  /** Bookings on a timeslot. Delegates to {@link BookingService.searchByTimeslot}. */
+  /** Bookings on a timeslot. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.searchByTimeslot}. */
   searchBookingsByTimeslot(timeslotId: string, options?: BookingReadOptions) {
     return this.getBookingService().searchByTimeslot(timeslotId, options);
   }
 
-  /** Guests on a booking. Delegates to {@link BookingService.getGuests}. */
+  /** Guests on a booking. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.getGuests}. */
   getBookingGuests(bookingId: string) { return this.getBookingService().getGuests(bookingId); }
 
-  /** Payments on file for a booking. Delegates to {@link BookingService.getPaymentsOnFile}. */
+  /** Payments on file for a booking. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.getPaymentsOnFile}. */
   getBookingPaymentsOnFile(bookingId: string) {
     return this.getBookingService().getPaymentsOnFile(bookingId);
   }
 
-  /** Append or overwrite operator notes. Delegates to {@link BookingService.appendNote}. */
+  /** Append or overwrite operator notes. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.appendNote}. */
   appendBookingNote(bookingId: string, note: string, mode?: NoteMode) {
     return this.getBookingService().appendNote(bookingId, note, mode);
   }
 
-  /** Set booking check-in status. Delegates to {@link BookingService.setCheckinStatus}. */
+  /** Set booking check-in status. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.setCheckinStatus}. */
   setBookingCheckinStatus(bookingId: string, checkedIn: boolean) {
     return this.getBookingService().setCheckinStatus(bookingId, checkedIn);
   }
 
-  /** Cancel a booking. Delegates to {@link BookingService.cancel}. */
+  /** Cancel a booking. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.cancel}. */
   cancelBooking(bookingId: string, notes?: string) {
     return this.getBookingService().cancel(bookingId, notes);
   }
 
-  /** Charge a booking. Delegates to {@link BookingService.makePayment}. */
+  /** Charge a booking. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.makePayment}. */
   makeBookingPayment(input: MakePaymentInput) { return this.getBookingService().makePayment(input); }
 
-  /** Refund a booking payment. Delegates to {@link BookingService.refund}. */
+  /** Refund a booking payment. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.refund}. */
   refundBooking(input: RefundInput) { return this.getBookingService().refund(input); }
 
-  /** Create an invoice link. Delegates to {@link BookingService.createInvoiceLink}. */
+  /** Create an invoice link. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.createInvoiceLink}. */
   createBookingInvoiceLink(bookingId: string) {
     return this.getBookingService().createInvoiceLink(bookingId);
   }
 
-  /** List add-ons on a booking. Delegates to {@link BookingService.listAddons}. */
+  /** List add-ons on a booking. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.listAddons}. */
   listBookingAddons(bookingId: string) { return this.getBookingService().listAddons(bookingId); }
 
-  /** Add an add-on to a booking. Delegates to {@link BookingService.addAddon}. */
+  /** Add an add-on to a booking. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.addAddon}. */
   addBookingAddon(bookingId: string, input: AddAddonInput) {
     return this.getBookingService().addAddon(bookingId, input);
   }
 
-  /** Remove an add-on from a booking. Delegates to {@link BookingService.removeAddon}. */
+  /** Remove an add-on from a booking. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.removeAddon}. */
   removeBookingAddon(bookingId: string, input: AddAddonInput) {
     return this.getBookingService().removeAddon(bookingId, input);
   }
 
-  /** Create a booking. Delegates to {@link BookingService.create}. */
+  /** Create a booking. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link BookingService.create}. */
   createBooking(input: CreateBookingInput) { return this.getBookingService().create(input); }
 
   // ─── Review short-forms ───────────────────────────────────────────────────
 
-  /** Reviews for an activity. Delegates to {@link ReviewService.getReviews}. */
+  /** Reviews for an activity. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link ReviewService.getReviews}. */
   getReviews(productId: string, reviewCount?: number, reviewOffset?: number) {
     return this.getReviewService().getReviews(productId, reviewCount, reviewOffset);
   }
