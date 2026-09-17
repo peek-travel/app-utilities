@@ -303,7 +303,7 @@ render({
    file:"src/acme-access-service.ts",
    desc:"Authenticated root entry point to the ACME backoffice. The ACME sibling of <code>PeekAccessService</code> / <code>CngAccessService</code>. Configure one instance per install; it owns the shared authenticated transport (minting/caching tokens on demand) and hands out the <code>AcmeProductService</code>. Auth mirrors CNG: same app JWT (<code>X-Peek-Auth: Bearer</code>) via the shared <code>TokenManager</code>, routed through the app-registry installations API. No <code>pk-api-key</code> header.",
    ctor:"constructor(config: AcmeAccessServiceConfig)",
-   example:"import { AcmeAccessService } from \"@peektravel/app-utilities\";\n\nconst acme = new AcmeAccessService({\n  installId: \"install_123\", // provided to your app during app authentication (external to this package)\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n});\n\n// every activity as one flat list\nconst activities = await acme.getProductService().getAllActivities();",
+   example:"import { AcmeAccessService } from \"@peektravel/app-utilities\";\n\nconst acme = new AcmeAccessService({\n  installId: \"install_123\", // obtained from verifyPeekAuthToken(peekAuthToken).installId\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n});\n\n// every activity as one flat list\nconst activities = await acme.getProductService().getAllActivities();",
    notes:[
      "<code>AcmeAccessServiceConfig</code> is a type alias for <code>BaseAccessServiceConfig</code> — ACME adds no fields (no <code>gatewayKey</code>).",
      "Requires non-empty <code>installId</code>, <code>jwtSecret</code>, <code>issuer</code> via <code>requireNonEmpty</code> — throws <code>Error</code> (<code>AcmeAccessService: \"&lt;field&gt;\" is required</code>).",
@@ -325,6 +325,16 @@ render({
   }
  ],
  models:[
+  {name:"AccessOptions",kind:"input",file:"src/access-options.ts",
+   desc:"Cross-cutting access options passed once at construction via the config's <code>accessOptions</code> field. Governs customer-PII exposure. Not used by any ACME service today (ACME reads no customer data), but accepted for parity with the Peek accessor.",
+   fields:[{name:"fullCustomerAccess",type:"boolean",n:"opt",desc:"Expose customer PII and enable payment/modification ops (default false)."}]},
+  {name:"Logger",kind:"interface",file:"src/logger.ts",
+   desc:"Optional logger passed via the config's <code>logger</code> field. <code>noopLogger</code> (a silent implementation) is the exported default.",
+   fields:[
+    {name:"info",type:"(message: string, context?: Record&lt;string, unknown&gt;) =&gt; void",n:false,desc:"Informational log."},
+    {name:"warn",type:"(message: string, context?: Record&lt;string, unknown&gt;) =&gt; void",n:false,desc:"Warning log."},
+    {name:"error",type:"(message: string, context?: Record&lt;string, unknown&gt;) =&gt; void",n:false,desc:"Error log."}
+   ]},
   {name:"AcmeAccessServiceConfig",kind:"config",file:"src/acme-access-service.ts",
    desc:"Constructor config for <code>AcmeAccessService</code>. A plain type alias of <code>BaseAccessServiceConfig</code> — ACME adds no fields (it authenticates on the app JWT alone, no <code>gatewayKey</code>). Required fields throw from the constructor when empty.",
    fields:[

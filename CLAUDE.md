@@ -58,6 +58,17 @@ out, and the clean data models — never raw GraphQL.
     the parent's fields as inherited rows automatically (following the chain), so
     do not re-list inherited fields on the child. The parent must exist as its
     own model entry in the same file.
+  - **No dangling type references — if a type is referenced, document it.** Every
+    named type that appears in a method signature, a field/property type, an
+    `extends`, or a union `def` (e.g. `AccessOptions`, `Logger`,
+    `PeekAuthTokenClaims`, `ResourcePoolMode`, `NoteMode`, `AddAddonInput`) MUST
+    have its own model entry in that same file, so the auto-link resolves and the
+    reader can follow it. Shared config types like `AccessOptions` and `Logger`
+    are referenced by CNG/ACME too, so they must be documented in `cng.html` and
+    `acme.html` as well as `peek.html` — a type is not "documented" just because
+    it exists in another page. Enum/union aliases use a `kind:"type"` entry with a
+    `def` string (no fields). When you add a field or method whose type names a
+    not-yet-documented type, add that type in the same change.
   - **Keep transport/implementation detail out of the copy.** These pages
     document the caller-facing surface — service classes, methods, and clean
     models — not how the package talks to the gateway. Do not mention GraphQL vs

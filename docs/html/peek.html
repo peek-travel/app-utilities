@@ -303,7 +303,7 @@ render({
    file:"src/peek-access-service.ts",
    desc:"The public entry point. Construct one per install. Validates config and hands out the per-resource service classes through its <code>get…Service()</code> accessors (lazily created and memoized).",
    ctor:"new PeekAccessService(config: PeekAccessServiceConfig)",
-   example:"import { PeekAccessService } from \"@peektravel/app-utilities\";\n\nconst peek = new PeekAccessService({\n  installId: \"install_123\", // provided to your app during app authentication (external to this package)\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n});\n\n// every product (activities + add-ons) as one flat list\nconst products = await peek.getProductService().getAllProducts();",
+   example:"import { PeekAccessService } from \"@peektravel/app-utilities\";\n\nconst peek = new PeekAccessService({\n  installId: \"install_123\", // obtained from verifyPeekAuthToken(peekAuthToken).installId\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n});\n\n// every product (activities + add-ons) as one flat list\nconst products = await peek.getProductService().getAllProducts();",
    methods:[
      {name:"getProductService",sig:"(): ProductService",desc:"Product service (lazily created + memoized)."},
      {name:"getAccountUserService",sig:"(): AccountUserService",desc:"Account-user service."},
@@ -464,6 +464,54 @@ render({
   }
  ],
  models:[
+  {name:"Logger",kind:"interface",file:"src/logger.ts",
+   desc:"Optional logger passed via the access-service config's <code>logger</code> field. <code>noopLogger</code> (a silent implementation) is the exported default.",
+   fields:[
+    {name:"info",type:"(message: string, context?: Record&lt;string, unknown&gt;) =&gt; void",n:false,desc:"Informational log."},
+    {name:"warn",type:"(message: string, context?: Record&lt;string, unknown&gt;) =&gt; void",n:false,desc:"Warning log."},
+    {name:"error",type:"(message: string, context?: Record&lt;string, unknown&gt;) =&gt; void",n:false,desc:"Error log."}
+   ]},
+  {name:"PeekAuthTokenClaims",kind:"interface",file:"src/models/peek/auth-token.ts",
+   desc:"Verified claims returned by <code>PeekAccessService.verifyPeekAuthToken</code>. The <code>installId</code> here is how you obtain the value to configure an access service.",
+   fields:[
+    {name:"installId",type:"string",n:false,desc:"Install id the token was minted for — use it as the access-service <code>installId</code>."},
+    {name:"displayVersion",type:"string",n:false,desc:"App display version from the token."},
+    {name:"user",type:"PeekAuthTokenUser | null",n:true,desc:"Authenticated user context, or <code>null</code> when the token carries no user block."}
+   ]},
+  {name:"PeekAuthTokenUser",kind:"interface",file:"src/models/peek/auth-token.ts",
+   desc:"Authenticated user context on a verified token. Every field is nullable — the token is untrusted even after signature verification.",
+   fields:[
+    {name:"email",type:"string | null",n:true,desc:"User email, or <code>null</code>."},
+    {name:"id",type:"string | null",n:true,desc:"The user's own Peek user id (identifies the person, not their account), or <code>null</code>."},
+    {name:"isAdmin",type:"boolean | null",n:true,desc:"Whether the user has admin privileges, or <code>null</code> if omitted."},
+    {name:"locale",type:"string | null",n:true,desc:"User locale, or <code>null</code>."},
+    {name:"name",type:"string | null",n:true,desc:"User name, or <code>null</code>."},
+    {name:"platform",type:"PeekPlatform | null",n:true,desc:"Platform that embedded the app, or <code>null</code>."}
+   ]},
+  {name:"PeekPlatform",kind:"type",file:"src/models/peek/auth-token.ts",
+   desc:"Platform that embedded the app for the session — the single claim identifying which brand a request came from.",def:'"peek" | "cng" | "acme"'},
+  {name:"AddAddonInput",kind:"input",file:"src/internal/peek/bookings/booking-service.ts",
+   desc:"Input to <code>BookingService.addAddon</code> / <code>removeAddon</code>.",
+   fields:[
+    {name:"addonOptionId",type:"string",n:"opt",desc:"Item option id to add/remove."},
+    {name:"addonId",type:"string",n:"opt",desc:"<b>@deprecated</b> Fallback add-on id used when <code>addonOptionId</code> is absent."},
+    {name:"quantity",type:"string",n:false,desc:"Positive-integer quantity string."}
+   ]},
+  {name:"CancelBookingResult",kind:"interface",file:"src/internal/peek/bookings/booking-service.ts",
+   desc:"Result of <code>BookingService.cancel</code>.",
+   fields:[
+    {name:"id",type:"string",n:false,desc:"Booking id."},
+    {name:"displayId",type:"string",n:false,desc:"Human-facing display id."},
+    {name:"reservationStatus",type:"string",n:false,desc:"Reservation status after cancellation."}
+   ]},
+  {name:"BookingSearchBy",kind:"type",file:"src/models/peek/booking.ts",
+   desc:"Which date <code>searchByTimeRange</code> filters on.",def:'"purchaseDate" | "activityDate"'},
+  {name:"NoteMode",kind:"type",file:"src/models/peek/booking.ts",
+   desc:"How <code>appendNote</code> writes the note.",def:'"append" | "overwrite"'},
+  {name:"ResourcePoolMode",kind:"type",file:"src/models/peek/resource-pool.ts",
+   desc:"Mode filter for <code>ResourcePoolService.getAll</code>.",def:'"ACTIVITY" | "ALL"'},
+  {name:"TimeslotFilter",kind:"type",file:"src/models/peek/timeslot.ts",
+   desc:"Timeslot filter for <code>TimeslotService.getForDay</code>.",def:'"all" | "withBookings" | "withoutBookings"'},
   {name:"PeekAccessServiceConfig",kind:"config",file:"src/peek-access-service.ts",extends:"BaseAccessServiceConfig",
    desc:"Constructor config for <code>PeekAccessService</code>. Adds the Peek-only fields below; all other fields are inherited. Exported from <code>src/index.ts</code>.",
    fields:[
