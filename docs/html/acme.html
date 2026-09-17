@@ -303,7 +303,7 @@ render({
    file:"src/acme-access-service.ts",
    desc:"Authenticated root entry point to the ACME backoffice. The ACME sibling of <code>PeekAccessService</code> / <code>CngAccessService</code>. Configure one instance per install; it owns the shared authenticated transport (minting/caching tokens on demand) and hands out the <code>AcmeProductService</code>. Auth mirrors CNG: same app JWT (<code>X-Peek-Auth: Bearer</code>) via the shared <code>TokenManager</code>, routed through the app-registry installations API. No <code>pk-api-key</code> header.",
    ctor:"constructor(config: AcmeAccessServiceConfig)",
-   example:"import { AcmeAccessService } from \"@peektravel/app-utilities\";\n\nconst acme = new AcmeAccessService({\n  installId: \"install_123\",\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n});\n\n// every activity as one flat list\nconst activities = await acme.getProductService().getAllActivities();",
+   example:"import { AcmeAccessService } from \"@peektravel/app-utilities\";\n\nconst acme = new AcmeAccessService({\n  installId: \"install_123\", // provided to your app during app authentication (external to this package)\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n});\n\n// every activity as one flat list\nconst activities = await acme.getProductService().getAllActivities();",
    notes:[
      "<code>AcmeAccessServiceConfig</code> is a type alias for <code>BaseAccessServiceConfig</code> — ACME adds no fields (no <code>gatewayKey</code>).",
      "Requires non-empty <code>installId</code>, <code>jwtSecret</code>, <code>issuer</code> via <code>requireNonEmpty</code> — throws <code>Error</code> (<code>AcmeAccessService: \"&lt;field&gt;\" is required</code>).",

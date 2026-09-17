@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Components — @peektravel/app-utilities</title>
+<script>(function(){try{var u=new URLSearchParams(location.search).get("theme");var s=u||localStorage.getItem("theme");var t=(s==="light"||s==="dark")?s:"light";document.documentElement.setAttribute("data-theme",t);if(u==="light"||u==="dark"){try{localStorage.setItem("theme",u);}catch(e){}}}catch(e){}})();</script>
+<!-- Odyssey design tokens + component styles (vendored from dist/ui) -->
+<link rel="stylesheet" href="assets/tokens.css" />
+<link rel="stylesheet" href="assets/odyssey.css" />
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2a3441;
+    --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --accent2:#3fb950;
+    --type:#79c0ff; --danger:#f85149; --dep:#d29922;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --c-com:#8b949e; --c-str:#a5d6ff; --c-num:#79c0ff; --c-kw:#ff7b72; --c-lit:#79c0ff; --c-con:#79c0ff; --c-cls:#ffa657; --c-fn:#d2a8ff;
+  }
+  html[data-theme="light"]{
+    --bg:#f6f8fa; --panel:#ffffff; --panel2:#eef1f5; --border:#d0d7de;
+    --text:#1f2328; --muted:#59636e; --accent:#0969da; --accent2:#1a7f37;
+    --type:#0550ae; --danger:#cf222e; --dep:#9a6700;
+    --c-com:#6e7781; --c-str:#0a3069; --c-num:#0550ae; --c-kw:#cf222e; --c-lit:#0550ae; --c-con:#0550ae; --c-cls:#953800; --c-fn:#8250df;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;display:flex}
+  a{color:var(--accent);text-decoration:none}
+  code,.mono{font-family:var(--mono)}
+  #sidebar{width:300px;min-width:300px;height:100vh;overflow-y:auto;background:var(--panel);border-right:1px solid var(--border);position:sticky;top:0;padding:0 0 40px}
+  #brand{padding:18px 20px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:2}
+  #brand h1{margin:0;font-size:16px;letter-spacing:.3px}
+  #brand .tag{display:inline-block;margin-top:6px;font-size:11px;color:var(--bg);background:var(--accent2);padding:2px 8px;border-radius:10px;font-weight:600}
+  .pkgbadge{display:inline-block;margin:6px 0 0 6px;font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-family:var(--mono)}
+  #brand .links{margin-top:10px;font-size:12px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .themebtn{margin-left:auto;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:2px 9px;cursor:pointer;font-size:13px;line-height:1.4}
+  .themebtn:hover{border-color:var(--accent);color:var(--accent)}
+  #search{width:100%;margin-top:12px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px}
+  .navgroup{padding:14px 12px 4px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  .navitem{display:block;padding:5px 20px 5px 24px;color:var(--text);font-size:13px;border-left:2px solid transparent;cursor:pointer}
+  .navitem:hover{background:var(--panel2)}
+  .navitem.active{border-left-color:var(--accent);background:var(--panel2);color:var(--accent)}
+  .navitem .k{font-family:var(--mono);font-size:12px}
+  #main{flex:1;min-width:0;height:100vh;overflow-y:auto;padding:0 48px 140px}
+  #hero{padding:40px 0 20px;border-bottom:1px solid var(--border);margin-bottom:8px}
+  #hero h2{margin:0 0 8px;font-size:28px}
+  #hero p{color:var(--muted);max-width:860px;margin:6px 0}
+  #warn{display:none;margin:14px 0 0;padding:10px 12px;border:1px solid var(--dep);border-radius:8px;background:color-mix(in srgb,var(--dep) 12%,transparent);color:var(--text);font-size:13px}
+  section.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:22px 24px;margin:26px 0;scroll-margin-top:20px}
+  section.card h3{margin:0 0 6px;font-size:19px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .tagname{color:var(--accent);font-size:18px}
+  .pill{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600}
+  .pill.dep{background:color-mix(in srgb,var(--dep) 20%,transparent);color:var(--dep);border:1px solid color-mix(in srgb,var(--dep) 45%,transparent)}
+  .desc{color:var(--text);margin:8px 0 12px;max-width:900px}
+  .desc.muted{color:var(--muted)}
+  .subhead{margin:18px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+  .demo{background:#ffffff;color:#1f2328;border:1px solid var(--border);border-radius:8px;padding:20px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;min-height:20px}
+  .example{font-family:var(--mono);font-size:12.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px 14px;overflow-x:auto;margin:6px 0 4px}
+  html[data-theme="light"] .example{color:#24292f}
+  .example{color:#c9d1d9}
+  .t-com{color:var(--c-com);font-style:italic}.t-str{color:var(--c-str)}.t-num{color:var(--c-num)}
+  .t-kw{color:var(--c-kw)}.t-lit{color:var(--c-lit)}.t-con{color:var(--c-con)}.t-cls{color:var(--c-cls)}.t-fn{color:var(--c-fn)}.t-atr{color:var(--c-fn)}
+  table{width:100%;border-collapse:collapse;margin:4px 0;font-size:13px}
+  td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--panel2)}
+  td.fieldname{font-family:var(--mono);font-weight:600;white-space:nowrap;color:var(--accent2)}
+  .desc code,.subhead code,td code{font-family:var(--mono);background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .hidden{display:none !important}
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-thumb{background:#30363d;border-radius:6px;border:2px solid var(--bg)}
+</style>
+</head>
+<body>
+<nav id="sidebar">
+  <div id="brand">
+    <h1>UI Components</h1>
+    <span class="tag">@peektravel/app-utilities/ui</span>
+    <span class="pkgbadge">TypeScript · npm package</span>
+    <div class="links">
+      <a href="index.html">Home</a><a href="peek.html">Peek</a><a href="cng.html">CNG</a><a href="acme.html">ACME</a>
+      <button id="themeBtn" class="themebtn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
+    </div>
+    <input id="search" placeholder="Filter components…" autocomplete="off"/>
+  </div>
+  <div id="nav"></div>
+</nav>
+<main id="main">
+  <div id="hero">
+    <h2>Odyssey Web Components</h2>
+    <p>Framework-agnostic Custom Elements (<code>&lt;ody-*&gt;</code>) shipped under the <code>@peektravel/app-utilities/ui</code> subpath — the same catalog as <code>docs/ui.md</code>, with every component <strong>rendered live</strong> below. Light DOM, dependency-free, ported from the Peek Odyssey design system.</p>
+    <div id="warn">The live demos need <code>assets/odyssey.iife.js</code>. If nothing renders, make sure the <code>assets/</code> folder sits next to this file.</div>
+  </div>
+  <div id="content"></div>
+</main>
+
+<script src="assets/odyssey.iife.js"></script>
+<script>
+/* ---------- highlighters ---------- */
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function tokenize(code,pats){
+  var master=new RegExp(pats.map(function(p){return '('+p[1].source+')';}).join('|'),'g');
+  var out='';
+  code.replace(master,function(m){
+    var g=Array.prototype.slice.call(arguments,1,1+pats.length);
+    var i=g.findIndex(function(x){return x!==undefined;});
+    var cls=pats[i][0];
+    if(cls==='ws'||cls==='pun'||cls==='id'||cls==='any') out+=esc(m);
+    else out+='<span class="t-'+cls+'">'+esc(m)+'</span>';
+    return m;
+  });
+  return out;
+}
+function highlight(code){return tokenize(code,[
+  ['com',/\/\/[^\n]*/],
+  ['str',/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/],
+  ['num',/\b\d[\d_]*(?:\.\d+)?\b/],
+  ['kw',/\b(?:import|from|const|let|new|await|async|return|function|type|as|of)\b/],
+  ['lit',/\b(?:true|false|null|undefined|this)\b/],
+  ['con',/\b[A-Z][A-Z0-9_]+\b/],
+  ['cls',/\b[A-Z][\w$]*\b/],
+  ['fn',/[A-Za-z_$][\w$]*(?=\s*\()/],
+  ['id',/[A-Za-z_$][\w$]*/],
+  ['pun',/[{}()\[\].;,:=<>|&?!+\-*\/]/],
+  ['ws',/\s+/],
+  ['any',/[\s\S]/]
+]);}
+function hlMarkup(code){return tokenize(code,[
+  ['com',/<!--[\s\S]*?-->/],
+  ['cls',/<\/?[a-zA-Z][\w-]*/],
+  ['str',/"[^"]*"|'[^']*'/],
+  ['atr',/[a-zA-Z_][\w-]*(?=\s*=)/],
+  ['pun',/[<>\/=]/],
+  ['any',/[\s\S]/]
+]);}
+
+/* ---------- renderer ---------- */
+function slug(s){return s.replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'');}
+function el(t,c,h){var e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;}
+function kv(title,rows){if(!rows||!rows.length)return '';return '<div class="subhead">'+title+'</div><table><tbody>'+rows.map(function(r){return '<tr><td class="fieldname">'+r[0]+'</td><td>'+r[1]+'</td></tr>';}).join('')+'</tbody></table>';}
+
+function render(SECTIONS){
+  var nav=document.getElementById('nav'), content=document.getElementById('content');
+  var inits=[];
+  SECTIONS.forEach(function(sec){
+    nav.appendChild(el('div','navgroup',sec.group));
+    sec.items.forEach(function(it){
+      var id=(it.tag?'c-':'n-')+slug(it.tag||it.name);
+      var a=el('a','navitem');a.dataset.target=id;
+      a.innerHTML='<span class="k">'+(it.tag?'&lt;'+it.tag+'&gt;':it.name)+'</span>';
+      nav.appendChild(a);
+      var card=el('section','card');card.id=id;
+      var search=((it.tag||it.name)+' '+(it.use||'')+' '+(it.name||'')).toLowerCase();
+      card.dataset.search=search;
+      var h='';
+      if(it.tag){
+        h+='<h3><code class="tagname">&lt;'+it.tag+'&gt;</code>'+(it.deprecated?' <span class="pill dep">deprecated</span>':'')+'</h3>';
+        if(it.use)h+='<div class="desc">'+it.use+'</div>';
+        if(it.demo){h+='<div class="subhead">Live demo</div><div class="demo" data-demo>'+it.demo+'</div>';}
+        if(it.demo||it.code){h+='<div class="subhead">Markup</div><pre class="example">'+hlMarkup(it.code||it.demo)+'</pre>';}
+        if(it.js)h+='<pre class="example">'+highlight(it.js)+'</pre>';
+        h+=kv('Attributes',it.attrs);
+        h+=kv('Properties (JS)',it.props);
+        h+=kv('Events',it.events);
+        if(it.slots)h+='<div class="subhead">Slots / content</div><div class="desc muted">'+it.slots+'</div>';
+      } else {
+        h+='<h3>'+it.name+'</h3>'+(it.html||'');
+      }
+      card.innerHTML=h;
+      content.appendChild(card);
+      if(it.init){var demoEl=card.querySelector('[data-demo]');if(demoEl)inits.push({el:demoEl,fn:it.init});}
+    });
+  });
+
+  // run demo init hooks once the elements have upgraded
+  function runInits(){inits.forEach(function(x){try{new Function('root',x.fn)(x.el);}catch(e){console.error('demo init failed',e);}});}
+  var UI=window.OdysseyUI;
+  if(UI&&UI.whenOdysseyReady){UI.whenOdysseyReady().then(runInits);}else{setTimeout(runInits,0);}
+  if(!UI){document.getElementById('warn').style.display='block';}
+
+  // nav interactions
+  var items=[].slice.call(document.querySelectorAll('.navitem'));
+  items.forEach(function(a){a.addEventListener('click',function(){var t=document.getElementById(a.dataset.target);if(t)t.scrollIntoView({behavior:'smooth',block:'start'});});});
+  var cards=[].slice.call(document.querySelectorAll('section.card'));
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){items.forEach(function(a){a.classList.toggle('active',a.dataset.target===e.target.id);});}});},{rootMargin:'-8% 0px -80% 0px'});
+  cards.forEach(function(c){io.observe(c);});
+
+  // theme toggle (carry across pages via ?theme=)
+  function syncThemeLinks(t){document.querySelectorAll('#brand .links a').forEach(function(a){a.setAttribute('href',a.getAttribute('href').split('?')[0]+'?theme='+t);});}
+  syncThemeLinks(document.documentElement.getAttribute('data-theme')||'light');
+  var tb=document.getElementById('themeBtn');
+  if(tb)tb.addEventListener('click',function(){var cur=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',cur);try{localStorage.setItem('theme',cur);}catch(e){}syncThemeLinks(cur);});
+
+  // filter
+  document.getElementById('search').addEventListener('input',function(ev){
+    var q=ev.target.value.trim().toLowerCase();
+    cards.forEach(function(c){
+      var show=!q||c.dataset.search.indexOf(q)>-1;
+      c.classList.toggle('hidden',!show);
+      var a=document.querySelector('.navitem[data-target="'+c.id+'"]');
+      if(a)a.classList.toggle('hidden',!show);
+    });
+  });
+}
+</script>
+<script>
+/* ---------- catalog data ---------- */
+render([
+ { group:"Getting started", items:[
+   { name:"Overview & setup", html:
+     '<div class="desc">Framework-agnostic Custom Elements that work in plain HTML, React, Vue, Angular, or Svelte. They use <strong>Light DOM</strong> (no Shadow DOM); the shipped <code>odyssey.css</code> styles them and apps can override with the same selectors. Dependency-free — native <code>Date</code>, <code>Intl</code>, <code>fetch</code>, <code>customElements</code>. Importing the module <strong>registers</strong> every element as a side effect.</div>'+
+     '<div class="subhead">Setup</div><pre class="example">'+highlight('// Registers every <ody-*> element as a side effect (once, at app entry):\nimport "@peektravel/app-utilities/ui";\n// Design tokens (CSS custom properties):\nimport "@peektravel/app-utilities/ui/tokens.css";\n// Component styles:\nimport "@peektravel/app-utilities/ui/odyssey.css";').replace(/&lt;ody-\*&gt;/,'&lt;ody-*&gt;')+'</pre>'+
+     '<div class="desc muted">Registration is idempotent. When registering lazily, <code>odyssey.css</code> ships a <code>:not(:defined){visibility:hidden}</code> guard, and <code>whenOdysseyReady()</code> resolves once every imported element has upgraded. <code>registeredTags()</code> lists what registered.</div>' },
+   { name:"Core conventions", html:
+     '<div class="desc"><strong>Scalar config = HTML attributes.</strong> Strings and booleans are attributes; a boolean is "on" when present.</div>'+
+     '<div class="desc"><strong>Rich data = JS properties.</strong> Arrays, objects, and functions are set on the element object (<code>el.columns = [...]</code>, <code>el.data = [...]</code>, <code>datepicker.isDateDisallowed = fn</code>). Several composite components also accept a JSON-string attribute fallback (<code>options=\'[{"value":"a","label":"A"}]\'</code>).</div>'+
+     '<div class="desc"><strong>Output = <code>CustomEvent</code>.</strong> Components emit bubbling events; read data from <code>event.detail</code>. Names are custom (e.g. <code>change</code>, <code>sort-change</code>).</div>'+
+     '<div class="desc"><strong>Content = light-DOM children.</strong> A component renders your child nodes into its internal slot, so children become its body/label — and it forwards <code>appendChild</code>/<code>removeChild</code>/etc. so framework reconcilers work without wrapping.</div>'+
+     '<div class="desc muted">React &lt; 19: use a <code>ref</code> to set properties and <code>addEventListener</code> for events. React 19 sets JSX props as DOM properties — supported (boolean props reflect to attributes; rich-data props are real properties; controlled <code>value</code> keeps the caret; read-only state accessors like <code>isOpen</code> ignore assignment — drive them via a ref). Vue/Angular bind <code>:prop</code>/<code>[prop]</code> and <code>@event</code>/<code>(event)</code>.</div>' },
+   { name:"When to use what", html:
+     '<table><tbody>'+
+     [['Action / submit','<code>ody-button</code>; primary + menu → <code>ody-split-button</code>'],
+      ['Single choice from a list','<code>ody-dropdown-single</code> (or native <code>&lt;select&gt;</code>)'],
+      ['Multiple choices','<code>ody-dropdown-multi</code>'],
+      ['Segmented control','<code>ody-toggle-button</code> / <code>ody-radio-button-group</code>'],
+      ['Independent toggles','<code>ody-checkbox-group</code>'],
+      ['Single boolean','<code>ody-checkbox</code>'],
+      ['Free / multi-line text','<code>ody-input</code>; compact → <code>ody-inline-input</code>'],
+      ['Search / currency / percent','<code>ody-search-input</code> / <code>ody-money-input</code> / <code>ody-percentage-input</code>'],
+      ['Date / range','<code>ody-datepicker</code>'],
+      ['Tabular data','<code>ody-table</code>; tab nav → <code>ody-tabs</code>'],
+      ['Transient feedback','<code>toast()</code> (+ <code>ody-toast-host</code>)'],
+      ['Dialog / side panel / menu / hint','<code>ody-modal</code> / <code>ody-panel</code> / <code>ody-popover</code> / <code>ody-tooltip</code>'],
+      ['Status','<code>ody-alert</code>, <code>ody-message</code>, <code>ody-status-dot</code>, <code>ody-check-in-status</code>'],
+      ['Full settings page wrapper','<code>ody-app-page-container</code> (required)']
+     ].map(function(r){return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>';}).join('')+
+     '</tbody></table>' }
+ ]},
+
+ { group:"Display", items:[
+   { tag:"ody-icon", use:"A themeable inline SVG that inherits text colour.",
+     demo:`<ody-icon name="search" size="medium"></ody-icon>\n<ody-icon name="plus"></ody-icon>\n<ody-icon name="check" size="large"></ody-icon>`,
+     attrs:[["name","Icon name (see <code>iconNames()</code>); unknown names render nothing."],["size","<code>extra-small</code> | <code>mid-small</code> | <code>small</code> | <code>base</code> | <code>medium</code> | <code>large</code> | <code>free</code> (default <code>base</code>)."],["disabled","boolean; dims the icon."]] },
+   { tag:"ody-button", use:"Trigger an action. The label is the child content. No custom event — listen for native <code>click</code>.",
+     demo:`<ody-button variant="primary" left-icon="plus">Add item</ody-button>\n<ody-button variant="secondary">Cancel</ody-button>\n<ody-button variant="danger">Delete</ody-button>\n<ody-button icon-only left-icon="search" aria-label="Search"></ody-button>`,
+     attrs:[["variant","<code>primary</code> | <code>secondary</code> | <code>ghost</code> | <code>tertiary</code> | <code>danger</code> (default <code>primary</code>)."],["appearance","<code>interaction</code> | <code>success</code> | <code>danger</code> | <code>grey</code>."],["size","<code>base</code> | <code>small</code>."],["type","<code>button</code> | <code>submit</code>."],["left-icon / right-icon","icon names beside the label."],["loading, icon-only, active, disabled, icon-rotate","boolean flags."]],
+     slots:"Child nodes are the label." },
+   { tag:"ody-tag", use:"A status pill / label. The label is the child content.",
+     demo:`<ody-tag color="success" icon="check">Confirmed</ody-tag>\n<ody-tag variant="secondary" color="purple" count="4">Tasks</ody-tag>\n<ody-tag color="danger">Overdue</ody-tag>`,
+     attrs:[["variant","<code>primary</code> (filled) | <code>secondary</code> (outline)."],["color","<code>default</code> | <code>info</code> | <code>success</code> | <code>warning</code> | <code>danger</code> | <code>teal</code> | <code>lime</code> | <code>purple</code> | <code>pink</code> | <code>turquoise</code> | <code>yellow</code> | <code>orange</code> | <code>rose</code> | <code>blue</code>."],["size","<code>base</code> | <code>small</code>."],["icon","optional leading icon name."],["count","optional trailing count."]] },
+   { tag:"ody-alert", use:"A contextual message box. The body is the child content.",
+     demo:`<ody-alert variant="warning" heading="Careful">This cannot be undone.</ody-alert>`,
+     attrs:[["variant","<code>info</code> | <code>success</code> | <code>warning</code> | <code>danger</code>."],["heading","optional bold heading beside the icon."]], slots:"Child nodes are the body." },
+   { tag:"ody-card", use:"Group content in a bordered container. Reach for the plain <code>no-bar</code> card by default; add a left accent bar only when its colour carries meaning.",
+     demo:`<ody-card no-bar><p style="margin:0">Plain bordered card</p></ody-card>\n<ody-card bar-color="var(--color-interaction-300)"><p style="margin:0">Accent bar card</p></ody-card>`,
+     attrs:[["no-bar","boolean; omits the accent bar. <strong>The default card to use.</strong>"],["bar-color","CSS colour for the accent bar (ignored when <code>no-bar</code>)."],["clickable","boolean; pointer affordance (handle <code>click</code> yourself)."]] },
+   { tag:"ody-horizontal-divider", use:"A 1px horizontal rule that carries its own vertical rhythm (<code>margin-block: var(--gap16)</code>).",
+     demo:`<div style="width:100%">Above<ody-horizontal-divider></ody-horizontal-divider>Below</div>`,
+     attrs:[["spacing","<code>tight</code> (<code>--gap8</code>) | <code>none</code> (0); default <code>--gap16</code>."]] },
+   { tag:"ody-divider", deprecated:true, use:"A 1px horizontal rule with <strong>zero</strong> margin. Prefer <code>ody-horizontal-divider</code>.",
+     demo:`<div style="width:100%">Above<ody-divider></ody-divider>Below</div>` },
+   { tag:"ody-status-dot", use:"A coloured dot beside a label. The label is the child content.",
+     demo:`<ody-status-dot color="green">Active</ody-status-dot>\n<ody-status-dot color="blue">Pending</ody-status-dot>\n<ody-status-dot color="orange">Warning</ody-status-dot>`,
+     attrs:[["color","<code>green</code> | <code>blue</code> | <code>orange</code> (default <code>green</code>)."]] },
+   { tag:"ody-message", use:"A small inline status message. The text is the child content.",
+     demo:`<ody-message icon="info">Saved as draft.</ody-message>`,
+     attrs:[["icon","optional leading icon name."]] },
+   { tag:"ody-loading-spinner", use:"Indicate indeterminate loading. Optional label is the child content.",
+     demo:`<ody-loading-spinner>Loading…</ody-loading-spinner>`,
+     attrs:[["size","<code>small</code> | <code>base</code> | <code>large</code>."]] },
+   { tag:"ody-loading-bar", use:"Determinate progress.",
+     demo:`<div style="width:100%"><ody-loading-bar value="35" label="Uploading photos"></ody-loading-bar></div>`,
+     attrs:[["value","fill %, clamped 0–100 (default 0)."],["color","CSS colour for the fill."],["label","optional caption shown above the bar with the %."]] }
+ ]},
+
+ { group:"Layout & structure", items:[
+   { tag:"ody-empty-state", use:"An empty / error / no-results placeholder. Child content (e.g. an action) renders below the messages.",
+     demo:`<ody-empty-state variant="no-results" label="No results" caption="Try another search.">\n  <ody-button>Clear filters</ody-button>\n</ody-empty-state>`,
+     attrs:[["variant","<code>default</code> | <code>error</code> | <code>no-results</code> | <code>no-search</code> | <code>not-authorized</code>."],["img-src / img-alt","render a custom image instead of the icon."],["icon","override the illustration with a named icon."],["label","bold primary message."],["caption","secondary message."]] },
+   { tag:"ody-breadcrumb", use:"A breadcrumb trail. Compose <code>ody-breadcrumb-item</code> children; mark the active page with <code>current</code>.",
+     demo:`<ody-breadcrumb>\n  <ody-breadcrumb-item><a href="#">Home</a></ody-breadcrumb-item>\n  <ody-breadcrumb-item><a href="#">Bookings</a></ody-breadcrumb-item>\n  <ody-breadcrumb-item current>Details</ody-breadcrumb-item>\n</ody-breadcrumb>`,
+     attrs:[["ody-breadcrumb","no attributes (renders the <code>&lt;nav&gt;&lt;ol&gt;</code> chrome)."],["ody-breadcrumb-item · current","boolean; marks the active page (<code>aria-current=\"page\"</code>)."]] },
+   { tag:"ody-stat-summary", use:"A row of KPI figures with an optional detail strip. Wraps <code>ody-stat</code> children; add a sibling <code>ody-stat-summary-detail</code> immediately after for the detail strip.",
+     demo:`<div style="width:100%">\n<ody-stat-summary>\n  <ody-stat label="Revenue" value="$12,400" sub="last 30 days"></ody-stat>\n  <ody-stat label="Bookings" value="312" tone="success"></ody-stat>\n</ody-stat-summary>\n<ody-stat-summary-detail>\n  <ody-stat-detail value="$1,030">Avg / booking</ody-stat-detail>\n</ody-stat-summary-detail>\n</div>`,
+     attrs:[["ody-stat","<code>label</code>, <code>value</code> (falls back to child content), <code>sub</code>, <code>tone</code> (<code>default</code> | <code>success</code> | <code>warning</code>)."],["ody-stat-detail","<code>value</code> (bold value appended after the child-content label)."]] },
+   { tag:"ody-inline-list", use:"A horizontal separated list. Compose <code>ody-inline-list-item</code> children.",
+     demo:`<ody-inline-list separator="bullet" gap="8">\n  <ody-inline-list-item>Draft</ody-inline-list-item>\n  <ody-inline-list-item>Updated 3d ago</ody-inline-list-item>\n  <ody-inline-list-item>2 guests</ody-inline-list-item>\n</ody-inline-list>`,
+     attrs:[["separator","<code>line</code> | <code>bullet</code> (default <code>line</code>)."],["gap","px between items (default 12)."]] },
+   { tag:"ody-list-item", use:"A clickable list row with a trailing chevron. Row content is the child content.",
+     demo:`<div style="width:100%">\n<ody-list-item item-id="1" active-item-id="1"><strong>Sunset Kayak</strong></ody-list-item>\n<ody-list-item item-id="2" active-item-id="1">Harbor Cruise</ody-list-item>\n</div>`,
+     attrs:[["item-id","id emitted in the <code>select</code> event."],["active-item-id","when equal to <code>item-id</code>, renders active."],["active","boolean; force the active style."]],
+     events:[["select","<code>{ itemId }</code> — on click or Enter/Space."]] },
+   { tag:"ody-product-indicator", use:"A product name with a coloured bar and optional detail. Extra content (e.g. a tag) is the child content.",
+     demo:`<ody-product-indicator name="Sunset Kayak Tour" detail="2 hours · Max 12" bar-color="var(--color-turquoise-300)"></ody-product-indicator>`,
+     attrs:[["name","product name (bold)."],["detail","secondary detail line."],["bar-color / text-color","CSS colours."],["size","<code>base</code> | <code>small</code>."],["indicator-id","emitted in <code>select</code> (when <code>clickable</code>)."],["clickable","boolean; makes the whole indicator a button."]],
+     events:[["select","<code>{ id }</code> — only when <code>clickable</code>."]] },
+   { tag:"ody-toggle-button", use:"A segmented control of mutually-exclusive options.",
+     demo:`<ody-toggle-button selected="week"\n  options='[{"value":"day","label":"Day"},{"value":"week","label":"Week"},{"value":"month","label":"Month"}]'></ody-toggle-button>`,
+     attrs:[["options","JSON array of <code>{ value, label?, leftIcon?, rightIcon?, iconOnly?, disabled? }</code>."],["selected","currently-selected value (reflected on change)."],["size","<code>base</code> | <code>small</code>."],["disabled","boolean; disables the whole group."]],
+     events:[["change","<code>{ value }</code>."]] },
+   { tag:"ody-section-columns", use:"Lay out children in a row via <code>ody-section-column-item</code> children.",
+     demo:`<div style="width:100%">\n<ody-section-columns gap-size="24" vertical-align="top">\n  <ody-section-column-item stretch><ody-card no-bar>Left</ody-card></ody-section-column-item>\n  <ody-section-column-item no-grow><ody-card no-bar>Right</ody-card></ody-section-column-item>\n</ody-section-columns>\n</div>`,
+     attrs:[["ody-section-columns","<code>gap-size</code> (8 | 16 | 24 | 32, default 16), <code>vertical-align</code> (<code>center</code> | <code>top</code> | <code>bottom</code>)."],["ody-section-column-item","boolean <code>no-grow</code>, <code>individual-scroll</code>, <code>stretch</code>, <code>with-padding</code>."]] },
+   { tag:"ody-section-rows", use:"Stack children vertically with optional row headers via <code>ody-section-row-item</code> children.",
+     demo:`<div style="width:100%">\n<ody-section-rows gap-size="16">\n  <ody-section-row-item title="General" description="Basic details" description-icon="info">Row body</ody-section-row-item>\n  <ody-section-row-item title="Advanced" no-divider>More</ody-section-row-item>\n</ody-section-rows>\n</div>`,
+     attrs:[["ody-section-rows","<code>gap-size</code> (8 | 16 | 24 | 32, default 16)."],["ody-section-row-item","<code>title</code>, <code>description</code>, <code>description-icon</code>, <code>no-divider</code> (boolean)."]] },
+   { tag:"ody-two-column", use:"A master/detail layout. The secondary panel shows only when <code>secondary-open</code> is present.",
+     demo:`<ody-two-column secondary-open style="width:100%;min-height:160px">\n  <ody-two-column-main>…list…</ody-two-column-main>\n  <ody-two-column-secondary>\n    <ody-two-column-secondary-header title="Details"></ody-two-column-secondary-header>\n    …detail…\n  </ody-two-column-secondary>\n</ody-two-column>`,
+     attrs:[["ody-two-column","<code>secondary-open</code> (boolean)."],["ody-two-column-secondary-header","<code>title</code>; emits <code>close</code> on the close button."]] },
+   { tag:"ody-app-page-container", use:"The standard responsive page wrapper for an app settings UI — sized to the host iframe widths (868px narrow, 1310px wide). <strong>Design for 868px first.</strong> Ships a default responsive gutter and a CSS container context named <code>ody-page</code>.",
+     demo:`<ody-app-page-container style="width:100%">\n  <ody-section-rows gap-size="24">\n    <ody-section-row-item title="Settings">…settings UI…</ody-section-row-item>\n  </ody-section-rows>\n</ody-app-page-container>`,
+     attrs:[["flush","drop the default gutter and render edge-to-edge."]], slots:"Child nodes are the page content." },
+   { tag:"ody-page-container", deprecated:true, use:"The original <strong>full-bleed</strong> page wrapper (no side gutters). Prefer <code>ody-app-page-container</code>, which bakes in a responsive gutter (with a <code>flush</code> opt-out). Migrate by renaming the tag.",
+     code:`<ody-page-container>…</ody-page-container>`, demo:false,
+     attrs:[["(none)","width is driven entirely by the parent."]] },
+   { tag:"ody-collapsible-section", use:"A titled section that expands/collapses on header click. Compose <code>ody-collapsible-collapsed</code> (teaser) and <code>ody-collapsible-content</code> (body).",
+     demo:`<div style="width:100%">\n<ody-collapsible-section header-text="Booking details" secondary-header-text="(3 items)" icon="info">\n  <ody-collapsible-collapsed>Tap to see more</ody-collapsible-collapsed>\n  <ody-collapsible-content>…full content…</ody-collapsible-content>\n</ody-collapsible-section>\n</div>`,
+     attrs:[["header-text / secondary-header-text","header labels."],["icon","icon name."],["expanded","boolean; reflected."]],
+     events:[["expanded","<code>{ expanded }</code>."]] }
+ ]},
+
+ { group:"Form inputs", items:[
+   { tag:"ody-input", use:"A standard text field (or multi-line textarea). Renders a native control in the light DOM.",
+     demo:`<ody-input label="Name" placeholder="Full name" maxlength="40"></ody-input>\n<ody-input textarea label="Notes" full-width></ody-input>`,
+     attrs:[["label, placeholder, value, caption","text."],["size","<code>base</code> | <code>small</code>."],["icon","leading icon name."],["warning / info","message text; also sets the state ring."],["maxlength","when set, shows a character counter."],["textarea","boolean; render a <code>&lt;textarea&gt;</code>."],["readonly, disabled, full-width, max-content, no-clear","boolean flags."]],
+     props:[["value","<code>string</code> (get/set)."]],
+     events:[["input","<code>{ value }</code> — every keystroke."],["change","<code>{ value }</code> — on native change / clear."]] },
+   { tag:"ody-inline-input", use:"The compact, borderless inline variant of <code>ody-input</code> (e.g. inside tables/forms). Same attributes, properties, and events.",
+     demo:`<ody-inline-input label="Qty" value="2" size="small"></ody-inline-input>` },
+   { tag:"ody-search-input", use:"A search field with a leading search icon.",
+     demo:`<ody-search-input placeholder="Search bookings"></ody-search-input>`,
+     attrs:[["value, placeholder","(placeholder default <code>\"Search\"</code>)."],["size","<code>base</code> | <code>small</code>."],["info-message","neutral helper caption."],["warning-message","warning caption + ring."],["disabled","boolean."]],
+     props:[["value","<code>string</code>."]], events:[["input / change","<code>{ value }</code>."]] },
+   { tag:"ody-money-input", use:"Enter a currency amount. On blur the value is sanitised, clamped to <code>max-amount</code>, and rounded to the currency precision.",
+     demo:`<ody-money-input label="Price" currency="USD" value="49.99" max-amount="500"></ody-money-input>`,
+     attrs:[["value","amount string."],["currency","ISO code for symbol + precision (default <code>USD</code>)."],["max-amount","optional upper clamp applied on blur."],["label, size, warning","—"],["readonly, disabled","boolean."]],
+     props:[["value","<code>string</code> (get/set)."],["precision","<code>number</code> (read-only)."]],
+     events:[["input","<code>{ value }</code> (per keystroke)."],["change","<code>{ value }</code> (on blur, formatted)."]] },
+   { tag:"ody-percentage-input", use:"Enter a percentage 0–100 with a trailing <code>%</code>. Invalid keystrokes are blocked; on blur the value is clamped/normalised.",
+     demo:`<ody-percentage-input label="Discount" value="10"></ody-percentage-input>`,
+     attrs:[["value, label, size, warning","—"],["readonly, disabled","boolean."]],
+     props:[["value","<code>string</code>."]], events:[["input / change","<code>{ value }</code>."]] },
+   { tag:"ody-checkbox", use:"A single boolean toggle. Optional label and extra child content.",
+     demo:`<ody-checkbox label="I agree" checked></ody-checkbox>`,
+     attrs:[["label","text beside the box."],["size","<code>base</code> | <code>small</code> (default <code>small</code>)."],["checked, indeterminate, disabled","boolean (<code>checked</code> reflected)."]],
+     props:[["checked","<code>boolean</code>."],["value","<code>boolean</code> (alias of <code>checked</code>)."]],
+     events:[["change","<code>{ checked, value }</code>."]] },
+   { tag:"ody-radio-button-group", use:"Mutually-exclusive radio options.",
+     demo:`<ody-radio-button-group value="m"\n  options='[{"label":"Monthly","value":"m"},{"label":"Yearly","value":"y"}]'></ody-radio-button-group>`,
+     attrs:[["options","JSON array of <code>{ label, value }</code>."],["value","selected option value."],["size","<code>base</code> | <code>small</code>."],["disabled","boolean."]],
+     props:[["value","<code>string</code>."],["options","<code>OdyRadioOption[]</code> (read-only getter)."]],
+     events:[["change","<code>{ value }</code>."]] },
+   { tag:"ody-checkbox-group", use:"Several toggles, optionally with a select-all parent (checked when all selected, indeterminate when some).",
+     demo:`<ody-checkbox-group select-all-label="All toppings" value="cheese,olives"\n  options='[{"label":"Cheese","value":"cheese"},{"label":"Olives","value":"olives"},{"label":"Basil","value":"basil"}]'></ody-checkbox-group>`,
+     attrs:[["options","JSON array of <code>{ label, value }</code>."],["value","comma-separated selected values."],["select-all-label","when present, renders the parent select-all row."],["size","<code>base</code> | <code>small</code>."],["disabled","boolean."]],
+     props:[["value","<code>string[]</code> (get returns array, set takes array)."],["options","<code>OdyCheckboxOption[]</code> (get parses attr, set writes JSON attr)."]],
+     events:[["change","<code>{ value: string[] }</code>."]] }
+ ]},
+
+ { group:"Interactive", items:[
+   { tag:"ody-accordion", use:"An expand/collapse panel with a header. Body is the child content.",
+     demo:`<div style="width:100%"><ody-accordion title="Itinerary" open><p style="margin:0">Day 1: Kayak to the caves…</p></ody-accordion></div>`,
+     attrs:[["title","header label text."],["open","boolean; expanded state (reflected)."],["sticky","boolean; pins the header while scrolling."]],
+     events:[["toggle","<code>{ open }</code>."]] },
+   { tag:"ody-collapsible", use:"A lightweight inline collapsible. Body is the child content.",
+     demo:`<div style="width:100%"><ody-collapsible label="Show more"><p style="margin:0">Hidden details…</p></ody-collapsible></div>`,
+     attrs:[["label","header label text."],["open","boolean (reflected)."]],
+     events:[["toggle","<code>{ open }</code>."]] },
+   { tag:"ody-tabs", use:"Tab navigation. Renders only the tab list; you swap the panels.",
+     demo:`<ody-tabs active="overview"\n  tabs='[{"id":"overview","label":"Overview"},{"id":"notes","label":"Notes"},{"id":"log","label":"Log","disabled":true}]'></ody-tabs>`,
+     attrs:[["tabs","JSON array of <code>{ id, label, disabled? }</code>."],["active","id of the active tab (reflected; defaults to the first)."],["size","<code>base</code> | <code>small</code>."],["position","<code>top</code> | <code>left</code>."]],
+     events:[["change","<code>{ id }</code>."]] },
+   { tag:"ody-copy-button", use:"Copy text to the clipboard with transient success feedback.",
+     demo:`<ody-copy-button value="ABC-123" label="Copy code"></ody-copy-button>`,
+     attrs:[["value","text copied to the clipboard."],["label","optional label (icon-only when omitted)."],["success-duration","ms the success/error state shows (default 1200)."]],
+     events:[["copy","<code>{ value, ok }</code> (<code>ok=false</code> if clipboard unavailable / write failed)."]] },
+   { tag:"ody-check-in-status", use:"A fulfillment/check-in status with an icon + label.",
+     demo:`<div style="display:flex;gap:18px;flex-wrap:wrap">\n<ody-check-in-status status="RESERVED"></ody-check-in-status>\n<ody-check-in-status status="RETURNED" optional-text="2:30 PM"></ody-check-in-status>\n<ody-check-in-status status="NO_SHOW"></ody-check-in-status>\n</div>`,
+     attrs:[["status","<code>IN_PROGRESS</code> | <code>NO_SHOW</code> | <code>NONE</code> | <code>OVERDUE</code> | <code>RESERVED</code> | <code>RETURNED</code> (default <code>RESERVED</code>)."],["label","overrides the status's default label."],["optional-text","secondary line below the label."]] },
+   { tag:"ody-option", use:"A selectable menu/list row (e.g. inside a popover menu). Label is the child content.",
+     demo:`<div style="width:220px"><ody-option>Duplicate</ody-option>\n<ody-option sub-menu>Move to…</ody-option>\n<ody-option disabled>Delete</ody-option></div>`,
+     attrs:[["selected","boolean; marks selected."],["disabled","boolean."],["sub-menu","boolean; shows a trailing sub-menu trigger."],["trigger-icon","icon name for the sub-menu trigger (default <code>chevron-right</code>)."]],
+     events:[["select","clicking the row (no detail)."],["submenu","clicking the sub-menu trigger (no detail)."]] },
+   { tag:"ody-split-button", use:"A primary action joined to a dropdown toggle. Panel content is the child content.",
+     demo:`<ody-split-button text="Save" variant="primary">\n  <ody-option>Save and close</ody-option>\n  <ody-option>Save as draft</ody-option>\n</ody-split-button>`,
+     attrs:[["text","primary button label."],["variant","button variant (default <code>secondary</code>)."],["size","<code>base</code> | <code>small</code>."],["icon","toggle icon name (default <code>chevron-down</code>)."],["open","boolean; whether the panel is shown (reflected)."]],
+     events:[["primary","clicking the main button (no detail)."],["toggle","<code>{ open }</code> — clicking the dropdown toggle."]] },
+   { tag:"ody-table-header", use:"A single sortable column header (standalone; for full tables use <code>ody-table</code>). Clicking cycles none → desc → asc → none.",
+     demo:`<div style="width:200px"><ody-table-header column-name="Date" column-id="date" direction="ASC"></ody-table-header></div>`,
+     attrs:[["column-name","header text."],["column-id","passed through in the <code>sort</code> event."],["direction","<code>UNSET</code> | <code>ASC</code> | <code>DESC</code> (reflected)."],["static","boolean; non-interactive header."],["rounded-left / rounded-right","boolean; round the matching corners."]],
+     events:[["sort","<code>{ direction, columnId }</code>."]] }
+ ]},
+
+ { group:"Overlays", items:[
+   { tag:"ody-modal", use:"A blocking dialog. Body is the child content. Portaled to <code>document.body</code>.",
+     demo:`<ody-button variant="primary">Open modal</ody-button>\n<ody-modal heading="Confirm" icon="info"><p style="margin:0">Are you sure you want to proceed?</p></ody-modal>`,
+     init:`root.querySelector('ody-button').addEventListener('click',function(){root.querySelector('ody-modal').open();});`,
+     js:`const m = document.querySelector("ody-modal");\nm.open();  // or m.close()`,
+     attrs:[["open","boolean; shown when present (mirrors <code>open()</code> / <code>close()</code>)."],["heading","optional title."],["size","<code>base</code> | <code>small</code> | <code>medium</code> | <code>large</code> | <code>full</code>."],["icon","optional named icon before the heading."]],
+     props:[["open() / close()","methods."]],
+     events:[["close","backdrop click, close button, or Escape."]] },
+   { tag:"ody-popover", use:"A click-toggled floating panel anchored to a trigger.",
+     demo:`<ody-popover placement="bottom">\n  <ody-button data-ody-popover-trigger variant="secondary">Menu</ody-button>\n  <div data-ody-popover-content><ody-option>Edit</ody-option><ody-option>Duplicate</ody-option></div>\n</ody-popover>`,
+     attrs:[["for","id of an external trigger element (overrides a slotted trigger)."],["placement","<code>top</code> | <code>bottom</code> | <code>left</code> | <code>right</code> (default <code>bottom</code>)."]],
+     props:[["isOpen","read-only."],["open() / close() / toggle()","methods."]],
+     events:[["open / close","(no detail)."]],
+     slots:"Trigger = the child marked <code>[data-ody-popover-trigger]</code> (else the first child unless <code>for</code>); content = <code>[data-ody-popover-content]</code> (else remaining children)." },
+   { tag:"ody-tooltip", use:"A hover/focus hint anchored to a trigger.",
+     demo:`<ody-tooltip text="Helpful hint" placement="top">\n  <ody-button icon-only left-icon="info" aria-label="Info"></ody-button>\n</ody-tooltip>`,
+     attrs:[["text","the tooltip text (alternative to slotted content)."],["placement","<code>top</code> | <code>bottom</code> | <code>left</code> | <code>right</code> (default <code>top</code>)."],["for","id of an external trigger element."]],
+     props:[["isVisible","read-only."],["show() / hide()","methods."]],
+     slots:"Trigger = <code>for</code> (external) or the first slotted child; tooltip text = <code>text</code> or extra slotted children." },
+   { tag:"ody-panel", use:"A side panel that slides in from the right. Body is the child content. Portaled to <code>document.body</code>.",
+     demo:`<ody-button variant="secondary">Open panel</ody-button>\n<ody-panel heading="Details"><p style="margin:0">Panel body…</p></ody-panel>`,
+     init:`root.querySelector('ody-button').addEventListener('click',function(){root.querySelector('ody-panel').open();});`,
+     attrs:[["open","boolean; toggles the slide-in (mirrors <code>open()</code> / <code>close()</code>)."],["heading","optional panel title."],["full-height","boolean; spans the full viewport height."]],
+     props:[["open() / close()","methods."]],
+     events:[["close","overlay or close-button click."]] },
+   { tag:"ody-toast-host", use:"Transient feedback. You normally never write <code>&lt;ody-toast-host&gt;</code> — call the exported <code>toast()</code>, which lazily creates and portals a singleton host.",
+     demo:`<ody-button variant="primary">Show toast</ody-button>`,
+     code:`import { toast } from "@peektravel/app-utilities/ui";\ntoast("Saved successfully", { variant: "success", title: "Done" });`,
+     init:`root.querySelector('ody-button').addEventListener('click',function(){var UI=window.OdysseyUI;if(UI&&UI.toast)UI.toast('Saved successfully',{variant:'success',title:'Done'});});`,
+     attrs:[["toast(message, options?)","<code>options: { variant?, title?, timeout? }</code>. <code>variant</code> <code>info</code> | <code>success</code> | <code>warning</code> | <code>danger</code>; <code>timeout</code> auto-dismiss ms (<code>0</code> disables; default 4000). Returns <code>{ dismiss() }</code>."]] }
+ ]},
+
+ { group:"Data & selection", items:[
+   { tag:"ody-dropdown-single", use:"Single choice from a list (select-only combobox, WAI-ARIA pattern).",
+     demo:`<div style="width:260px"><ody-dropdown-single label="Fruit" placeholder="Pick a fruit" searchable\n  options='[{"value":"apple","label":"Apple"},{"value":"cherry","label":"Cherry"},{"value":"kiwi","label":"Kiwi","disabled":true}]'></ody-dropdown-single></div>`,
+     attrs:[["value","selected option value (reflected; also a JS property)."],["options","JSON array fallback."],["placeholder","text when nothing is selected."],["label / aria-label","accessible name."],["search-placeholder","filter placeholder when <code>searchable</code>."],["disabled, searchable","boolean."]],
+     props:[["value","<code>string</code>."],["options","<code>OdySelectOption[]</code>."]],
+     events:[["change","<code>{ value: string }</code> (user selection only)."]] },
+   { tag:"ody-dropdown-multi", use:"Multiple choices from a list (multi-select listbox combobox). The trigger shows selected options as removable chips.",
+     demo:`<div style="width:260px"><ody-dropdown-multi label="Toppings" placeholder="Choose toppings" searchable value="cheese"\n  options='[{"value":"cheese","label":"Cheese"},{"value":"olives","label":"Olives"},{"value":"basil","label":"Basil"}]'></ody-dropdown-multi></div>`,
+     attrs:[["(same set as <code>ody-dropdown-single</code>)","<code>value</code> is comma-delimited."]],
+     props:[["value","<code>string[]</code> (get array, set array)."],["options","<code>OdySelectOption[]</code>."]],
+     events:[["change","<code>{ value: string[] }</code> (toggling keeps the panel open)."]] },
+   { tag:"ody-datepicker", use:"Pick a date or date range. Dependency-free calendar (native <code>Date</code>/<code>Intl</code>). The trigger text is localized; the <code>value</code> and <code>change</code> payload stay ISO <code>yyyy-mm-dd</code>.",
+     demo:`<div style="display:flex;gap:14px;flex-wrap:wrap">\n<ody-datepicker value="2026-06-15" display-format="full"></ody-datepicker>\n<ody-datepicker range value="2026-06-10/2026-07-04" min="2026-04-01" max="2026-09-30"\n  presets='[{"label":"This month","value":"2026-06-01/2026-06-30"}]'></ody-datepicker>\n</div>`,
+     js:`const dp = document.querySelector("ody-datepicker");\ndp.isDateDisallowed = (d) => d.getDay() === 0;        // disable Sundays\ndp.formatDate = (d) => d.toLocaleDateString("en-GB");  // custom label`,
+     attrs:[["value","<code>yyyy-mm-dd</code> (single) or <code>yyyy-mm-dd/yyyy-mm-dd</code> (range)."],["min / max","inclusive bounds."],["range","boolean; enables start/end range selection."],["first-day-of-week","0–6 (0 = Sunday)."],["placeholder","trigger text when no value."],["presets","JSON array of <code>{ label, value }</code> shortcuts."],["display-format","<code>short</code> | <code>medium</code> | <code>long</code> | <code>full</code>."]],
+     props:[["isDateDisallowed","<code>(date) =&gt; boolean</code>."],["formatDate","<code>(date) =&gt; string</code> (wins over <code>display-format</code>)."],["isOpen","read-only; <code>openPopover()</code> / <code>closePopover()</code>."]],
+     events:[["change","user selection only — single: <code>{ value }</code>; range: <code>{ value, start, end }</code> (ISO)."]] },
+   { tag:"ody-table", use:"Tabular data with sortable headers and optional checkbox selection. Rich data is supplied through JS properties only.",
+     demo:`<ody-table selectable sortable sticky-header style="width:100%"></ody-table>`,
+     init:`var t=root.querySelector('ody-table');t.columns=[{key:'name',label:'Name',sortable:true},{key:'age',label:'Age',sortable:true,align:'right'},{key:'city',label:'City'}];t.data=[{name:'Alice',age:42,city:'Denver'},{name:'Bob',age:25,city:'Austin'},{name:'Cai',age:31,city:'Reno'}];`,
+     js:`const t = document.querySelector("ody-table");\nt.columns = [\n  { key: "name", label: "Name", sortable: true },\n  { key: "age",  label: "Age",  sortable: true, align: "right" },\n];\nt.data = [{ name: "Alice", age: 42 }, { name: "Bob", age: 25 }];\nt.addEventListener("sort-change", (e) => console.log(e.detail));`,
+     props:[["columns","<code>OdyTableColumn[]</code> — <code>{ key, label, sortable?, align?, render? }</code>. Auto-generated from the first row's keys if omitted."],["data (alias rows)","<code>OdyTableRow[]</code> — row objects."],["selected","getter of selected rows; setter replaces the selection."]],
+     attrs:[["selectable","boolean; leading checkbox column with header select-all."],["sortable","boolean; globally enables sorting (per-column via <code>column.sortable</code>)."],["sort-key / sort-direction","reflected current sort."],["sticky-header","boolean; pins the header while the body scrolls."]],
+     events:[["sort-change","<code>{ key, direction }</code> (<code>ascending</code> | <code>descending</code> | <code>null</code>)."],["selection-change","<code>{ selected }</code>."],["row-click","<code>{ row, index }</code>."]] }
+ ]},
+
+ { group:"Icons", items:[
+   { tag:"ody-brand-icon", use:"Brand / fixed-colour icons — logos, illustrations, and status art that must keep their original colours (do <strong>not</strong> follow <code>currentColor</code>). For text-coloured glyphs use <code>ody-icon</code> above.",
+     demo:`<ody-brand-icon name="empty-state-default" size="large"></ody-brand-icon>`,
+     attrs:[["name","see <code>brandIconNames()</code>; unknown renders nothing."],["size","same scale as <code>ody-icon</code> (default <code>base</code>; <code>free</code> sizes from the box)."]] },
+   { name:"Icon programmatic API", html:
+     '<div class="desc">Two libraries. <strong>Themeable</strong> (<code>ody-icon</code> / <code>iconSvg</code>) follow text colour; <strong>brand</strong> (<code>ody-brand-icon</code> / <code>brandIconSvg</code>) keep baked-in colours.</div>'+
+     '<table><tbody>'+
+     [['iconNames() : string[]','All registered themeable names, sorted.'],
+      ['hasIcon(name) : boolean','Whether a name is known.'],
+      ['iconSvg(name, className?) : string','Raw <code>&lt;svg&gt;</code> string; unknown → empty <code>&lt;svg&gt;</code>.'],
+      ['registerIcon(name, innerSvg, viewBox?)','Register/override an icon (<code>viewBox</code> default <code>0 0 24 24</code>).'],
+      ['brandIconNames() : string[]','All brand icon names, sorted.'],
+      ['brandIconSvg(name, className?) : string','Raw brand <code>&lt;svg&gt;</code> string.']
+     ].map(function(r){return '<tr><td class="fieldname">'+r[0]+'</td><td>'+r[1]+'</td></tr>';}).join('')+'</tbody></table>'+
+     '<pre class="example">'+highlight('import { registerIcon, iconNames } from "@peektravel/app-utilities/ui";\nregisterIcon("star", "<path d=\'M12 2l3 7h7l-5.5 4 2 7L12 16z\'/>");\nconsole.log(iconNames()); // discover available names')+'</pre>' }
+ ]},
+
+ { group:"Reference", items:[
+   { name:"Localization", html:
+     '<div class="desc">Built-in strings (aria-labels, default placeholders, status labels — <strong>not</strong> your content) are localized.</div>'+
+     '<pre class="example">'+highlight('import { registerTranslation } from "@peektravel/app-utilities/ui";\nregisterTranslation("es", { close: "Cerrar", clear: "Borrar", search: "Buscar" });')+'</pre>'+
+     '<div class="desc muted">A component reads the nearest ancestor <code>lang</code> attribute (so <code>&lt;html lang="es"&gt;</code> localizes everything), falling back region → base language → English; a <code>&lt;html lang&gt;</code> change re-renders automatically. A per-instance attribute wins over the registry (<code>close-label</code>, <code>clear-label</code>, <code>search-placeholder</code>, …). Term keys (<code>OdyTerms</code>): <code>close</code>, <code>clear</code>, <code>search</code>, <code>noOptions</code>, <code>previousMonth</code>, <code>nextMonth</code>, <code>selectDate</code>, <code>openSubMenu</code>, <code>toggleMenu</code>, <code>breadcrumb</code>, <code>radioGroup</code>, <code>toggleGroup</code>, and the <code>checkIn*</code> status labels.</div>' },
+   { name:"Theming (CSS custom properties)", html:
+     '<div class="desc"><code>tokens.css</code> defines the design tokens the components use; override them in your own CSS to retheme.</div>'+
+     '<table><tbody>'+
+     [['Colours','<code>--color-&lt;name&gt;-&lt;shade&gt;</code>. Semantic: <code>interaction</code>, <code>info</code>, <code>success</code>, <code>warning</code>, <code>danger</code> (100–400). Neutrals <code>--color-neutral-0…400</code>. Accents: blue, green, teal, lime, purple, pink, rose, turquoise, yellow, orange.'],
+      ['Typography','<code>--ody-font-family</code>, <code>--ody-line-height</code>, and weights <code>--ody-font-weight-thin</code> … <code>--ody-font-weight-black</code>.'],
+      ['Layout / elevation','<code>--layout-top-bar-height</code>, <code>--layout-breadcrumb-height</code>, <code>--ody-shadow-base</code>, <code>--ody-overlay</code>.'],
+      ['Spacing','<code>--gap8</code> / <code>--gap16</code> / <code>--gap24</code> / <code>--gap32</code>; page widths <code>--layout-page-width-narrow</code> (868px) / <code>--layout-page-width-wide</code> (1310px).'],
+      ['Z-index','<code>--ody-z-general</code>, <code>--ody-z-side-nav</code>, <code>--ody-z-top-bar</code>, <code>--ody-z-modal</code>, <code>--ody-z-over-modal</code>, <code>--ody-z-tooltip</code>, <code>--ody-z-wormhole</code>.']
+     ].map(function(r){return '<tr><td class="fieldname">'+r[0]+'</td><td>'+r[1]+'</td></tr>';}).join('')+'</tbody></table>'+
+     '<pre class="example">'+highlight(':root { --color-interaction-300: #0066ff; --ody-font-family: "Inter", sans-serif; }')+'</pre>' },
+   { name:"Not included (and what to use instead)", html:
+     '<table><tbody>'+
+     [['nested-multi-select','<code>ody-dropdown-multi</code> for flat lists; for grouping, compose dropdowns or <code>ody-checkbox-group</code> + <code>ody-collapsible-section</code>.'],
+      ['location-autocomplete','A native <code>&lt;input&gt;</code> wired to your own geocoding; render results with <code>ody-option</code> rows in an <code>ody-popover</code>.'],
+      ['filter-menu / filter-menu-single','<code>ody-popover</code> containing <code>ody-checkbox-group</code> (multi) or <code>ody-radio-button-group</code> / <code>ody-dropdown-single</code> (single).'],
+      ['accordion-checkbox','<code>ody-collapsible-section</code> (or <code>ody-accordion</code>) with an <code>ody-checkbox-group</code> inside.'],
+      ['datepicker-with-presets','<code>ody-datepicker</code> with the <code>presets</code> attribute.']
+     ].map(function(r){return '<tr><td class="fieldname">'+r[0]+'</td><td>'+r[1]+'</td></tr>';}).join('')+'</tbody></table>' }
+ ]}
+]);
+</script>
+</body>
+</html>

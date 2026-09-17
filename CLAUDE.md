@@ -67,6 +67,26 @@ out, and the clean data models — never raw GraphQL.
     apply). The one deliberate exception is a single, low-key `GraphQLClient`
     reference in the `PeekAccessService` description; keep it deemphasized (do not
     reintroduce it into the hero subtitle or elsewhere).
+- **`docs/html/ui.html` is the live UI-component reference** — the HTML twin of
+  `docs/ui.md`, in the same shell (left-nav, filter, light/dark toggle) but with
+  every `<ody-*>` component **rendered live**. It renders the real components by
+  loading vendored build artifacts from `docs/html/assets/`: `odyssey.iife.js`
+  (a classic-script IIFE bundle of `src/ui`, chosen over an ESM module so it also
+  works when the file is opened over `file://`), plus `odyssey.css` and
+  `tokens.css`. Keep `ui.html` in sync with `docs/ui.md` and the components, and
+  **regenerate the vendored assets whenever `src/ui` changes**:
+
+  ```bash
+  npm run build   # tsup → dist/ui/index.js + dist/ui/{odyssey,tokens}.css
+  node node_modules/esbuild/bin/esbuild dist/ui/index.js --bundle \
+    --format=iife --global-name=OdysseyUI --outfile=docs/html/assets/odyssey.iife.js
+  cp dist/ui/odyssey.css dist/ui/tokens.css docs/html/assets/
+  ```
+
+  The page catalog lives in the `render([...])` data at the bottom of `ui.html`
+  (each component: tag, `use`, `demo` markup rendered live, attribute/property/
+  event tables; a few need an `init` hook run after `whenOdysseyReady`). Add new
+  platform/UI pages to `docs/index.html` too.
 - Ensure test coverage remains above 95% (the Vitest gate enforces this on
   lines/functions/branches/statements).
 - Unless told otherwise, after everything is done, run the linter and fix any
