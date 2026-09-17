@@ -251,7 +251,7 @@ function render(DATA){
 render({
  title:"Peek",
  hero:"Peek Platform",
- heroSub:"Rooted at <code>PeekAccessService</code>, which lazily hands out 12 memoized per-resource service classes. Every service reaches the gateway through a shared authenticated <code>GraphQLClient</code> and routes to the single <code>sales</code> endpoint. Public model types live in <code>src/models/peek/</code>. The <code>fullCustomerAccess</code> flag (default off) gates customer PII: PII-marked methods throw <code>PiiAccessDisabledError</code> before any network call, and PII fields are stripped at the query-builder layer for reads.",
+ heroSub:"Rooted at <code>PeekAccessService</code>, which lazily hands out 12 memoized per-resource service classes, each reached through a shared authenticated client. Public model types live in <code>src/models/peek/</code>. The <code>fullCustomerAccess</code> flag (default off) gates customer PII: PII-marked methods throw <code>PiiAccessDisabledError</code> before any network call, and PII fields are omitted from reads.",
  services:[
   {
    name:"PeekAccessService",
@@ -422,7 +422,7 @@ render({
    desc:"Constructor config for <code>PeekAccessService</code>. Adds the Peek-only fields below; all other fields are inherited. Exported from <code>src/index.ts</code>.",
    fields:[
     {name:"gatewayKey",type:"string",n:"opt",desc:"API gateway key, sent as the <code>pk-api-key</code> header. Required in v1 mode; not used in v2."},
-    {name:"mode",type:'"v2"',n:"opt",desc:"Gateway mode. <code>\"v2\"</code> routes through the app-registry installations API; <code>\"v1\"</code> (default) uses the standard backoffice GraphQL gateway."},
+    {name:"mode",type:'"v2"',n:"opt",desc:"Gateway mode. <code>\"v2\"</code> routes through the app-registry installations API; <code>\"v1\"</code> (default) uses the standard backoffice gateway."},
     {name:"itemOptionsPageSize",type:"number",n:"opt",desc:"Page size for cursor-paginated item options. Default 50."}
    ]},
   {name:"BaseAccessServiceConfig",kind:"config",file:"src/access-service-config.ts",
@@ -431,7 +431,7 @@ render({
     {name:"installId",type:"string",n:false,desc:"Install ID. Becomes the JWT subject. Required."},
     {name:"jwtSecret",type:"string",n:false,desc:"HMAC secret used to sign the JWT. Required."},
     {name:"issuer",type:"string",n:false,desc:"JWT issuer — the app name / app ID. Required."},
-    {name:"apiUrl",type:"string",n:"opt",desc:"The install's app endpoint URL (persist the install webhook's <code>apiUrl</code>). Used as given: for Peek it is the sole request URL; for CNG/ACME the base with the REST path appended. No app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
+    {name:"apiUrl",type:"string",n:"opt",desc:"The install's app endpoint URL (persist the install webhook's <code>apiUrl</code>). Used as given: for Peek it is the sole request URL; for CNG/ACME the base with the request path appended. No app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
     {name:"appId",type:"string",n:"opt",desc:"<b>@deprecated</b> App ID inserted into the gateway endpoint path. Required only in legacy <code>baseUrl</code> mode."},
     {name:"baseUrl",type:"string",n:"opt",desc:"<b>@deprecated</b> Override the gateway base URL (per-service default). Prefer <code>apiUrl</code>."},
     {name:"tokenTtlSeconds",type:"number",n:"opt",desc:"JWT lifetime in seconds. Default 3600."},
@@ -444,7 +444,7 @@ render({
   {name:"Product",kind:"interface",file:"src/models/peek/product.ts",
    desc:"A bookable product (activity, rental, or add-on). Consts: <code>ACTIVITY_PRODUCT_TYPE=\"ACTIVITY\"</code>, <code>RENTAL_PRODUCT_TYPE=\"RENTAL\"</code>, <code>ADD_ON_PRODUCT_TYPE=\"ADD-ON\"</code>.",
    fields:[
-    {name:"productId",type:"string",n:false,desc:"Stable id (activity: GraphQL id/legacyId; add-on: parent item id)."},
+    {name:"productId",type:"string",n:false,desc:"Stable id (activity: id/legacyId; add-on: parent item id)."},
     {name:"name",type:"string",n:false,desc:"Display name."},
     {name:"type",type:"string",n:false,desc:"Peek type for activities; always <code>ADD-ON</code> for add-ons."},
     {name:"color",type:"string",n:false,desc:"Hex color; add-ons default <code>#FFFFFF</code>; empty string if none."},

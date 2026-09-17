@@ -50,22 +50,22 @@
 <div class="grid" id="grid">
   <a class="platform" href="html/peek.html" data-base="html/peek.html">
     <div class="name">Peek <span class="arrow">→</span></div>
-    <div class="kind">GraphQL · src/models/peek</div>
-    <div class="blurb">The Peek backoffice GraphQL gateway. 13 service classes — bookings, products, timeslots, pricing, memberships, reviews, and more — rooted at <code>PeekAccessService</code>.</div>
+    <div class="kind">src/models/peek</div>
+    <div class="blurb">The Peek backoffice. 13 service classes — bookings, products, timeslots, pricing, memberships, reviews, and more — rooted at <code>PeekAccessService</code>.</div>
   </a>
   <a class="platform" href="html/cng.html" data-base="html/cng.html">
     <div class="name">CNG <span class="arrow">→</span></div>
-    <div class="kind">REST · src/models/cng</div>
-    <div class="blurb">The CNG backoffice REST gateway. Rooted at <code>CngAccessService</code>, exposing the <code>CngProductService</code> and the <code>Activity</code> model.</div>
+    <div class="kind">src/models/cng</div>
+    <div class="blurb">The CNG backoffice. Rooted at <code>CngAccessService</code>, exposing the <code>CngProductService</code> and the <code>Activity</code> model.</div>
   </a>
   <a class="platform" href="html/acme.html" data-base="html/acme.html">
     <div class="name">ACME <span class="arrow">→</span></div>
-    <div class="kind">REST · src/models/acme</div>
-    <div class="blurb">The ACME backoffice REST gateway. Rooted at <code>AcmeAccessService</code>, exposing the <code>AcmeProductService</code> and the <code>AcmeActivity</code> model.</div>
+    <div class="kind">src/models/acme</div>
+    <div class="blurb">The ACME backoffice. Rooted at <code>AcmeAccessService</code>, exposing the <code>AcmeProductService</code> and the <code>AcmeActivity</code> model.</div>
   </a>
 </div>
 
-<footer>All three siblings share the same auth, retry/backoff transport, logging, and base error types — they differ only in transport and gateway routing.</footer>
+<footer>All three siblings share the same auth, retry/backoff, logging, and base error types — callers touch only the access services and the clean data models.</footer>
 
 <script>
   // carry the theme choice across pages via ?theme= (file:// localStorage is isolated in some browsers)
