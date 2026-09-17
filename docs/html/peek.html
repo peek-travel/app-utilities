@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CNG Domain — @peektravel/app-utilities</title>
+<title>CNG Platform — @peektravel/app-utilities</title>
 <script>(function(){try{var u=new URLSearchParams(location.search).get("theme");var s=u||localStorage.getItem("theme");var t=(s==="light"||s==="dark")?s:"light";document.documentElement.setAttribute("data-theme",t);if(u==="light"||u==="dark"){try{localStorage.setItem("theme",u);}catch(e){}}}catch(e){}})();</script>
 <style>
   :root{
@@ -88,7 +88,7 @@
 <body>
 <nav id="sidebar">
   <div id="brand">
-    <h1>Peek Domain</h1>
+    <h1>Peek Platform</h1>
     <span class="tag">@peektravel/app-utilities</span>
     <div class="links">
       <a href="cng.html">CNG →</a><a href="acme.html">ACME →</a>
@@ -117,7 +117,7 @@ function linkify(str){
 }
 
 function render(DATA){
-  document.title = DATA.title+" Domain — @peektravel/app-utilities";
+  document.title = DATA.title+" Platform — @peektravel/app-utilities";
   heroTitle.textContent = DATA.hero;
   heroSub.innerHTML = DATA.heroSub;
   // sort: root *AccessService first, other services A–Z; models A–Z
@@ -250,7 +250,7 @@ function render(DATA){
 /* ---------- PEEK DATA ---------- */
 render({
  title:"Peek",
- hero:"Peek Domain",
+ hero:"Peek Platform",
  heroSub:"Rooted at <code>PeekAccessService</code>, which lazily hands out 12 memoized per-resource service classes. Every service reaches the gateway through a shared authenticated <code>GraphQLClient</code> and routes to the single <code>sales</code> endpoint. Public model types live in <code>src/models/peek/</code>. The <code>fullCustomerAccess</code> flag (default off) gates customer PII: PII-marked methods throw <code>PiiAccessDisabledError</code> before any network call, and PII fields are stripped at the query-builder layer for reads.",
  services:[
   {

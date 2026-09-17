@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>@peektravel/app-utilities — Reference</title>
+<script>(function(){try{var u=new URLSearchParams(location.search).get("theme");var s=u||localStorage.getItem("theme");var t=(s==="light"||s==="dark")?s:"light";document.documentElement.setAttribute("data-theme",t);if(u==="light"||u==="dark"){try{localStorage.setItem("theme",u);}catch(e){}}}catch(e){}})();</script>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2a3441;
+    --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --accent2:#3fb950;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  html[data-theme="light"]{
+    --bg:#f6f8fa; --panel:#ffffff; --panel2:#eef1f5; --border:#d0d7de;
+    --text:#1f2328; --muted:#59636e; --accent:#0969da; --accent2:#1a7f37;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:0 20px 80px}
+  a{color:var(--accent);text-decoration:none}
+  code{font-family:var(--mono)}
+  header{width:100%;max-width:860px;padding:56px 0 8px}
+  header h1{margin:0 0 6px;font-size:30px;letter-spacing:.2px}
+  header .tag{display:inline-block;font-size:12px;color:var(--bg);background:var(--accent2);padding:2px 9px;border-radius:10px;font-weight:600;font-family:var(--mono)}
+  header p{color:var(--muted);max-width:720px;margin:14px 0 0}
+  .themebtn{position:fixed;top:16px;right:18px;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 11px;cursor:pointer;font-size:15px}
+  .themebtn:hover{border-color:var(--accent);color:var(--accent)}
+  h2.section{width:100%;max-width:860px;margin:44px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:10px}
+  .grid{width:100%;max-width:860px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:18px}
+  a.platform{display:block;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:22px 22px 20px;transition:border-color .12s,transform .12s}
+  a.platform:hover{border-color:var(--accent);transform:translateY(-2px)}
+  a.platform .name{font-size:20px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:10px}
+  a.platform .arrow{margin-left:auto;color:var(--muted);font-size:18px}
+  a.platform:hover .arrow{color:var(--accent)}
+  a.platform .kind{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px}
+  a.platform .blurb{color:var(--muted);font-size:13.5px;margin-top:12px}
+  footer{width:100%;max-width:860px;margin-top:48px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--border);padding-top:16px}
+</style>
+</head>
+<body>
+<button id="themeBtn" class="themebtn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
+<header>
+  <span class="tag">@peektravel/app-utilities</span>
+  <h1>Reference</h1>
+  <p>Interactive reference for the top-level service classes and the clean data models each returns. Pick a platform below — every page has a left-nav, live filter, and a light/dark toggle.</p>
+</header>
+
+<h2 class="section">Available Platforms</h2>
+<div class="grid" id="grid">
+  <a class="platform" href="peek.html" data-base="peek.html">
+    <div class="name">Peek <span class="arrow">→</span></div>
+    <div class="kind">GraphQL · src/models/peek</div>
+    <div class="blurb">The Peek backoffice GraphQL gateway. 13 service classes — bookings, products, timeslots, pricing, memberships, reviews, and more — rooted at <code>PeekAccessService</code>.</div>
+  </a>
+  <a class="platform" href="cng.html" data-base="cng.html">
+    <div class="name">CNG <span class="arrow">→</span></div>
+    <div class="kind">REST · src/models/cng</div>
+    <div class="blurb">The CNG backoffice REST gateway. Rooted at <code>CngAccessService</code>, exposing the <code>CngProductService</code> and the <code>Activity</code> model.</div>
+  </a>
+  <a class="platform" href="acme.html" data-base="acme.html">
+    <div class="name">ACME <span class="arrow">→</span></div>
+    <div class="kind">REST · src/models/acme</div>
+    <div class="blurb">The ACME backoffice REST gateway. Rooted at <code>AcmeAccessService</code>, exposing the <code>AcmeProductService</code> and the <code>AcmeActivity</code> model.</div>
+  </a>
+</div>
+
+<footer>All three siblings share the same auth, retry/backoff transport, logging, and base error types — they differ only in transport and gateway routing.</footer>
+
+<script>
+  // carry the theme choice across pages via ?theme= (file:// localStorage is isolated in some browsers)
+  function syncThemeLinks(t){
+    document.querySelectorAll('a.platform').forEach(a=>{
+      a.setAttribute('href', a.getAttribute('data-base')+'?theme='+t);
+    });
+  }
+  syncThemeLinks(document.documentElement.getAttribute('data-theme')||'light');
+  const tb=document.getElementById('themeBtn');
+  if(tb)tb.addEventListener('click',()=>{
+    const cur=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';
+    document.documentElement.setAttribute('data-theme',cur);
+    try{localStorage.setItem('theme',cur);}catch(e){}
+    syncThemeLinks(cur);
+  });
+</script>
+</body>
+</html>

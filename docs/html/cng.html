@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CNG Domain — @peektravel/app-utilities</title>
+<title>CNG Platform — @peektravel/app-utilities</title>
 <script>(function(){try{var u=new URLSearchParams(location.search).get("theme");var s=u||localStorage.getItem("theme");var t=(s==="light"||s==="dark")?s:"light";document.documentElement.setAttribute("data-theme",t);if(u==="light"||u==="dark"){try{localStorage.setItem("theme",u);}catch(e){}}}catch(e){}})();</script>
 <style>
   :root{
@@ -88,7 +88,7 @@
 <body>
 <nav id="sidebar">
   <div id="brand">
-    <h1>CNG Domain</h1>
+    <h1>CNG Platform</h1>
     <span class="tag">@peektravel/app-utilities</span>
     <div class="links">
       <a href="peek.html">Peek →</a><a href="acme.html">ACME →</a>
@@ -117,7 +117,7 @@ function linkify(str){
 }
 
 function render(DATA){
-  document.title = DATA.title+" Domain — @peektravel/app-utilities";
+  document.title = DATA.title+" Platform — @peektravel/app-utilities";
   heroTitle.textContent = DATA.hero;
   heroSub.innerHTML = DATA.heroSub;
   // sort: root *AccessService first, other services A–Z; models A–Z
@@ -250,7 +250,7 @@ function render(DATA){
 /* ---------- CNG DATA ---------- */
 render({
  title:"CNG",
- hero:"CNG Domain",
+ hero:"CNG Platform",
  heroSub:"REST sibling of the Peek GraphQL accessor. Reuses the shared auth (<code>TokenManager</code>), retry/backoff transport, <code>Logger</code>, and base error types — differing only in transport (REST) and gateway routing (<code>cng_backoffice_api-v1</code>). Consumers construct one <code>CngAccessService</code> per install and call typed methods returning clean plain-object models. Public exports: <code>CngAccessService</code>, <code>CngAccessServiceConfig</code>, <code>CngProductService</code>, <code>Activity</code>, <code>ActivityTicket</code>, <code>CngApiError</code>, <code>CngPermissionError</code>.",
  services:[
   {
