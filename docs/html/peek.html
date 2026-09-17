@@ -11,16 +11,19 @@
     --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --accent2:#3fb950;
     --type:#79c0ff; --null:#f0883e; --danger:#f85149; --pii:#d2a8ff;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --c-com:#8b949e; --c-str:#a5d6ff; --c-num:#79c0ff; --c-kw:#ff7b72; --c-lit:#79c0ff; --c-con:#79c0ff; --c-cls:#ffa657; --c-fn:#d2a8ff;
   }
   html[data-theme="light"]{
     --bg:#f6f8fa; --panel:#ffffff; --panel2:#eef1f5; --border:#d0d7de;
     --text:#1f2328; --muted:#59636e; --accent:#0969da; --accent2:#1a7f37;
     --type:#0550ae; --null:#bc4c00; --danger:#cf222e; --pii:#8250df;
+    --c-com:#6e7781; --c-str:#0a3069; --c-num:#0550ae; --c-kw:#cf222e; --c-lit:#0550ae; --c-con:#0550ae; --c-cls:#953800; --c-fn:#8250df;
   }
   html[data-theme="light"] .desc,
   html[data-theme="light"] .ctor,
   html[data-theme="light"] .notes li,
-  html[data-theme="light"] .sig{color:#24292f}
+  html[data-theme="light"] .sig,
+  html[data-theme="light"] .example{color:#24292f}
   html[data-theme="light"] .badge.opt{background:#eaeef2;color:#59636e}
   html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#d0d7de;border-color:#f6f8fa}
   *{box-sizing:border-box}
@@ -57,6 +60,15 @@
   .file{font-family:var(--mono);font-size:12px;color:var(--muted);margin:2px 0 12px}
   .desc{color:#c9d1d9;margin:8px 0 14px;max-width:900px}
   .ctor{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:6px 0 14px;color:#c9d1d9}
+  .example{font-family:var(--mono);font-size:12.5px;line-height:1.55;white-space:pre;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px 14px;overflow-x:auto;margin:6px 0 14px;color:#c9d1d9}
+  .example .t-com{color:var(--c-com);font-style:italic}
+  .example .t-str{color:var(--c-str)}
+  .example .t-num{color:var(--c-num)}
+  .example .t-kw{color:var(--c-kw)}
+  .example .t-lit{color:var(--c-lit)}
+  .example .t-con{color:var(--c-con)}
+  .example .t-cls{color:var(--c-cls)}
+  .example .t-fn{color:var(--c-fn)}
   .notes{list-style:none;padding:0;margin:6px 0 12px}
   .notes li{padding:6px 10px 6px 28px;position:relative;background:var(--panel2);border:1px solid var(--border);border-radius:6px;margin:5px 0;font-size:12.5px;color:#c9d1d9}
   .notes li:before{content:"›";position:absolute;left:11px;color:var(--accent);font-weight:700}
@@ -93,7 +105,7 @@
     <span class="tag">@peektravel/app-utilities</span>
     <span class="pkgbadge">TypeScript · npm package</span>
     <div class="links">
-      <a href="cng.html">CNG →</a><a href="acme.html">ACME →</a>
+      <a href="../index.html">← Home</a>
       <button id="themeBtn" class="themebtn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
     </div>
     <input id="search" placeholder="Filter services & models…" autocomplete="off"/>
@@ -116,6 +128,36 @@ let LINK_RE=null,LINK_MAP=null;
 function linkify(str){
   if(!str||!LINK_RE)return str;
   return str.replace(LINK_RE,m=>'<a class="mlink" href="#'+LINK_MAP[m]+'">'+m+'</a>');
+}
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function highlight(code){
+  var pats=[
+    ['com',/\/\/[^\n]*/],
+    ['str',/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/],
+    ['num',/\b\d[\d_]*(?:\.\d+)?\b/],
+    ['kw',/\b(?:import|from|export|default|const|let|var|new|await|async|return|function|if|else|for|of|in|typeof|void|class|extends|implements|interface|type|as)\b/],
+    ['lit',/\b(?:true|false|null|undefined|this)\b/],
+    ['con',/\b[A-Z][A-Z0-9_]+\b/],
+    ['cls',/\b[A-Z][\w$]*\b/],
+    ['fn',/[A-Za-z_$][\w$]*(?=\s*\()/],
+    ['id',/[A-Za-z_$][\w$]*/],
+    ['pun',/[{}()\[\].;,:=<>|&?!+\-*\/]/],
+    ['ws',/\s+/],
+    ['any',/[\s\S]/]
+  ];
+  var master=new RegExp(pats.map(function(p){return '('+p[1].source+')';}).join('|'),'g');
+  var out='';
+  code.replace(master,function(m){
+    var g=Array.prototype.slice.call(arguments,1,1+pats.length);
+    var i=g.findIndex(function(x){return x!==undefined;});
+    var cls=pats[i][0];
+    if(cls==='ws') out+=m;
+    else if(cls==='id'||cls==='pun'||cls==='any') out+=esc(m);
+    else out+='<span class="t-'+cls+'">'+esc(m)+'</span>';
+    return m;
+  });
+  return out;
 }
 
 function render(DATA){
@@ -156,6 +198,7 @@ function render(DATA){
     if(s.ctor)h+='<div class="subhead">Constructor</div><div class="ctor">'+linkify(s.ctor)+'</div>';
     if(s.obtain)h+='<div class="subhead">Obtain</div><div class="ctor">'+linkify(s.obtain)+'</div>';
     if(s.notes&&s.notes.length){h+='<div class="subhead">Behavior</div><ul class="notes">'+s.notes.map(n=>'<li>'+n+'</li>').join('')+'</ul>';}
+    if(s.example)h+='<div class="subhead">Example</div><pre class="example">'+highlight(s.example)+'</pre>';
     if(s.methods&&s.methods.length){
       h+='<div class="subhead">Methods</div><table><thead><tr><th>Method</th><th>Signature</th><th>Description</th></tr></thead><tbody>';
       s.methods.forEach(m=>{
@@ -258,9 +301,10 @@ render({
   {
    name:"PeekAccessService",
    file:"src/peek-access-service.ts",
-   desc:"The public entry point. Construct one per install. Validates config, lazily memoizes each resource service, and exposes short-form proxy methods that delegate to the underlying service.",
+   desc:"The public entry point. Construct one per install. Validates config and hands out the per-resource service classes through its <code>get…Service()</code> accessors (lazily created and memoized).",
    ctor:"new PeekAccessService(config: PeekAccessServiceConfig)",
-      methods:[
+   example:"import { PeekAccessService } from \"@peektravel/app-utilities\";\n\nconst peek = new PeekAccessService({\n  installId: \"install_123\", // obtained from verifyPeekAuthToken(peekAuthToken).installId\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n});\n\n// every product (activities + add-ons) as one flat list\nconst products = await peek.getProductService().getAllProducts();",
+   methods:[
      {name:"getProductService",sig:"(): ProductService",desc:"Product service (lazily created + memoized)."},
      {name:"getAccountUserService",sig:"(): AccountUserService",desc:"Account-user service."},
      {name:"getResourcePoolService",sig:"(): ResourcePoolService",desc:"Resource-pool service."},
@@ -420,6 +464,54 @@ render({
   }
  ],
  models:[
+  {name:"Logger",kind:"interface",file:"src/logger.ts",
+   desc:"Optional logger passed via the access-service config's <code>logger</code> field. <code>noopLogger</code> (a silent implementation) is the exported default.",
+   fields:[
+    {name:"info",type:"(message: string, context?: Record&lt;string, unknown&gt;) =&gt; void",n:false,desc:"Informational log."},
+    {name:"warn",type:"(message: string, context?: Record&lt;string, unknown&gt;) =&gt; void",n:false,desc:"Warning log."},
+    {name:"error",type:"(message: string, context?: Record&lt;string, unknown&gt;) =&gt; void",n:false,desc:"Error log."}
+   ]},
+  {name:"PeekAuthTokenClaims",kind:"interface",file:"src/models/peek/auth-token.ts",
+   desc:"Verified claims returned by <code>PeekAccessService.verifyPeekAuthToken</code>. The <code>installId</code> here is how you obtain the value to configure an access service.",
+   fields:[
+    {name:"installId",type:"string",n:false,desc:"Install id the token was minted for — use it as the access-service <code>installId</code>."},
+    {name:"displayVersion",type:"string",n:false,desc:"App display version from the token."},
+    {name:"user",type:"PeekAuthTokenUser | null",n:true,desc:"Authenticated user context, or <code>null</code> when the token carries no user block."}
+   ]},
+  {name:"PeekAuthTokenUser",kind:"interface",file:"src/models/peek/auth-token.ts",
+   desc:"Authenticated user context on a verified token. Every field is nullable — the token is untrusted even after signature verification.",
+   fields:[
+    {name:"email",type:"string | null",n:true,desc:"User email, or <code>null</code>."},
+    {name:"id",type:"string | null",n:true,desc:"The user's own Peek user id (identifies the person, not their account), or <code>null</code>."},
+    {name:"isAdmin",type:"boolean | null",n:true,desc:"Whether the user has admin privileges, or <code>null</code> if omitted."},
+    {name:"locale",type:"string | null",n:true,desc:"User locale, or <code>null</code>."},
+    {name:"name",type:"string | null",n:true,desc:"User name, or <code>null</code>."},
+    {name:"platform",type:"PeekPlatform | null",n:true,desc:"Platform that embedded the app, or <code>null</code>."}
+   ]},
+  {name:"PeekPlatform",kind:"type",file:"src/models/peek/auth-token.ts",
+   desc:"Platform that embedded the app for the session — the single claim identifying which brand a request came from.",def:'"peek" | "cng" | "acme"'},
+  {name:"AddAddonInput",kind:"input",file:"src/internal/peek/bookings/booking-service.ts",
+   desc:"Input to <code>BookingService.addAddon</code> / <code>removeAddon</code>.",
+   fields:[
+    {name:"addonOptionId",type:"string",n:"opt",desc:"Item option id to add/remove."},
+    {name:"addonId",type:"string",n:"opt",desc:"<b>@deprecated</b> Fallback add-on id used when <code>addonOptionId</code> is absent."},
+    {name:"quantity",type:"string",n:false,desc:"Positive-integer quantity string."}
+   ]},
+  {name:"CancelBookingResult",kind:"interface",file:"src/internal/peek/bookings/booking-service.ts",
+   desc:"Result of <code>BookingService.cancel</code>.",
+   fields:[
+    {name:"id",type:"string",n:false,desc:"Booking id."},
+    {name:"displayId",type:"string",n:false,desc:"Human-facing display id."},
+    {name:"reservationStatus",type:"string",n:false,desc:"Reservation status after cancellation."}
+   ]},
+  {name:"BookingSearchBy",kind:"type",file:"src/models/peek/booking.ts",
+   desc:"Which date <code>searchByTimeRange</code> filters on.",def:'"purchaseDate" | "activityDate"'},
+  {name:"NoteMode",kind:"type",file:"src/models/peek/booking.ts",
+   desc:"How <code>appendNote</code> writes the note.",def:'"append" | "overwrite"'},
+  {name:"ResourcePoolMode",kind:"type",file:"src/models/peek/resource-pool.ts",
+   desc:"Mode filter for <code>ResourcePoolService.getAll</code>.",def:'"ACTIVITY" | "ALL"'},
+  {name:"TimeslotFilter",kind:"type",file:"src/models/peek/timeslot.ts",
+   desc:"Timeslot filter for <code>TimeslotService.getForDay</code>.",def:'"all" | "withBookings" | "withoutBookings"'},
   {name:"PeekAccessServiceConfig",kind:"config",file:"src/peek-access-service.ts",extends:"BaseAccessServiceConfig",
    desc:"Constructor config for <code>PeekAccessService</code>. Adds the Peek-only fields below; all other fields are inherited. Exported from <code>src/index.ts</code>.",
    fields:[

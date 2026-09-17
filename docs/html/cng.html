@@ -11,16 +11,19 @@
     --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --accent2:#3fb950;
     --type:#79c0ff; --null:#f0883e; --danger:#f85149; --pii:#d2a8ff;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --c-com:#8b949e; --c-str:#a5d6ff; --c-num:#79c0ff; --c-kw:#ff7b72; --c-lit:#79c0ff; --c-con:#79c0ff; --c-cls:#ffa657; --c-fn:#d2a8ff;
   }
   html[data-theme="light"]{
     --bg:#f6f8fa; --panel:#ffffff; --panel2:#eef1f5; --border:#d0d7de;
     --text:#1f2328; --muted:#59636e; --accent:#0969da; --accent2:#1a7f37;
     --type:#0550ae; --null:#bc4c00; --danger:#cf222e; --pii:#8250df;
+    --c-com:#6e7781; --c-str:#0a3069; --c-num:#0550ae; --c-kw:#cf222e; --c-lit:#0550ae; --c-con:#0550ae; --c-cls:#953800; --c-fn:#8250df;
   }
   html[data-theme="light"] .desc,
   html[data-theme="light"] .ctor,
   html[data-theme="light"] .notes li,
-  html[data-theme="light"] .sig{color:#24292f}
+  html[data-theme="light"] .sig,
+  html[data-theme="light"] .example{color:#24292f}
   html[data-theme="light"] .badge.opt{background:#eaeef2;color:#59636e}
   html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#d0d7de;border-color:#f6f8fa}
   *{box-sizing:border-box}
@@ -57,6 +60,15 @@
   .file{font-family:var(--mono);font-size:12px;color:var(--muted);margin:2px 0 12px}
   .desc{color:#c9d1d9;margin:8px 0 14px;max-width:900px}
   .ctor{font-family:var(--mono);font-size:12.5px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:6px 0 14px;color:#c9d1d9}
+  .example{font-family:var(--mono);font-size:12.5px;line-height:1.55;white-space:pre;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px 14px;overflow-x:auto;margin:6px 0 14px;color:#c9d1d9}
+  .example .t-com{color:var(--c-com);font-style:italic}
+  .example .t-str{color:var(--c-str)}
+  .example .t-num{color:var(--c-num)}
+  .example .t-kw{color:var(--c-kw)}
+  .example .t-lit{color:var(--c-lit)}
+  .example .t-con{color:var(--c-con)}
+  .example .t-cls{color:var(--c-cls)}
+  .example .t-fn{color:var(--c-fn)}
   .notes{list-style:none;padding:0;margin:6px 0 12px}
   .notes li{padding:6px 10px 6px 28px;position:relative;background:var(--panel2);border:1px solid var(--border);border-radius:6px;margin:5px 0;font-size:12.5px;color:#c9d1d9}
   .notes li:before{content:"›";position:absolute;left:11px;color:var(--accent);font-weight:700}
@@ -93,7 +105,7 @@
     <span class="tag">@peektravel/app-utilities</span>
     <span class="pkgbadge">TypeScript · npm package</span>
     <div class="links">
-      <a href="peek.html">Peek →</a><a href="acme.html">ACME →</a>
+      <a href="../index.html">← Home</a>
       <button id="themeBtn" class="themebtn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
     </div>
     <input id="search" placeholder="Filter services & models…" autocomplete="off"/>
@@ -116,6 +128,36 @@ let LINK_RE=null,LINK_MAP=null;
 function linkify(str){
   if(!str||!LINK_RE)return str;
   return str.replace(LINK_RE,m=>'<a class="mlink" href="#'+LINK_MAP[m]+'">'+m+'</a>');
+}
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function highlight(code){
+  var pats=[
+    ['com',/\/\/[^\n]*/],
+    ['str',/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/],
+    ['num',/\b\d[\d_]*(?:\.\d+)?\b/],
+    ['kw',/\b(?:import|from|export|default|const|let|var|new|await|async|return|function|if|else|for|of|in|typeof|void|class|extends|implements|interface|type|as)\b/],
+    ['lit',/\b(?:true|false|null|undefined|this)\b/],
+    ['con',/\b[A-Z][A-Z0-9_]+\b/],
+    ['cls',/\b[A-Z][\w$]*\b/],
+    ['fn',/[A-Za-z_$][\w$]*(?=\s*\()/],
+    ['id',/[A-Za-z_$][\w$]*/],
+    ['pun',/[{}()\[\].;,:=<>|&?!+\-*\/]/],
+    ['ws',/\s+/],
+    ['any',/[\s\S]/]
+  ];
+  var master=new RegExp(pats.map(function(p){return '('+p[1].source+')';}).join('|'),'g');
+  var out='';
+  code.replace(master,function(m){
+    var g=Array.prototype.slice.call(arguments,1,1+pats.length);
+    var i=g.findIndex(function(x){return x!==undefined;});
+    var cls=pats[i][0];
+    if(cls==='ws') out+=m;
+    else if(cls==='id'||cls==='pun'||cls==='any') out+=esc(m);
+    else out+='<span class="t-'+cls+'">'+esc(m)+'</span>';
+    return m;
+  });
+  return out;
 }
 
 function render(DATA){
@@ -156,6 +198,7 @@ function render(DATA){
     if(s.ctor)h+='<div class="subhead">Constructor</div><div class="ctor">'+linkify(s.ctor)+'</div>';
     if(s.obtain)h+='<div class="subhead">Obtain</div><div class="ctor">'+linkify(s.obtain)+'</div>';
     if(s.notes&&s.notes.length){h+='<div class="subhead">Behavior</div><ul class="notes">'+s.notes.map(n=>'<li>'+n+'</li>').join('')+'</ul>';}
+    if(s.example)h+='<div class="subhead">Example</div><pre class="example">'+highlight(s.example)+'</pre>';
     if(s.methods&&s.methods.length){
       h+='<div class="subhead">Methods</div><table><thead><tr><th>Method</th><th>Signature</th><th>Description</th></tr></thead><tbody>';
       s.methods.forEach(m=>{
@@ -260,6 +303,7 @@ render({
    file:"src/cng-access-service.ts",
    desc:"Authenticated root entry point. The CNG sibling of <code>PeekAccessService</code>. Configure one instance per install; it owns the shared authenticated transport (minting/caching tokens on demand) and hands out the <code>CngProductService</code>. Auth: the same app JWT (<code>X-Peek-Auth: Bearer</code>) minted from Peek app credentials via the shared <code>TokenManager</code>, routed through the app-registry installations API. No <code>pk-api-key</code> header.",
    ctor:"constructor(config: CngAccessServiceConfig)",
+   example:"import { CngAccessService } from \"@peektravel/app-utilities\";\n\nconst cng = new CngAccessService({\n  installId: \"install_123\", // obtained from verifyPeekAuthToken(peekAuthToken).installId\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n});\n\n// every activity as one flat list\nconst activities = await cng.getProductService().getAllActivities();",
    notes:[
      "<code>CngAccessServiceConfig</code> is a type alias for <code>BaseAccessServiceConfig</code> — CNG adds no fields (authenticates on the app JWT alone, no <code>gatewayKey</code>).",
      "Validates <code>installId</code>, <code>jwtSecret</code>, <code>issuer</code> non-empty via <code>requireNonEmpty</code> — throws <code>Error</code> (<code>CngAccessService: \"&lt;field&gt;\" is required</code>).",
@@ -267,8 +311,7 @@ render({
      "When <code>apiUrl</code> is present it is used as-is as the base and the request path is appended; otherwise <code>baseUrl</code> defaults to the app-registry installations API."
    ],
    methods:[
-     {name:"getProductService",sig:"(): CngProductService",desc:"Returns the product service for this install, bound to the shared authenticated transport.",notes:"Lazily created and memoized — repeated calls return the same instance."},
-     {name:"getAllActivities",sig:"(): Promise&lt;Activity[]&gt;",desc:"Top-level short-form: all activities.",notes:"Delegates directly to <code>getProductService().getAllActivities()</code>."}
+     {name:"getProductService",sig:"(): CngProductService",desc:"Returns the product service for this install, bound to the shared authenticated transport.",notes:"Lazily created and memoized — repeated calls return the same instance."}
    ]
   },
   {
@@ -282,6 +325,16 @@ render({
   }
  ],
  models:[
+  {name:"AccessOptions",kind:"input",file:"src/access-options.ts",
+   desc:"Cross-cutting access options passed once at construction via the config's <code>accessOptions</code> field. Governs customer-PII exposure. Inert for CNG today (it reads no customer data), but accepted for parity with the Peek accessor.",
+   fields:[{name:"fullCustomerAccess",type:"boolean",n:"opt",desc:"Expose customer PII and enable payment/modification ops (default false)."}]},
+  {name:"Logger",kind:"interface",file:"src/logger.ts",
+   desc:"Optional logger passed via the config's <code>logger</code> field. <code>noopLogger</code> (a silent implementation) is the exported default.",
+   fields:[
+    {name:"info",type:"(message: string, context?: Record&lt;string, unknown&gt;) =&gt; void",n:false,desc:"Informational log."},
+    {name:"warn",type:"(message: string, context?: Record&lt;string, unknown&gt;) =&gt; void",n:false,desc:"Warning log."},
+    {name:"error",type:"(message: string, context?: Record&lt;string, unknown&gt;) =&gt; void",n:false,desc:"Error log."}
+   ]},
   {name:"CngAccessServiceConfig",kind:"config",file:"src/cng-access-service.ts",
    desc:"Constructor config for <code>CngAccessService</code>. A plain type alias of <code>BaseAccessServiceConfig</code> — CNG adds no fields (it authenticates on the app JWT alone, no <code>gatewayKey</code>). Required fields throw from the constructor when empty.",
    fields:[

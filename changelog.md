@@ -12,6 +12,25 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## Unreleased
+
+### `[deprecated]` Access-service short-form methods
+
+- **What:** The top-level short-form methods on `PeekAccessService`,
+  `CngAccessService`, and `AcmeAccessService` that delegate straight to a
+  resource-service method — e.g. `peek.getAllProducts()`,
+  `peek.getAllActivities()`, `peek.createBooking(...)`, `cng.getAllActivities()`,
+  `acme.getAllActivities()` — are now marked `@deprecated`. They still work
+  unchanged.
+- **Why:** An access service should expose only its `get…Service()` accessors;
+  the short-forms duplicated the resource-service surface.
+- **Caller action:** Reach these through the service accessor instead — e.g.
+  `peek.getProductService().getAllProducts()`,
+  `cng.getProductService().getAllActivities()`. Nothing breaks today, but migrate
+  off the short-forms; they may be removed in a future release.
+
+---
+
 ## 0.8.1
 
 ### `[additive]` CNG missing-permission 403s throw a typed `CngPermissionError`

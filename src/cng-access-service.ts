@@ -46,7 +46,7 @@ export type CngAccessServiceConfig = BaseAccessServiceConfig;
  *   appId: process.env.PEEK_APP_ID!,
  * });
  *
- * const activities: Activity[] = await cng.getAllActivities();
+ * const activities: Activity[] = await cng.getProductService().getAllActivities();
  * ```
  *
  * @throws {Error} from the constructor when any required config field
@@ -89,7 +89,7 @@ export class CngAccessService {
     return this.productService;
   }
 
-  /** All activities. Delegates to {@link CngProductService.getAllActivities}. */
+  /** All activities. @deprecated The access service exposes only its resource-service accessors; call the service directly instead. See {@link CngProductService.getAllActivities}. */
   getAllActivities() {
     return this.getProductService().getAllActivities();
   }

@@ -7,9 +7,8 @@ point (`PeekAccessService`) that hands out per-resource services returning clean
 plain-object data models.
 
 Consumers never see GraphQL. They construct one access service per install and
-call typed methods like `peek.getProductService().getAllProducts()` or directly
-via the top-level short-forms like `peek.getAllProducts()` and
-`peek.getAllActivities()`.
+call typed methods on the per-resource services, e.g.
+`peek.getProductService().getAllProducts()`.
 
 The package also ships **sibling accessors for other backoffices** —
 `CngAccessService` and `AcmeAccessService` (both REST, not GraphQL). They reuse
@@ -56,8 +55,12 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
 - Constructs a single shared `TokenManager` and `GraphQLClient`.
 - Exposes one `get<Resource>Service()` accessor per resource. Each is **lazily
   created and memoized** — repeated calls return the same instance.
-- Exposes **top-level short-form methods** that delegate directly to the
-  underlying service, e.g. `peek.getAllProducts()` → `peek.getProductService().getAllProducts()`. Every public service method has a named proxy on `PeekAccessService`; the names are prefixed with the resource noun where disambiguation is needed (e.g. `getBookingById`, `getTimeslotById`).
+- Historically exposed **top-level short-form methods** that delegate directly to
+  the underlying service (e.g. `peek.getAllProducts()` →
+  `peek.getProductService().getAllProducts()`). These are now **`@deprecated`** —
+  callers should reach a resource-service method through its
+  `get<Resource>Service()` accessor, and no new short-forms should be added. The
+  existing ones remain for backwards-compatibility only.
 - Exposes `verifyPeekAuthToken(token)` to verify HMAC-signed JWTs issued by
   the Peek app registry (`iss: "app_registry_v2"`, `aud: "Joken"`), returning
   a fully typed `PeekAuthTokenClaims` (including the nested `PeekAuthTokenUser`,
@@ -467,7 +470,7 @@ plumbing rather than forking the package.
   `jwtSecret`, `issuer`, `appId`; **no `gatewayKey`** — the CNG gateway needs no
   `pk-api-key`). Builds the shared `TokenManager` and a `RestClient`, defaults
   the base URL to the app-registry installations API, and exposes
-  `getProductService()` + the short-form `getAllActivities()`.
+  `getProductService()` (plus a deprecated `getAllActivities()` short-form).
 - **`RestClient`** (`src/internal/cng/rest-client.ts`) — the REST sibling of
   `GraphQLClient`. Builds `${baseUrl}/${appId}/${extendableSlug}/${path}` with
   `extendableSlug = cng_backoffice_api-v1`, GETs it with `X-Peek-Auth: Bearer`
@@ -659,8 +662,8 @@ Load-bearing rules:
   attribute (booleans as presence, objects as JSON, scalars as strings) so the
   prop takes effect; otherwise it is a no-op for derived/imperative state
   (`isOpen`). The static `.d.ts` types keep these accessors read-only — the
-  setters are a runtime-only safety net. Documented for consumers in `docs/ui.md`
-  §3.5 and the README.
+  setters are a runtime-only safety net. Documented for consumers in the shipped
+  `dist/ui/index.d.ts` TSDoc and the README.
 - **Dependency-free & token-based.** No `ember-power-select`/`-calendar`,
   `svg-jar`, or bootstrap. Colours/spacing reference the `tokens.css` custom
   properties; icons are inlined; button variant colours (which live in a

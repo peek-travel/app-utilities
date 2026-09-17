@@ -47,6 +47,10 @@ out, and the clean data models — never raw GraphQL.
     root `*AccessService`.
   - Keep the root access-service card lean — no free-form "Behavior" `notes`
     block on it; put per-method detail on the methods themselves.
+  - The access-service card lists only its `get…Service()` accessors (and genuine
+    access-level methods like `verifyPeekAuthToken`) — never the deprecated
+    short-form proxies. Its `example` should reach data through a service
+    accessor (e.g. `peek.getProductService().getAllProducts()`), not a short-form.
   - **Model inheritance is expressed with `extends`, never by copying fields.**
     When a model type extends another (e.g. `PeekAccessServiceConfig extends
     BaseAccessServiceConfig`), give the child model an `extends: "ParentName"`
@@ -54,6 +58,17 @@ out, and the clean data models — never raw GraphQL.
     the parent's fields as inherited rows automatically (following the chain), so
     do not re-list inherited fields on the child. The parent must exist as its
     own model entry in the same file.
+  - **No dangling type references — if a type is referenced, document it.** Every
+    named type that appears in a method signature, a field/property type, an
+    `extends`, or a union `def` (e.g. `AccessOptions`, `Logger`,
+    `PeekAuthTokenClaims`, `ResourcePoolMode`, `NoteMode`, `AddAddonInput`) MUST
+    have its own model entry in that same file, so the auto-link resolves and the
+    reader can follow it. Shared config types like `AccessOptions` and `Logger`
+    are referenced by CNG/ACME too, so they must be documented in `cng.html` and
+    `acme.html` as well as `peek.html` — a type is not "documented" just because
+    it exists in another page. Enum/union aliases use a `kind:"type"` entry with a
+    `def` string (no fields). When you add a field or method whose type names a
+    not-yet-documented type, add that type in the same change.
   - **Keep transport/implementation detail out of the copy.** These pages
     document the caller-facing surface — service classes, methods, and clean
     models — not how the package talks to the gateway. Do not mention GraphQL vs
@@ -63,6 +78,28 @@ out, and the clean data models — never raw GraphQL.
     apply). The one deliberate exception is a single, low-key `GraphQLClient`
     reference in the `PeekAccessService` description; keep it deemphasized (do not
     reintroduce it into the hero subtitle or elsewhere).
+- **`docs/html/ui.html` is the canonical UI-component reference** — the same shell
+  as the platform pages (left-nav, filter, light/dark toggle) but with every
+  `<ody-*>` component **rendered live**. (It supersedes the old `docs/ui.md`,
+  which was removed; the authoritative per-component contract is the shipped
+  `dist/ui/index.d.ts` TSDoc.) It renders the real components by loading vendored
+  build artifacts from `docs/html/assets/`: `odyssey.iife.js` (a classic-script
+  IIFE bundle of `src/ui`, chosen over an ESM module so it also works when the
+  file is opened over `file://`), plus `odyssey.css` and `tokens.css`. Keep
+  `ui.html` in sync with the components (`src/ui`) and their TSDoc, and
+  **regenerate the vendored assets whenever `src/ui` changes**:
+
+  ```bash
+  npm run build   # tsup → dist/ui/index.js + dist/ui/{odyssey,tokens}.css
+  node node_modules/esbuild/bin/esbuild dist/ui/index.js --bundle \
+    --format=iife --global-name=OdysseyUI --outfile=docs/html/assets/odyssey.iife.js
+  cp dist/ui/odyssey.css dist/ui/tokens.css docs/html/assets/
+  ```
+
+  The page catalog lives in the `render([...])` data at the bottom of `ui.html`
+  (each component: tag, `use`, `demo` markup rendered live, attribute/property/
+  event tables; a few need an `init` hook run after `whenOdysseyReady`). Add new
+  platform/UI pages to `docs/index.html` too.
 - Ensure test coverage remains above 95% (the Vitest gate enforces this on
   lines/functions/branches/statements).
 - Unless told otherwise, after everything is done, run the linter and fix any
@@ -93,7 +130,16 @@ Preserve the structure described in `docs/internal/ARCHITECTURE.md`. The load-be
     `GraphQLClient`, then runs the converter.
 - A resource may split into more than one triad when it carries a distinct
   sub-domain (e.g. `bookings` has `booking-*` plus `addon-*`).
-- **Public API surface (`src/index.ts`) exposes only the clean contract**:
+- **An access service exposes only its resource-service accessors.** The root
+  `*AccessService` (`PeekAccessService` / `CngAccessService` / `AcmeAccessService`)
+  should hand out the per-resource service classes via its `get…Service()`
+  accessors (plus genuine access-level concerns like `verifyPeekAuthToken`), and
+  nothing else. Do **not** add new top-level "short-form" proxy methods that
+  delegate straight to a resource-service method (e.g. `getAllActivities()` →
+  `getProductService().getAllActivities()`) — callers should reach those through
+  the service accessor. The existing short-forms are retained for
+  backwards-compatibility but are marked `@deprecated`; keep them deprecated,
+  don't add more, and don't promote them in examples or docs.
   `PeekAccessService` + config, the resource service classes and the
   option/result types callers need, the data-model **types**, `Logger` /
   `noopLogger`, and the typed error classes. Query strings, raw response

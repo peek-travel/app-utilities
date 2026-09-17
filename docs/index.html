@@ -37,6 +37,18 @@
   a.platform .kind{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px}
   a.platform .blurb{color:var(--muted);font-size:13.5px;margin-top:12px}
   footer{width:100%;max-width:860px;margin-top:48px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--border);padding-top:16px}
+  .terminal{width:100%;max-width:860px;margin-top:18px;background:#0b0f14;border:1px solid #2a3441;border-radius:12px;overflow:hidden;font-family:var(--mono)}
+  .terminal .tbar{display:flex;align-items:center;gap:7px;padding:9px 14px;border-bottom:1px solid #1f2630;background:#11161d}
+  .terminal .tbar i{width:11px;height:11px;border-radius:50%;display:inline-block}
+  .terminal .tbar i.r{background:#ff5f57}.terminal .tbar i.y{background:#febc2e}.terminal .tbar i.g{background:#28c840}
+  .terminal .tbar .ttl{margin-left:8px;color:#8b949e;font-size:12px}
+  .terminal .tbar .copy{margin-left:auto;background:#1c2330;border:1px solid #2a3441;color:#c9d1d9;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+  .terminal .tbar .copy:hover{border-color:#58a6ff;color:#58a6ff}
+  .terminal pre{margin:0;padding:16px 18px;color:#e6edf3;font-size:13px;line-height:1.7;overflow-x:auto;white-space:pre}
+  .terminal .p{color:#3fb950;user-select:none}
+  .terminal .c{color:#8b949e}
+  .terminal .pkg{color:#79c0ff}
+  p.installnote{width:100%;max-width:860px;color:var(--muted);font-size:13.5px;margin:18px 0 0}
 </style>
 </head>
 <body>
@@ -45,7 +57,7 @@
   <span class="tag">@peektravel/app-utilities</span>
   <span class="pkgbadge">TypeScript · npm package</span>
   <h1>Reference</h1>
-  <p>Interactive reference for the top-level service classes and the clean data models each returns.</p>
+  <p>Interactive reference for the top-level service classes and the clean data models each returns, plus the Odyssey UI web components.</p>
 </header>
 
 <h2 class="section">Available Platforms</h2>
@@ -67,7 +79,45 @@
   </a>
 </div>
 
-<footer>All three siblings share the same auth, retry/backoff, logging, and base error types — callers touch only the access services and the clean data models.</footer>
+<h2 class="section">UI Toolkit</h2>
+<div class="grid">
+  <a class="platform" href="html/ui.html" data-base="html/ui.html">
+    <div class="name">UI Components <span class="arrow">→</span></div>
+    <div class="kind">@peektravel/app-utilities/ui</div>
+    <div class="blurb">The Odyssey <code>&lt;ody-*&gt;</code> web components — buttons, inputs, tables, dropdowns, datepicker, overlays, and more — each <strong>rendered live</strong>.</div>
+  </a>
+</div>
+
+<h2 class="section">Install</h2>
+<div class="terminal">
+  <div class="tbar">
+    <i class="r"></i><i class="y"></i><i class="g"></i>
+    <span class="ttl">bash</span>
+    <button class="copy" id="copyInstall" data-cmd="npm install @peektravel/app-utilities">Copy</button>
+  </div>
+<pre><span class="p">$</span> npm install <span class="pkg">@peektravel/app-utilities</span>
+
+<span class="c"># …or with pnpm / yarn</span>
+<span class="p">$</span> pnpm add <span class="pkg">@peektravel/app-utilities</span>
+<span class="p">$</span> yarn add <span class="pkg">@peektravel/app-utilities</span></pre>
+</div>
+
+<p class="installnote">Then import what you need — the access services and models from the package root, and the Odyssey web components from the <code>/ui</code> subpath:</p>
+<div class="terminal">
+  <div class="tbar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="ttl">app entry · TypeScript</span></div>
+<pre><span class="c">// access service + data models</span>
+import { PeekAccessService } from <span class="pkg">"@peektravel/app-utilities"</span>;
+
+<span class="c">// UI web components — registers every &lt;ody-*&gt; element once</span>
+import <span class="pkg">"@peektravel/app-utilities/ui"</span>;
+import <span class="pkg">"@peektravel/app-utilities/ui/tokens.css"</span>;
+import <span class="pkg">"@peektravel/app-utilities/ui/odyssey.css"</span>;</pre>
+</div>
+
+<footer>
+  <div>All three siblings share the same auth, retry/backoff, logging, and base error types — callers touch only the access services and the clean data models.</div>
+  <div style="margin-top:10px"><a href="https://github.com/peek-travel/app-utilities" target="_blank" rel="noopener">GitHub — peek-travel/app-utilities ↗</a></div>
+</footer>
 
 <script>
   // carry the theme choice across pages via ?theme= (file:// localStorage is isolated in some browsers)
@@ -83,6 +133,15 @@
     document.documentElement.setAttribute('data-theme',cur);
     try{localStorage.setItem('theme',cur);}catch(e){}
     syncThemeLinks(cur);
+  });
+
+  // copy the install command
+  const ci=document.getElementById('copyInstall');
+  if(ci)ci.addEventListener('click',()=>{
+    const cmd=ci.getAttribute('data-cmd');
+    const done=()=>{const o=ci.textContent;ci.textContent='Copied';setTimeout(()=>{ci.textContent=o;},1200);};
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(cmd).then(done).catch(done);}
+    else{try{const t=document.createElement('textarea');t.value=cmd;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);done();}catch(e){}}
   });
 </script>
 </body>

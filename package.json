@@ -39,7 +39,6 @@
   "files": [
     "dist",
     "llms.txt",
-    "docs/ui.md",
     "docs/webhooks.md"
   ],
   "sideEffects": [
