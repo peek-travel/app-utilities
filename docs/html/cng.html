@@ -33,6 +33,7 @@
   #brand{padding:18px 20px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:2}
   #brand h1{margin:0;font-size:16px;letter-spacing:.3px}
   #brand .tag{display:inline-block;margin-top:6px;font-size:11px;color:var(--bg);background:var(--accent2);padding:2px 8px;border-radius:10px;font-weight:600}
+  .pkgbadge{display:inline-block;margin:6px 0 0 6px;font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-family:var(--mono)}
   #brand .links{margin-top:10px;font-size:12px;display:flex;gap:12px}
   .themebtn{margin-left:auto;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:2px 9px;cursor:pointer;font-size:13px;line-height:1.4}
   .themebtn:hover{border-color:var(--accent);color:var(--accent)}
@@ -90,6 +91,7 @@
   <div id="brand">
     <h1>CNG Platform</h1>
     <span class="tag">@peektravel/app-utilities</span>
+    <span class="pkgbadge">TypeScript · npm package</span>
     <div class="links">
       <a href="peek.html">Peek →</a><a href="acme.html">ACME →</a>
       <button id="themeBtn" class="themebtn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
@@ -134,11 +136,11 @@ function render(DATA){
   LINK_RE=new RegExp('\\b('+_names.join('|')+')\\b','g');
   const nav=document.getElementById('nav'), content=document.getElementById('content');
 
-  nav.appendChild(el('div','navgroup','Service Classes'));
-  DATA.services.forEach(s=>{
-    const a=el('a','navitem');a.dataset.target='svc-'+slug(s.name);
-    a.innerHTML='<span class="k">'+s.name+'</span>';nav.appendChild(a);
-  });
+  const _isAccess=s=>/AccessService$/.test(s.name);
+  const _access=DATA.services.filter(_isAccess), _rest=DATA.services.filter(s=>!_isAccess(s));
+  function _navSvc(s){const a=el('a','navitem');a.dataset.target='svc-'+slug(s.name);a.innerHTML='<span class="k">'+s.name+'</span>';nav.appendChild(a);}
+  if(_access.length){nav.appendChild(el('div','navgroup','Access Service'));_access.forEach(_navSvc);}
+  if(_rest.length){nav.appendChild(el('div','navgroup','Service Classes'));_rest.forEach(_navSvc);}
   nav.appendChild(el('div','navgroup','Data Models'));
   DATA.models.forEach(m=>{
     const a=el('a','navitem');a.dataset.target='mdl-'+slug(m.name);
