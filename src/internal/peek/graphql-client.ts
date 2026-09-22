@@ -6,6 +6,7 @@
  */
 import { PeekGraphQLError, PeekHttpError } from "../../errors.js";
 import { parseBody, requestWithRetry } from "../http-transport.js";
+import { SDK_HEADER_NAME, SDK_HEADER_VALUE } from "../sdk-headers.js";
 import type { Logger } from "../../logger.js";
 
 /** The raw body of a GraphQL HTTP response. */
@@ -115,6 +116,7 @@ export class GraphQLClient {
     const headers: Record<string, string> = {
       "X-Peek-Auth": `Bearer ${this.options.getToken()}`,
       "Content-Type": "application/json",
+      [SDK_HEADER_NAME]: SDK_HEADER_VALUE,
     };
     if (this.options.gatewayKey) {
       headers["pk-api-key"] = this.options.gatewayKey;

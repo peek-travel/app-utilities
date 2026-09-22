@@ -255,10 +255,35 @@ gates every operation that touches customer financial data —
 
 # Versioning
 
-**Do not change the `version` in `package.json` unless the user explicitly asks
-for it.** Code changes alone do not warrant a version bump. The package follows
-`major.minor.patch` semver independently of the connector. Note `0.0.0` is the
+**Always bump the `version` in `package.json` when opening a PR**, to the
+`major.minor.patch` semver level that matches the change the PR carries. The
+package versions independently of the connector. Note `0.0.0` is the
 pre-release placeholder and cannot be re-published once a real version ships.
+
+Pick the level from the most significant change in the PR:
+
+- **major** — a breaking change: a removed/renamed public export, a changed
+  method signature or return shape, an altered default, or anything a consumer
+  must update their code for (i.e. anything you'd tag `[breaking]` in
+  `changelog.md`).
+- **minor** — new caller-visible capability with no break: a new service,
+  method, model, field, or option; a new deprecation.
+- **patch** — a caller-visible fix with no new surface, or a release that only
+  carries internal work (refactors, tests, docs, build).
+
+Do **not** bump mid-stream while iterating on a branch — set the version once,
+as part of preparing the PR, so a branch carries exactly one bump.
+
+Everything that names the version must move together in that same commit:
+
+- `package.json` `version`
+- `package-lock.json` — the two root `version` fields (lines ~3 and ~9)
+- `SDK_VERSION` in `src/internal/sdk-headers.ts`, which feeds the outbound
+  `x-peek-sdk: js-<version>` header. `test/sdk-headers.test.ts` is a drift guard
+  that fails if it does not equal `package.json#version`.
+- `changelog.md` — rename the `## Unreleased` heading to the new version, so the
+  entries ship under the version that actually contains them, and fix any
+  version literal quoted in those entries.
 
 # Build / test commands
 
@@ -293,3 +318,5 @@ install-script spawn — use `npm install --ignore-scripts`. If the
 - Update the matching `docs/html/*.html` reference (`peek`/`cng`/`acme`) if any
   service class, public method, or data model in that domain changed.
 - Record any caller-visible change (and, for breaking ones, the caller's required action) in `changelog.md`.
+- Before opening the PR, bump the version at the matching semver level and
+  update everything that names it — see **Versioning**.

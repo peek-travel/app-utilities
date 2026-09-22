@@ -12,6 +12,7 @@ import {
 } from "../../../src/internal/peek/graphql-client.js";
 import { ProductService } from "../../../src/internal/peek/products/product-service.js";
 import { noopLogger, type Logger } from "../../../src/logger.js";
+import { SDK_HEADER_VALUE } from "../../../src/internal/sdk-headers.js";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return {
@@ -177,6 +178,7 @@ describe("ProductService.getAllProducts", () => {
     expect(headers["X-Peek-Auth"]).toBe("Bearer tok-123");
     expect(headers["pk-api-key"]).toBe("gw-key");
     expect(headers["Content-Type"]).toBe("application/json");
+    expect(headers["x-peek-sdk"]).toBe(SDK_HEADER_VALUE);
   });
 
   it("uses the configured item-options page size", async () => {

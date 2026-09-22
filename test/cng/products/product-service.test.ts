@@ -12,6 +12,7 @@ import {
 } from "../../../src/internal/cng/rest-client.js";
 import { CngProductService } from "../../../src/internal/cng/products/product-service.js";
 import { noopLogger, type Logger } from "../../../src/logger.js";
+import { SDK_HEADER_VALUE } from "../../../src/internal/sdk-headers.js";
 
 function textResponse(body: unknown, status = 200): Response {
   const text = typeof body === "string" ? body : JSON.stringify(body);
@@ -88,6 +89,7 @@ describe("CngProductService.getAllActivities", () => {
     expect(headers["X-Peek-Auth"]).toBe("Bearer tok-123");
     expect(headers["Content-Type"]).toBe("application/json");
     expect(headers["pk-api-key"]).toBeUndefined();
+    expect(headers["x-peek-sdk"]).toBe(SDK_HEADER_VALUE);
   });
 
   it("returns an empty list when the payload has no data array", async () => {
