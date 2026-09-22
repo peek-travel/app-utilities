@@ -126,7 +126,7 @@ Responsibilities:
   every operation routes through the single `sales` endpoint
   (`gateway-endpoints.ts`).
 - Sets headers: `X-Peek-Auth: Bearer <jwt>`, `pk-api-key: <gatewayKey>`,
-  `Content-Type: application/json`.
+  `Content-Type: application/json`, `x-peek-sdk: js-<package version>`.
 - Collapses query whitespace (`\s+` → single space) before sending.
 - Retries HTTP 429 using the configured backoff delays, then throws
   `RateLimitError`.
@@ -140,6 +140,21 @@ Responsibilities:
     `.graphqlErrors`)
   - other non-2xx → `PeekHttpError` (carries `.statusCode`, `.url`, and raw
     `.body`).
+
+#### 3b. `x-peek-sdk` — SDK identification header
+`src/internal/sdk-headers.ts`
+
+All three transports (Peek `GraphQLClient`, CNG `RestClient`, ACME `RestClient`)
+send `x-peek-sdk: js-<version>` on every request so the downstream platforms can
+attribute traffic to this package and its version. The module exports
+`SDK_HEADER_NAME`, `SDK_VERSION`, and the precomputed `SDK_HEADER_VALUE`; it is
+internal and not re-exported from `src/index.ts`.
+
+The version is a **static literal**, not a runtime `package.json` read: the dual
+ESM+CJS build has no portable self-location (`import.meta.url` is ESM-only,
+`__dirname` CJS-only), and a const keeps the package dependency-light and
+tree-shakeable. `test/sdk-headers.test.ts` is a drift guard that asserts
+`SDK_VERSION === package.json#version` — **bump both together**.
 
 ### 4. Per-resource services
 `src/internal/peek/<resource>/`
@@ -474,7 +489,8 @@ plumbing rather than forking the package.
 - **`RestClient`** (`src/internal/cng/rest-client.ts`) — the REST sibling of
   `GraphQLClient`. Builds `${baseUrl}/${appId}/${extendableSlug}/${path}` with
   `extendableSlug = cng_backoffice_api-v1`, GETs it with `X-Peek-Auth: Bearer`
-  (no `pk-api-key`, no `{query,variables}` body), and runs through the shared
+  and `x-peek-sdk` (no `pk-api-key`, no `{query,variables}` body), and runs
+  through the shared
   `requestWithRetry` loop. Reads the body with the shared `parseBody` helper
   (`http-transport.ts`) — JSON with a raw-text fallback when unparseable — the
   same helper the Peek `GraphQLClient` and ACME `RestClient` use. Status mapping:
@@ -528,7 +544,8 @@ routing, endpoint, and response shape differ:
 - **`RestClient`** (`src/internal/acme/rest-client.ts`) — the CNG REST client
   cloned with `extendableSlug = acme_backoffice_api-v1` (same `-v1` separator
   as CNG/Peek), logging `"Making ACME request"` and throwing
-  `AcmeApiError` on non-2xx.
+  `AcmeApiError` on non-2xx. Sends the same `X-Peek-Auth` / `x-peek-sdk`
+  headers (§3b).
 - **Products triad** (`src/internal/acme/products/`) — `product-queries.ts`
   (raw `TemplateNode`/`TemplatesResponse` for the `{ list: [...] }` envelope,
   plus the `PUBLISHED_REVIEW_STATE` constant, internal), `product-converter.ts`

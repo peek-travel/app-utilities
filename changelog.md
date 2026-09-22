@@ -14,6 +14,16 @@ action needed; `[additive]` only adds capability.
 
 ## Unreleased
 
+### `[additive]` Every gateway request now sends an `x-peek-sdk` header
+
+- **What:** All outbound requests to the Peek, CNG, and ACME platforms now carry
+  an `x-peek-sdk` header whose value is `js-<package version>` (e.g.
+  `js-0.8.2`), alongside the existing `X-Peek-Auth` / `pk-api-key` headers.
+- **Why:** So the downstream platforms can attribute traffic to this SDK and the
+  version in use, for support and deprecation planning.
+- **Caller action:** None. If you assert on the exact set of outbound request
+  headers in your own tests (or filter them at a proxy), expect the extra header.
+
 ### `[deprecated]` Access-service short-form methods
 
 - **What:** The top-level short-form methods on `PeekAccessService`,

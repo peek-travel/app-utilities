@@ -12,6 +12,7 @@
  */
 import { AcmeApiError } from "../../errors.js";
 import { parseBody, requestWithRetry } from "../http-transport.js";
+import { SDK_HEADER_NAME, SDK_HEADER_VALUE } from "../sdk-headers.js";
 import type { Logger } from "../../logger.js";
 
 export interface RestClientOptions {
@@ -88,6 +89,7 @@ export class RestClient {
     return {
       "X-Peek-Auth": `Bearer ${this.options.getToken()}`,
       "Content-Type": "application/json",
+      [SDK_HEADER_NAME]: SDK_HEADER_VALUE,
     };
   }
 }
