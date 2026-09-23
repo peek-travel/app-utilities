@@ -5,6 +5,7 @@
  * mapping live in `./http-transport.ts` (used by the CNG REST transport too).
  */
 import { PeekGraphQLError, PeekHttpError } from "../../errors.js";
+import { ApiEndpoints, joinUrl } from "../api-endpoints.js";
 import { parseBody, requestWithRetry } from "../http-transport.js";
 import { SDK_HEADER_NAME, SDK_HEADER_VALUE } from "../sdk-headers.js";
 import type { Logger } from "../../logger.js";
@@ -21,19 +22,13 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 
 export interface GraphQLClientOptions {
   /**
-   * The install's app endpoint URL (the install webhook's `apiUrl`). When set it
-   * is the **sole request URL** — every GraphQL call POSTs to it unmodified, and
-   * `baseUrl`/`appId`/`endpointPathPrefix`/`endpointName` are ignored for URL
-   * construction. Takes precedence over `baseUrl`.
+   * The install's **base API URL** (no trailing slash, no routing slug). Every
+   * GraphQL call POSTs to `baseApiUrl/<slug>`, where the slug comes from
+   * {@link endpoints} for the request's endpoint name.
    */
-  apiUrl?: string;
-  /**
-   * Base URL of the backoffice GraphQL gateway (no trailing slash). Used only
-   * when `apiUrl` is not set; the URL is `baseUrl/appId/[prefix/]endpointName`.
-   */
-  baseUrl?: string;
-  /** Peek app ID, used in the endpoint path (legacy `baseUrl` mode only). */
-  appId?: string;
+  baseApiUrl: string;
+  /** Maps an endpoint name to the relative slug appended to {@link baseApiUrl}. */
+  endpoints: ApiEndpoints;
   /** API gateway key sent as the `pk-api-key` header. Omitted from headers when absent (v2 mode). */
   gatewayKey?: string;
   /** Supplies a valid bearer token for each request. */
@@ -44,11 +39,6 @@ export interface GraphQLClientOptions {
   logger: Logger;
   /** `fetch` implementation to use. */
   fetchFn: typeof fetch;
-  /**
-   * Optional fixed path segment inserted between `appId` and the endpoint name.
-   * Used in v2 mode: `baseUrl/appId/endpointPathPrefix/endpointName`.
-   */
-  endpointPathPrefix?: string;
 }
 
 export class GraphQLClient {
@@ -105,11 +95,8 @@ export class GraphQLClient {
   }
 
   private endpoint(endpointName: string): string {
-    const { apiUrl, baseUrl, appId, endpointPathPrefix } = this.options;
-    // The registry-provided app endpoint is the only URL — hit it as given.
-    if (apiUrl) return apiUrl;
-    const prefix = endpointPathPrefix ? `${endpointPathPrefix}/` : "";
-    return `${baseUrl}/${appId}/${prefix}${endpointName}`;
+    const { baseApiUrl, endpoints } = this.options;
+    return joinUrl(baseApiUrl, endpoints.pathFor(endpointName));
   }
 
   private buildHeaders(): Record<string, string> {

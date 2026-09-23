@@ -1,51 +1,61 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveApiUrl } from "../src/access-service-config.js";
+import { resolveBaseApiUrl } from "../src/access-service-config.js";
 
 const PEEK_SLUG = "peek_backoffice_api-v1";
 
-describe("resolveApiUrl", () => {
-  it("appends the slug when the URL has no platform extension", () => {
+describe("resolveBaseApiUrl", () => {
+  it("returns the URL unchanged when it carries no slug", () => {
     expect(
-      resolveApiUrl(
+      resolveBaseApiUrl(
         "https://apps.peek.com/installations-api/google-things-to-do-integration",
         PEEK_SLUG,
         "PeekAccessService",
       ),
     ).toBe(
-      "https://apps.peek.com/installations-api/google-things-to-do-integration/peek_backoffice_api-v1",
+      "https://apps.peek.com/installations-api/google-things-to-do-integration",
     );
   });
 
-  it("trims a trailing slash before appending the slug", () => {
+  it("trims a trailing slash", () => {
     expect(
-      resolveApiUrl("https://x.test/demo-app/", PEEK_SLUG, "PeekAccessService"),
-    ).toBe("https://x.test/demo-app/peek_backoffice_api-v1");
+      resolveBaseApiUrl("https://x.test/demo-app/", PEEK_SLUG, "PeekAccessService"),
+    ).toBe("https://x.test/demo-app");
   });
 
-  it("accepts the URL unchanged when its extension already matches (underscore)", () => {
-    const url = "https://x.test/demo-app/peek_backoffice_api-v1";
-    expect(resolveApiUrl(url, PEEK_SLUG, "PeekAccessService")).toBe(url);
-  });
-
-  it("accepts a matching extension spelled with dashes", () => {
-    const url = "https://x.test/demo-app/peek-backoffice-api-v1";
-    expect(resolveApiUrl(url, PEEK_SLUG, "PeekAccessService")).toBe(url);
-  });
-
-  it("trims a trailing slash on an already-extended URL", () => {
+  it("strips this platform's slug (underscore) back to the base", () => {
     expect(
-      resolveApiUrl(
+      resolveBaseApiUrl(
+        "https://x.test/demo-app/peek_backoffice_api-v1",
+        PEEK_SLUG,
+        "PeekAccessService",
+      ),
+    ).toBe("https://x.test/demo-app");
+  });
+
+  it("strips a matching slug spelled with dashes", () => {
+    expect(
+      resolveBaseApiUrl(
+        "https://x.test/demo-app/peek-backoffice-api-v1",
+        PEEK_SLUG,
+        "PeekAccessService",
+      ),
+    ).toBe("https://x.test/demo-app");
+  });
+
+  it("strips the slug even with a trailing slash", () => {
+    expect(
+      resolveBaseApiUrl(
         "https://x.test/demo-app/peek_backoffice_api-v1/",
         PEEK_SLUG,
         "PeekAccessService",
       ),
-    ).toBe("https://x.test/demo-app/peek_backoffice_api-v1");
+    ).toBe("https://x.test/demo-app");
   });
 
-  it("throws when the URL carries a different platform's extension", () => {
+  it("throws when the URL carries a different platform's slug", () => {
     expect(() =>
-      resolveApiUrl(
+      resolveBaseApiUrl(
         "https://x.test/demo-app/cng_backoffice_api-v1",
         PEEK_SLUG,
         "PeekAccessService",

@@ -14,7 +14,7 @@ import { DailyNoteService } from "./internal/peek/daily-notes/daily-note-service
 import {
   createTokenManager,
   requireNonEmpty,
-  resolveApiUrl,
+  resolveBaseApiUrl,
   DEFAULT_RETRY_DELAYS_MS,
   type BaseAccessServiceConfig,
 } from "./access-service-config.js";
@@ -39,7 +39,10 @@ import {
 } from "./internal/peek/products/product-service.js";
 import { PromoCodeService } from "./internal/peek/promo-codes/promo-code-service.js";
 import { PricingService } from "./internal/peek/pricing/pricing-service.js";
-import { V2_EXTENDABLE_SLUG } from "./internal/peek/gateway-endpoints.js";
+import {
+  V2_EXTENDABLE_SLUG,
+  peekApiEndpoints,
+} from "./internal/peek/gateway-endpoints.js";
 import { noopLogger } from "./logger.js";
 import type { PeekAuthTokenClaims } from "./models/peek/auth-token.js";
 import type { AvailabilityTimesQuery } from "./models/peek/availability-time.js";
@@ -156,20 +159,23 @@ export class PeekAccessService {
     const logger = config.logger ?? noopLogger;
     const tokens = createTokenManager(config);
 
-    const apiUrl = hasApiUrl
-      ? resolveApiUrl(config.apiUrl!, V2_EXTENDABLE_SLUG, "PeekAccessService")
-      : undefined;
+    // Registry modes (an app-endpoint `apiUrl`, or legacy v2) route the `sales`
+    // endpoint through the `peek_backoffice_api-v1` slug; the legacy v1 gateway
+    // has no slug. `apiUrl` is the base directly (its own slug stripped back off);
+    // otherwise the base is `baseUrl/appId`.
+    const useRegistrySlug = hasApiUrl || isV2;
     const defaultBaseUrl = isV2 ? DEFAULT_V2_BASE_URL : DEFAULT_BASE_URL;
+    const baseApiUrl = hasApiUrl
+      ? resolveBaseApiUrl(config.apiUrl!, V2_EXTENDABLE_SLUG, "PeekAccessService")
+      : `${config.baseUrl ?? defaultBaseUrl}/${config.appId}`;
     this.client = new GraphQLClient({
-      apiUrl,
-      baseUrl: hasApiUrl ? undefined : (config.baseUrl ?? defaultBaseUrl),
-      appId: hasApiUrl ? undefined : config.appId,
+      baseApiUrl,
+      endpoints: peekApiEndpoints(useRegistrySlug),
       gatewayKey: config.gatewayKey,
       getToken: () => tokens.getToken(),
       retryDelaysMs: config.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS,
       logger,
       fetchFn: config.fetch ?? globalThis.fetch,
-      endpointPathPrefix: !hasApiUrl && isV2 ? V2_EXTENDABLE_SLUG : undefined,
     });
 
     this.productServiceOptions = {

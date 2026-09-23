@@ -7,7 +7,7 @@
  * lives. Named `CngProductService` to disambiguate from the Peek
  * `ProductService` in the same package.
  */
-import { PRODUCTS_PATH } from "../endpoints.js";
+import { CNG_PRODUCTS_ENDPOINT, PRODUCTS_PATH } from "../endpoints.js";
 import type { RestClient } from "../rest-client.js";
 import type { Activity } from "../../../models/cng/product.js";
 import { fromProductNodes } from "./product-converter.js";
@@ -25,7 +25,10 @@ export class CngProductService {
    * ```
    */
   async getAllActivities(): Promise<Activity[]> {
-    const body = await this.client.get<ProductsResponse>(PRODUCTS_PATH);
+    const body = await this.client.get<ProductsResponse>(
+      CNG_PRODUCTS_ENDPOINT,
+      PRODUCTS_PATH,
+    );
     return fromProductNodes(body?.data ?? []);
   }
 }

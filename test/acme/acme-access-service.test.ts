@@ -84,7 +84,7 @@ describe("AcmeAccessService", () => {
     );
   });
 
-  it("appends the ACME extendable slug to apiUrl before the REST path", async () => {
+  it("treats apiUrl as the base and inserts the ACME slug before the REST path", async () => {
     const calls: string[] = [];
     const fetchFn = (async (url: string) => {
       calls.push(url);
@@ -105,7 +105,7 @@ describe("AcmeAccessService", () => {
     );
   });
 
-  it("accepts an apiUrl that already carries the ACME slug (dash or underscore)", async () => {
+  it("strips an already-present ACME slug (dash or underscore) back to the base", async () => {
     const calls: string[] = [];
     const fetchFn = (async (url: string) => {
       calls.push(url);
@@ -122,7 +122,7 @@ describe("AcmeAccessService", () => {
     await acme.getAllActivities();
 
     expect(calls[0]).toBe(
-      "https://x.test/demo-app/acme-backoffice-api-v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
+      "https://x.test/demo-app/acme_backoffice_api-v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
     );
   });
 

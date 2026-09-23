@@ -16,6 +16,7 @@
  * {@link CngPermissionError} carrying the named permissions.
  */
 import { CngApiError, CngPermissionError, FORBIDDEN_STATUS } from "../../errors.js";
+import { ApiEndpoints, joinUrl } from "../api-endpoints.js";
 import { parseBody, requestWithRetry } from "../http-transport.js";
 import { SDK_HEADER_NAME, SDK_HEADER_VALUE } from "../sdk-headers.js";
 import type { Logger } from "../../logger.js";
@@ -25,21 +26,13 @@ const PERMISSION_SEPARATOR = ": ";
 
 export interface RestClientOptions {
   /**
-   * The install's app endpoint URL (the install webhook's `apiUrl`). When set it
-   * is the **base URL** and only the REST path is appended (`apiUrl/path`) —
-   * `baseUrl`/`appId`/`extendableSlug` are ignored. Takes precedence over
-   * `baseUrl`.
+   * The install's **base API URL** (no trailing slash, no routing slug). Each
+   * request builds `baseApiUrl/<slug>/<path>`, where the slug comes from
+   * {@link endpoints} for the request's endpoint key.
    */
-  apiUrl?: string;
-  /**
-   * Base URL of the backoffice gateway (no trailing slash). Used only when
-   * `apiUrl` is not set; the URL is `baseUrl/appId/extendableSlug/path`.
-   */
-  baseUrl?: string;
-  /** App ID, used in the endpoint path (legacy `baseUrl` mode only). */
-  appId?: string;
-  /** Fixed extendable slug inserted between `appId` and the REST path (legacy mode). */
-  extendableSlug?: string;
+  baseApiUrl: string;
+  /** Maps an endpoint key to the relative slug appended to {@link baseApiUrl}. */
+  endpoints: ApiEndpoints;
   /** Supplies a valid bearer token for each request. */
   getToken: () => string;
   /** Backoff delays (ms) applied on successive HTTP 429 responses. */
@@ -63,9 +56,9 @@ export class RestClient {
    * @throws {CngPermissionError} on HTTP 403 (app missing a permission)
    * @throws {CngApiError} on any other non-2xx response
    */
-  async get<T>(path: string): Promise<T> {
+  async get<T>(endpoint: string, path: string): Promise<T> {
     const { logger } = this.options;
-    const url = this.endpoint(path);
+    const url = this.endpoint(endpoint, path);
 
     logger.info("Making CNG request", { url, path });
 
@@ -94,11 +87,9 @@ export class RestClient {
     );
   }
 
-  private endpoint(path: string): string {
-    const { apiUrl, baseUrl, appId, extendableSlug } = this.options;
-    // The registry-provided app endpoint is the base — append only the REST path.
-    if (apiUrl) return `${apiUrl}/${path}`;
-    return `${baseUrl}/${appId}/${extendableSlug}/${path}`;
+  private endpoint(endpoint: string, path: string): string {
+    const { baseApiUrl, endpoints } = this.options;
+    return joinUrl(baseApiUrl, endpoints.pathFor(endpoint), path);
   }
 
   private buildHeaders(): Record<string, string> {

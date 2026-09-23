@@ -4,6 +4,7 @@ import {
   GraphQLClient,
   type GraphQLClientOptions,
 } from "../../../src/internal/peek/graphql-client.js";
+import { peekApiEndpoints } from "../../../src/internal/peek/gateway-endpoints.js";
 import { PromoCodeService } from "../../../src/internal/peek/promo-codes/promo-code-service.js";
 import { noopLogger } from "../../../src/logger.js";
 import type { CreatePromoCodeInput, PromoCode } from "../../../src/models/peek/promo-code.js";
@@ -37,8 +38,8 @@ function buildClient(
   overrides: Partial<GraphQLClientOptions> = {},
 ): GraphQLClient {
   return new GraphQLClient({
-    baseUrl: "https://gw.test/gql",
-    appId: "app-1",
+    baseApiUrl: "https://gw.test/gql/app-1",
+    endpoints: peekApiEndpoints(false),
     gatewayKey: "gw-key",
     getToken: () => "tok-123",
     retryDelaysMs: [],

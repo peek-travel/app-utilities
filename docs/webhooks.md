@@ -301,16 +301,17 @@ event**, so persist them alongside `installId`/`accountId`:
 - **`timezone`** — the account's IANA zone (e.g. `America/New_York`). Downstream
   date/time handling for the install (scheduling, day boundaries, display) needs
   the account's own zone, not the server's.
-- **`apiUrl`** — the **app endpoint URL** the registry serves this install from.
+- **`apiUrl`** — the **base API URL** the registry serves this install from.
   Store it and pass it straight through as the access service's **`apiUrl`**: do
-  not decompose it or append your own app id. The service normalises it to carry
-  that platform's backoffice slug (e.g. `peek_backoffice_api-v1`) — appending the
-  slug when it is absent, accepting a URL that already carries it (dashes or
-  underscores), and throwing if it carries a *different* platform's slug. Once
-  normalised, for Peek it is the sole request URL; for CNG/ACME it is the base and
-  the REST path is appended. If the registry tags traffic with an app id in the
-  path, that is the registry's concern and opaque to you. Or hand the whole
-  install to `createAccessServiceForInstall` (below), which wires it for you.
+  not decompose it or append your own app id. Each service class appends its own
+  backoffice slug (e.g. `peek_backoffice_api-v1`) when it makes a call, so a Peek
+  GraphQL call POSTs to `<base>/peek_backoffice_api-v1` and a CNG/ACME REST call
+  hits `<base>/<slug>/<path>`. If the URL you pass already carries this platform's
+  slug (dashes or underscores) it is stripped back to the base; a URL carrying a
+  *different* platform's slug makes the constructor throw. If the registry tags
+  traffic with an app id in the path, that is the registry's concern and opaque to
+  you. Or hand the whole install to `createAccessServiceForInstall` (below), which
+  wires it for you.
 
 Both default to `""` when a delivery omits them, so treat empty as "not
 reported" and keep any value you previously stored.

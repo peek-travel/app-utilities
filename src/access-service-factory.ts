@@ -27,9 +27,10 @@ export interface InstallAccessTarget {
   /** Which platform serves the install (the install webhook's `platform`). */
   platform: PeekPlatform | null;
   /**
-   * The install's app endpoint URL (the install webhook's `apiUrl`). The chosen
-   * access service normalises it to carry that platform's backoffice extendable
-   * slug (appending it when absent, throwing on a different platform's slug).
+   * The install's base API URL (the install webhook's `apiUrl`). The chosen
+   * access service's service classes append their own backoffice slug when they
+   * call; a URL already carrying this platform's slug is stripped back to the
+   * base, and one carrying a different platform's slug throws.
    */
   apiUrl: string;
   /** The install id (the install webhook's `installId`) — becomes the JWT subject. */

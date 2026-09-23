@@ -22,7 +22,7 @@ const peek = new PeekAccessService({
   installId,   // JWT subject
   jwtSecret,   // HMAC secret signing the JWT
   issuer,      // app name (JWT issuer)
-  apiUrl,      // the install webhook's apiUrl — the app endpoint; the platform backoffice slug is auto-added
+  apiUrl,      // the install webhook's apiUrl — the base API URL; each service appends its own backoffice slug
   // optional: gatewayKey, tokenTtlSeconds, tokenRefreshLeewaySeconds,
   // retryDelaysMs, logger, fetch, itemOptionsPageSize,
   // accessOptions: { fullCustomerAccess: false }  // default — see "Access options / PII"
@@ -30,14 +30,15 @@ const peek = new PeekAccessService({
 ```
 
 Targeting an install by URL: pass the install webhook's `apiUrl` as the config
-`apiUrl`. The service normalises it to carry that platform's backoffice slug
-(e.g. `peek_backoffice_api-v1`): the slug is **appended** when absent, **accepted**
-when already present (dashes or underscores interchangeable), and **rejected**
-(constructor throws) when the URL carries a *different* platform's slug. Once
-normalised, for Peek it is the **sole** request URL (every call POSTs to it); for
-CNG/ACME it is the base and the REST path is appended. No app-id/gateway segment
-is inserted (`appId` is unused). Any app id in the path is the registry's own
-traffic tag, opaque to callers. `createAccessServiceForInstall(install, config)`
+`apiUrl`. It is the install's **base API URL**; each service class appends its own
+backoffice slug (e.g. `peek_backoffice_api-v1`, from a small per-platform endpoint
+lookup) when it calls — so a Peek GraphQL call POSTs to `<base>/peek_backoffice_api-v1`
+and a CNG/ACME REST call hits `<base>/<slug>/<path>`. If the URL you pass already
+carries this platform's slug (dashes or underscores interchangeable) it is
+**stripped** back to the base; a URL carrying a *different* platform's slug is
+**rejected** (constructor throws). No app-id/gateway segment is inserted (`appId`
+is unused). Any app id in the path is the registry's own traffic tag, opaque to
+callers. `createAccessServiceForInstall(install, config)`
 builds the right service for `install.platform` (`peek`/`cng`/`acme`) wired to
 `install.apiUrl` in one call (throws on unknown/`null` platform). `appId` +
 `baseUrl` (and the hardcoded gateway default) are **`@deprecated`** — they
@@ -144,11 +145,11 @@ final authority and may still reject the request.
 Two brand-parallel accessors sit alongside `PeekAccessService` and share the same
 auth/transport/UI plumbing. Both are **REST** and deliberately minimal today
 (products only). Construct one per install, same config shape **minus `gatewayKey`**
-(`installId`, `jwtSecret`, `issuer`, `apiUrl`). With `apiUrl` set, it is normalised
-to carry that platform's backoffice slug (`cng_backoffice_api-v1` /
-`acme_backoffice_api-v1`) and then used as the REST base with only the path
-appended; the deprecated `baseUrl`/`appId` fall back to the app-registry
-installations API default. `createAccessServiceForInstall` routes
+(`installId`, `jwtSecret`, `issuer`, `apiUrl`). With `apiUrl` set, it is the base
+API URL and the product service appends its backoffice slug (`cng_backoffice_api-v1` /
+`acme_backoffice_api-v1`) and the REST path (`<base>/<slug>/<path>`); the
+deprecated `baseUrl`/`appId` fall back to the app-registry installations API
+default (`<baseUrl>/<appId>` as the base). `createAccessServiceForInstall` routes
 `platform` `"cng"`/`"acme"` to these.
 
 - `CngAccessService` — `getProductService().getAllActivities()` (short-form

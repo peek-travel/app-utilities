@@ -15,11 +15,11 @@
 import {
   createTokenManager,
   requireNonEmpty,
-  resolveApiUrl,
+  resolveBaseApiUrl,
   DEFAULT_RETRY_DELAYS_MS,
   type BaseAccessServiceConfig,
 } from "./access-service-config.js";
-import { ACME_EXTENDABLE_SLUG } from "./internal/acme/endpoints.js";
+import { ACME_API_ENDPOINTS, ACME_EXTENDABLE_SLUG } from "./internal/acme/endpoints.js";
 import { AcmeProductService } from "./internal/acme/products/product-service.js";
 import { RestClient } from "./internal/acme/rest-client.js";
 import { noopLogger } from "./logger.js";
@@ -68,13 +68,12 @@ export class AcmeAccessService {
     const logger = config.logger ?? noopLogger;
     const tokens = createTokenManager(config);
 
+    const baseApiUrl = hasApiUrl
+      ? resolveBaseApiUrl(config.apiUrl!, ACME_EXTENDABLE_SLUG, "AcmeAccessService")
+      : `${config.baseUrl ?? DEFAULT_BASE_URL}/${config.appId}`;
     this.client = new RestClient({
-      apiUrl: hasApiUrl
-        ? resolveApiUrl(config.apiUrl!, ACME_EXTENDABLE_SLUG, "AcmeAccessService")
-        : undefined,
-      baseUrl: hasApiUrl ? undefined : (config.baseUrl ?? DEFAULT_BASE_URL),
-      appId: hasApiUrl ? undefined : config.appId,
-      extendableSlug: ACME_EXTENDABLE_SLUG,
+      baseApiUrl,
+      endpoints: ACME_API_ENDPOINTS,
       getToken: () => tokens.getToken(),
       retryDelaysMs: config.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS,
       logger,

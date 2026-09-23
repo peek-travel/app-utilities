@@ -10,6 +10,7 @@ import {
   GraphQLClient,
   type GraphQLClientOptions,
 } from "../../../src/internal/peek/graphql-client.js";
+import { peekApiEndpoints } from "../../../src/internal/peek/gateway-endpoints.js";
 import { ProductService } from "../../../src/internal/peek/products/product-service.js";
 import { noopLogger, type Logger } from "../../../src/logger.js";
 import { SDK_HEADER_VALUE } from "../../../src/internal/sdk-headers.js";
@@ -47,8 +48,8 @@ function buildClient(
   overrides: Partial<GraphQLClientOptions> = {},
 ): GraphQLClient {
   return new GraphQLClient({
-    baseUrl: "https://gw.test/gql",
-    appId: "app-1",
+    baseApiUrl: "https://gw.test/gql/app-1",
+    endpoints: peekApiEndpoints(false),
     gatewayKey: "gw-key",
     getToken: () => "tok-123",
     retryDelaysMs: [],

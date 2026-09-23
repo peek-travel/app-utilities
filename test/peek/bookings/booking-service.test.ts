@@ -5,6 +5,7 @@ import {
   GraphQLClient,
   type GraphQLClientOptions,
 } from "../../../src/internal/peek/graphql-client.js";
+import { peekApiEndpoints } from "../../../src/internal/peek/gateway-endpoints.js";
 import type { ProductService } from "../../../src/internal/peek/products/product-service.js";
 import type { AccessOptions } from "../../../src/access-options.js";
 import { PiiAccessDisabledError } from "../../../src/errors.js";
@@ -36,8 +37,8 @@ function makeService(
   }) as unknown as typeof fetch;
 
   const options: GraphQLClientOptions = {
-    baseUrl: "https://gw.test/gql",
-    appId: "app-1",
+    baseApiUrl: "https://gw.test/gql/app-1",
+    endpoints: peekApiEndpoints(false),
     gatewayKey: "gw-key",
     getToken: () => "tok",
     retryDelaysMs: [],
@@ -1216,8 +1217,8 @@ describe("BookingService access options (fullCustomerAccess)", () => {
       return { status: 200, ok: true, text: async () => JSON.stringify({}) } as unknown as Response;
     }) as unknown as typeof fetch;
     const client = new GraphQLClient({
-      baseUrl: "https://gw.test/gql",
-      appId: "app-1",
+      baseApiUrl: "https://gw.test/gql/app-1",
+      endpoints: peekApiEndpoints(false),
       gatewayKey: "gw-key",
       getToken: () => "tok",
       retryDelaysMs: [],

@@ -14,23 +14,31 @@ action needed; `[additive]` only adds capability.
 
 ## 0.9.1
 
-### `apiUrl` now carries the platform backoffice slug automatically `[fix]`
+### `apiUrl` is the base API URL; each service appends its own routing slug `[fix]`
 
 - **What:** The access services (`PeekAccessService`, `CngAccessService`,
-  `AcmeAccessService`) now normalise the `apiUrl` config field so requests target
-  that platform's backoffice extendable slug. Given the install webhook's raw
-  `apiUrl` (e.g. `https://apps.peek.com/installations-api/<install>`), the service
-  now appends the slug (`.../peek_backoffice_api-v1` for Peek, `cng_…`/`acme_…`
-  for the others) instead of hitting the URL without it. A URL that already ends
-  in the correct slug — spelled with dashes *or* underscores
-  (`peek-backoffice-api-v1` / `peek_backoffice_api-v1`) — is accepted unchanged.
-  A URL ending in a *different* platform's slug makes the constructor throw.
+  `AcmeAccessService`) now treat the `apiUrl` config field as the install's
+  **base API URL** and each service class appends its own backoffice routing slug
+  when it makes a call. Given the install webhook's raw `apiUrl` (e.g.
+  `https://apps.peek.com/installations-api/<install>`), Peek GraphQL calls now hit
+  `.../<install>/peek_backoffice_api-v1`, CNG hits `.../<install>/cng_backoffice_api-v1/<path>`,
+  and ACME `.../<install>/acme_backoffice_api-v1/<path>`. If the URL you pass
+  still carries this platform's slug (dashes *or* underscores —
+  `peek-backoffice-api-v1` / `peek_backoffice_api-v1`) it is stripped back off to
+  recover the base; a URL carrying a *different* platform's slug makes the
+  constructor throw. The slug for each API is defined in a small per-platform
+  endpoint lookup, so services on the same platform can route through different
+  slugs.
 - **Why:** Previously the raw `apiUrl` was used verbatim, so calls went to the
-  install root without the backoffice routing segment and failed. This makes the
-  webhook-supplied `apiUrl` work directly.
-- **Caller action:** None if you passed the fully-qualified endpoint (with the
-  slug) before — it still works. If you were manually appending the slug to work
-  around the old behavior, you can now pass the webhook's `apiUrl` as-is.
+  install root without the backoffice routing segment and failed. Modelling
+  `apiUrl` as the base (with per-service slugs) makes the webhook-supplied
+  `apiUrl` work directly and lets a single install expose more than one API.
+- **Caller action:** None — pass the webhook's `apiUrl` as-is. A URL that already
+  carries this platform's slug still works (the slug is stripped and re-applied).
+- **Also:** the Peek registry path (an `apiUrl`, or the deprecated `mode: "v2"`)
+  no longer appends a trailing `sales` segment — the GraphQL POST goes to
+  `.../peek_backoffice_api-v1` directly. The legacy v1 gateway (default, no
+  `apiUrl`/`mode`) is unchanged and still routes through `.../<appId>/sales`.
 
 ---
 

@@ -69,7 +69,7 @@ describe("CngAccessService", () => {
     );
   });
 
-  it("appends the CNG extendable slug to apiUrl before the REST path", async () => {
+  it("treats apiUrl as the base and inserts the CNG slug before the REST path", async () => {
     const calls: string[] = [];
     const fetchFn = (async (url: string) => {
       calls.push(url);
@@ -90,7 +90,7 @@ describe("CngAccessService", () => {
     );
   });
 
-  it("accepts an apiUrl that already carries the CNG slug (dash or underscore)", async () => {
+  it("strips an already-present CNG slug (dash or underscore) back to the base", async () => {
     const calls: string[] = [];
     const fetchFn = (async (url: string) => {
       calls.push(url);
@@ -107,7 +107,7 @@ describe("CngAccessService", () => {
     await cng.getAllActivities();
 
     expect(calls[0]).toBe(
-      "https://x.test/demo-app/cng-backoffice-api-v1/api/v2/app-registry/products?active=1",
+      "https://x.test/demo-app/cng_backoffice_api-v1/api/v2/app-registry/products?active=1",
     );
   });
 
