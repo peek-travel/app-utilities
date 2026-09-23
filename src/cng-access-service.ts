@@ -14,10 +14,11 @@
 import {
   createTokenManager,
   requireNonEmpty,
+  resolveBaseApiUrl,
   DEFAULT_RETRY_DELAYS_MS,
   type BaseAccessServiceConfig,
 } from "./access-service-config.js";
-import { CNG_EXTENDABLE_SLUG } from "./internal/cng/endpoints.js";
+import { CNG_API_ENDPOINTS, CNG_EXTENDABLE_SLUG } from "./internal/cng/endpoints.js";
 import { CngProductService } from "./internal/cng/products/product-service.js";
 import { RestClient } from "./internal/cng/rest-client.js";
 import { noopLogger } from "./logger.js";
@@ -66,11 +67,12 @@ export class CngAccessService {
     const logger = config.logger ?? noopLogger;
     const tokens = createTokenManager(config);
 
+    const baseApiUrl = hasApiUrl
+      ? resolveBaseApiUrl(config.apiUrl!, CNG_EXTENDABLE_SLUG, "CngAccessService")
+      : `${config.baseUrl ?? DEFAULT_BASE_URL}/${config.appId}`;
     this.client = new RestClient({
-      apiUrl: config.apiUrl,
-      baseUrl: hasApiUrl ? undefined : (config.baseUrl ?? DEFAULT_BASE_URL),
-      appId: hasApiUrl ? undefined : config.appId,
-      extendableSlug: CNG_EXTENDABLE_SLUG,
+      baseApiUrl,
+      endpoints: CNG_API_ENDPOINTS,
       getToken: () => tokens.getToken(),
       retryDelaysMs: config.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS,
       logger,

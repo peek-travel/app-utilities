@@ -303,12 +303,12 @@ render({
    file:"src/cng-access-service.ts",
    desc:"Authenticated root entry point. The CNG sibling of <code>PeekAccessService</code>. Configure one instance per install; it owns the shared authenticated transport (minting/caching tokens on demand) and hands out the <code>CngProductService</code>. Auth: the same app JWT (<code>X-Peek-Auth: Bearer</code>) minted from Peek app credentials via the shared <code>TokenManager</code>, routed through the app-registry installations API. No <code>pk-api-key</code> header.",
    ctor:"constructor(config: CngAccessServiceConfig)",
-   example:"import { CngAccessService } from \"@peektravel/app-utilities\";\n\nconst cng = new CngAccessService({\n  installId: \"install_123\", // obtained from verifyPeekAuthToken(peekAuthToken).installId\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n});\n\n// every activity as one flat list\nconst activities = await cng.getProductService().getAllActivities();",
+   example:"import { CngAccessService } from \"@peektravel/app-utilities\";\n\nconst cng = new CngAccessService({\n  installId: \"install_123\", // obtained from verifyPeekAuthToken(peekAuthToken).installId\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n  apiUrl: \"https://apps.peek.com/installations-api/my-app\", // from install webhook\n});\n\n// every activity as one flat list\nconst activities = await cng.getProductService().getAllActivities();",
    notes:[
      "<code>CngAccessServiceConfig</code> is a type alias for <code>BaseAccessServiceConfig</code> — CNG adds no fields (authenticates on the app JWT alone, no <code>gatewayKey</code>).",
      "Validates <code>installId</code>, <code>jwtSecret</code>, <code>issuer</code> non-empty via <code>requireNonEmpty</code> — throws <code>Error</code> (<code>CngAccessService: \"&lt;field&gt;\" is required</code>).",
      "<code>appId</code> required (non-empty) only when <code>apiUrl</code> is not set (legacy <code>baseUrl</code> mode).",
-     "When <code>apiUrl</code> is present it is used as-is as the base and the request path is appended; otherwise <code>baseUrl</code> defaults to the app-registry installations API."
+     "When <code>apiUrl</code> is present it is the base API URL; the product service appends the <code>cng_backoffice_api-v1</code> slug and the request path (<code>&lt;base&gt;/&lt;slug&gt;/&lt;path&gt;</code>). A slug already on the URL (dashes or underscores) is stripped back to the base; a different platform's slug makes the constructor throw. Otherwise <code>baseUrl</code> defaults to the app-registry installations API and the base is <code>&lt;baseUrl&gt;/&lt;appId&gt;</code>."
    ],
    methods:[
      {name:"getProductService",sig:"(): CngProductService",desc:"Returns the product service for this install, bound to the shared authenticated transport.",notes:"Lazily created and memoized — repeated calls return the same instance."}
@@ -341,7 +341,7 @@ render({
     {name:"installId",type:"string",n:false,desc:"Install ID. Becomes the JWT subject. Required."},
     {name:"jwtSecret",type:"string",n:false,desc:"HMAC secret used to sign the JWT. Required."},
     {name:"issuer",type:"string",n:false,desc:"JWT issuer — the app name / app ID. Required."},
-    {name:"apiUrl",type:"string",n:"opt",desc:"The install's app endpoint URL (persist the install webhook's <code>apiUrl</code>). Used as the base with the request path appended; no app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
+    {name:"apiUrl",type:"string",n:"opt",desc:"The install's <b>base API URL</b> (persist the install webhook's <code>apiUrl</code>). The product service appends the <code>cng_backoffice_api-v1</code> slug and the request path (<code>&lt;base&gt;/&lt;slug&gt;/&lt;path&gt;</code>). A slug already on the URL (dashes or underscores) is stripped back to the base; a different platform's slug makes the constructor throw. No app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
     {name:"appId",type:"string",n:"opt",desc:"<b>@deprecated</b> App ID inserted into the gateway endpoint path. Required only in legacy <code>baseUrl</code> mode."},
     {name:"baseUrl",type:"string",n:"opt",desc:"<b>@deprecated</b> Override the gateway base URL. Default the app-registry installations API. Prefer <code>apiUrl</code>."},
     {name:"tokenTtlSeconds",type:"number",n:"opt",desc:"JWT lifetime in seconds. Default 3600."},

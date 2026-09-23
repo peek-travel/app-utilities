@@ -20,13 +20,17 @@ export interface BaseAccessServiceConfig {
   /** JWT issuer — the app name / app ID. */
   issuer: string;
   /**
-   * The install's **app endpoint URL** — persist the install webhook's `apiUrl`
-   * and pass it here. When set it is used **as given**: for Peek it is the sole
-   * request URL (every call POSTs to it); for CNG/ACME it is the base and the
-   * REST path is appended. No app-id/gateway segment is inserted, so `appId` is
-   * not required. This is the forward-looking way to target an install — prefer
-   * it over `baseUrl`/`appId`, which are deprecated (the hardcoded base-URL
-   * fallbacks will be removed and a URL will become required in a future release).
+   * The install's **base API URL** — persist the install webhook's `apiUrl` and
+   * pass it here. It is the app endpoint with no per-platform routing slug; each
+   * service class appends its own slug (e.g. `peek_backoffice_api-v1`, via that
+   * platform's endpoint lookup) when it makes a call, so different services can
+   * route through different slugs. If the URL you pass still carries this
+   * platform's slug it is stripped back off to recover the base; a URL carrying a
+   * *different* platform's slug makes the constructor throw. No app-id/gateway
+   * segment is inserted, so `appId` is not required. This is the forward-looking
+   * way to target an install — prefer it over `baseUrl`/`appId`, which are
+   * deprecated (the hardcoded base-URL fallbacks will be removed and a URL will
+   * become required in a future release).
    */
   apiUrl?: string;
   /**
@@ -82,6 +86,53 @@ export function requireNonEmpty(
   if (!value) {
     throw new Error(`${serviceName}: "${name}" is required`);
   }
+}
+
+/**
+ * Matches a backoffice-API extendable slug and captures the platform prefix —
+ * e.g. `peek` from `peek_backoffice_api-v1` or `peek-backoffice-api-v1`. Dashes
+ * and underscores are interchangeable as separators, so both spellings the app
+ * registry emits are recognised. Anchored to the whole segment so an ordinary
+ * install-path segment (e.g. `google-things-to-do-integration`) never matches.
+ */
+const EXTENDABLE_SLUG_RE = /^([a-z0-9]+)[-_]backoffice[-_]api[-_]v1$/i;
+
+/**
+ * Recovers the **base API URL** from the install's app endpoint (`apiUrl`).
+ *
+ * The base is the install's app endpoint with no per-platform routing slug — the
+ * service classes append their own slug (via their endpoint lookup) when they
+ * make calls. Callers may pass the raw base, or a URL that still carries this
+ * platform's slug; either way this returns the base:
+ *
+ * - **No slug present** → the URL is already the base; return it (trailing slash
+ *   trimmed).
+ * - **This platform's slug present** → strip it off (dashes/underscores either
+ *   way) and return the base.
+ * - **A different platform's slug present** → throw, since the URL targets the
+ *   wrong gateway and silently stripping it would mask a wiring mistake.
+ */
+export function resolveBaseApiUrl(
+  apiUrl: string,
+  platformSlug: string,
+  serviceName: string,
+): string {
+  const trimmed = apiUrl.replace(/\/+$/, "");
+  const lastSegment = trimmed.slice(trimmed.lastIndexOf("/") + 1);
+  const found = EXTENDABLE_SLUG_RE.exec(lastSegment);
+  if (!found) return trimmed;
+
+  const foundPlatform = found[1]!.toLowerCase();
+  const expectedPlatform = EXTENDABLE_SLUG_RE.exec(platformSlug)![1]!.toLowerCase();
+  if (foundPlatform !== expectedPlatform) {
+    throw new Error(
+      `${serviceName}: "apiUrl" carries a "${foundPlatform}" backoffice ` +
+        `slug but this service targets "${expectedPlatform}" — pass the ` +
+        `install's ${expectedPlatform} app endpoint`,
+    );
+  }
+  // Strip this platform's slug back off to recover the base API URL.
+  return trimmed.slice(0, trimmed.lastIndexOf("/"));
 }
 
 /**

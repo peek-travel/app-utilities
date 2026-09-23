@@ -303,7 +303,7 @@ render({
    file:"src/peek-access-service.ts",
    desc:"The public entry point. Construct one per install. Validates config and hands out the per-resource service classes through its <code>get…Service()</code> accessors (lazily created and memoized).",
    ctor:"new PeekAccessService(config: PeekAccessServiceConfig)",
-   example:"import { PeekAccessService } from \"@peektravel/app-utilities\";\n\nconst peek = new PeekAccessService({\n  installId: \"install_123\", // obtained from verifyPeekAuthToken(peekAuthToken).installId\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n});\n\n// every product (activities + add-ons) as one flat list\nconst products = await peek.getProductService().getAllProducts();",
+   example:"import { PeekAccessService } from \"@peektravel/app-utilities\";\n\nconst peek = new PeekAccessService({\n  installId: \"install_123\", // obtained from verifyPeekAuthToken(peekAuthToken).installId\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n  apiUrl: \"https://apps.peek.com/installations-api/my-app\", // from install webhook\n});\n\n// every product (activities + add-ons) as one flat list\nconst products = await peek.getProductService().getAllProducts();",
    methods:[
      {name:"getProductService",sig:"(): ProductService",desc:"Product service (lazily created + memoized)."},
      {name:"getAccountUserService",sig:"(): AccountUserService",desc:"Account-user service."},
@@ -525,7 +525,7 @@ render({
     {name:"installId",type:"string",n:false,desc:"Install ID. Becomes the JWT subject. Required."},
     {name:"jwtSecret",type:"string",n:false,desc:"HMAC secret used to sign the JWT. Required."},
     {name:"issuer",type:"string",n:false,desc:"JWT issuer — the app name / app ID. Required."},
-    {name:"apiUrl",type:"string",n:"opt",desc:"The install's app endpoint URL (persist the install webhook's <code>apiUrl</code>). Used as given: for Peek it is the sole request URL; for CNG/ACME the base with the request path appended. No app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
+    {name:"apiUrl",type:"string",n:"opt",desc:"The install's <b>base API URL</b> (persist the install webhook's <code>apiUrl</code>). Each service class appends its own backoffice slug (e.g. <code>peek_backoffice_api-v1</code>, from that platform's endpoint lookup) when it calls, so different services can route through different slugs. If the URL you pass already carries this platform's slug (dashes or underscores) it is stripped back to the base; a URL carrying a different platform's slug makes the constructor throw. No app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
     {name:"appId",type:"string",n:"opt",desc:"<b>@deprecated</b> App ID inserted into the gateway endpoint path. Required only in legacy <code>baseUrl</code> mode."},
     {name:"baseUrl",type:"string",n:"opt",desc:"<b>@deprecated</b> Override the gateway base URL (per-service default). Prefer <code>apiUrl</code>."},
     {name:"tokenTtlSeconds",type:"number",n:"opt",desc:"JWT lifetime in seconds. Default 3600."},

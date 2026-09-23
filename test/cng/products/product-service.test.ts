@@ -10,6 +10,7 @@ import {
   RestClient,
   type RestClientOptions,
 } from "../../../src/internal/cng/rest-client.js";
+import { CNG_API_ENDPOINTS } from "../../../src/internal/cng/endpoints.js";
 import { CngProductService } from "../../../src/internal/cng/products/product-service.js";
 import { noopLogger, type Logger } from "../../../src/logger.js";
 import { SDK_HEADER_VALUE } from "../../../src/internal/sdk-headers.js";
@@ -45,9 +46,8 @@ function buildClient(
   overrides: Partial<RestClientOptions> = {},
 ): RestClient {
   return new RestClient({
-    baseUrl: "https://gw.test/api",
-    appId: "app-1",
-    extendableSlug: "cng_backoffice_api-v1",
+    baseApiUrl: "https://gw.test/api/app-1",
+    endpoints: CNG_API_ENDPOINTS,
     getToken: () => "tok-123",
     retryDelaysMs: [],
     logger: noopLogger,

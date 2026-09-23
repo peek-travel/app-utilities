@@ -4,6 +4,7 @@ import {
   GraphQLClient,
   type GraphQLClientOptions,
 } from "../../../src/internal/peek/graphql-client.js";
+import { peekApiEndpoints } from "../../../src/internal/peek/gateway-endpoints.js";
 import { ResourcePoolService } from "../../../src/internal/peek/resource-pools/resource-pool-service.js";
 import { noopLogger } from "../../../src/logger.js";
 
@@ -33,8 +34,8 @@ function buildClient(
   overrides: Partial<GraphQLClientOptions> = {},
 ): GraphQLClient {
   return new GraphQLClient({
-    baseUrl: "https://gw.test/gql",
-    appId: "app-1",
+    baseApiUrl: "https://gw.test/gql/app-1",
+    endpoints: peekApiEndpoints(false),
     gatewayKey: "gw-key",
     getToken: () => "tok-123",
     retryDelaysMs: [],

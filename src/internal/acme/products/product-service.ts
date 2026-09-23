@@ -7,7 +7,7 @@
  * lives. Named `AcmeProductService` to disambiguate from the Peek
  * `ProductService` and the CNG `CngProductService` in the same package.
  */
-import { TEMPLATES_PATH } from "../endpoints.js";
+import { ACME_TEMPLATES_ENDPOINT, TEMPLATES_PATH } from "../endpoints.js";
 import type { RestClient } from "../rest-client.js";
 import type { AcmeActivity } from "../../../models/acme/product.js";
 import { fromTemplateNodes } from "./product-converter.js";
@@ -26,6 +26,7 @@ export class AcmeProductService {
    */
   async getAllActivities(): Promise<AcmeActivity[]> {
     const body = await this.client.get<TemplatesResponse | TemplatesResponse["list"]>(
+      ACME_TEMPLATES_ENDPOINT,
       TEMPLATES_PATH,
     );
     // Tolerate either a { list: [...] } envelope or a bare array.

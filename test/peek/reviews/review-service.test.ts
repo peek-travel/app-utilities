@@ -4,6 +4,7 @@ import {
   GraphQLClient,
   type GraphQLClientOptions,
 } from "../../../src/internal/peek/graphql-client.js";
+import { peekApiEndpoints } from "../../../src/internal/peek/gateway-endpoints.js";
 import { ReviewService } from "../../../src/internal/peek/reviews/review-service.js";
 import { decodeOffset } from "../../../src/internal/peek/reviews/review-cursor.js";
 import type {
@@ -78,8 +79,8 @@ class FakeGateway {
 
 function buildClient(fetchFn: typeof fetch): GraphQLClient {
   const options: GraphQLClientOptions = {
-    baseUrl: "https://gw.test/gql",
-    appId: "app-1",
+    baseApiUrl: "https://gw.test/gql/app-1",
+    endpoints: peekApiEndpoints(false),
     gatewayKey: "gw-key",
     getToken: () => "tok",
     retryDelaysMs: [],

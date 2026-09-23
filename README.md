@@ -317,9 +317,12 @@ event data**; the fields it shares with the token (`installId` / `accountId` /
 the body omits them. The token authenticates the whole delivery, so the body is
 trusted within a verified request. This webhook is the only source of
 `accountId`, `timezone`, and `apiUrl` in the package, since no GraphQL read
-returns them — **persist them per install**. `apiUrl` is the install's app
-endpoint: use it **as given** (don't reconstruct it from `appId`) — pass it as the
-access service's `apiUrl`, or hand the whole install to
+returns them — **persist them per install**. `apiUrl` is the install's **base API
+URL**: pass it straight through (don't reconstruct it from `appId`) as the access
+service's `apiUrl` — each service class appends its own backoffice slug (e.g.
+`peek_backoffice_api-v1`) when it makes a call, stripping the slug back off if the
+URL you pass already carries it and throwing if it carries a different platform's
+slug — or hand the whole install to
 `createAccessServiceForInstall(install, { jwtSecret, issuer })`, which picks the
 service by `platform` and wires the endpoint for you. Every event is a **full
 snapshot** — an `update_installed` carries the same fields as the original

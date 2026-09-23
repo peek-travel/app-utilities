@@ -84,24 +84,39 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
   (60), `retryDelaysMs` (`[1000, 2000, 4000]`), `logger` (no-op default),
   `fetch` (global default), `itemOptionsPageSize` (50), and `accessOptions`
   (see "Access options / PII" below).
-- **Endpoint URL — `apiUrl` (preferred) vs. `baseUrl`/`appId` (deprecated).**
-  The install webhook's `apiUrl` is the install's app endpoint. When the config
-  carries `apiUrl`, the transport uses it **as given**: `GraphQLClient` POSTs
-  every call to that exact URL (Peek is single-endpoint, so `endpointName` is
-  logging-only), and the CNG/ACME `RestClient` treats it as the base and appends
-  only the REST `path`. No app-id/slug segment is inserted, so `appId` is unused
-  (and `gatewayKey` isn't required — the registry endpoint authenticates on the
-  JWT, like v2). When `apiUrl` is absent the transports fall back to the legacy
-  `baseUrl/appId/[slug/]endpoint` construction with a hardcoded default
-  `baseUrl` — **deprecated**; the fallback will be removed and a URL will become
-  required. `createAccessServiceForInstall` (§ below) is the front door for the
-  `apiUrl` path.
-- **v2 mode** (`mode: "v2"`, legacy `baseUrl` path only): the endpoint URL becomes
-  `baseUrl/appId/peek_backoffice_api-v1/endpointName` and the default `baseUrl`
-  switches to `https://app-registry.peeklabs.com/installations-api`.
-  A custom `baseUrl` still overrides the default in v2 mode; `apiUrl`, when set,
-  supersedes `mode`/`baseUrl` entirely. All other behaviour (JWT auth, headers,
-  retries, resource services) is unchanged.
+- **Base API URL + per-service slug.** Every request URL is
+  `baseApiUrl / <slug> [ / <path> ]`, where the **base API URL** is the install's
+  app endpoint with no routing segment and the **slug** is chosen *per service /
+  per endpoint* from that platform's endpoint lookup (`ApiEndpoints`, in
+  `src/internal/api-endpoints.ts`). Two services on one platform can therefore
+  route through different slugs — a new API is one more entry in the lookup
+  (`peekApiEndpoints` in `gateway-endpoints.ts`; `CNG_API_ENDPOINTS` /
+  `ACME_API_ENDPOINTS` in each `endpoints.ts`). The clients hold only
+  `{ baseApiUrl, endpoints }` and build the URL via `joinUrl`, so an empty slug
+  collapses cleanly to `baseApiUrl / <path>`.
+- **Resolving the base — `apiUrl` (preferred) vs. `baseUrl`/`appId` (deprecated).**
+  When the config carries `apiUrl`, the access-service constructor runs it
+  through the shared `resolveBaseApiUrl(apiUrl, platformSlug, serviceName)` helper
+  (`access-service-config.ts`) to recover the base: it **returns the URL as-is**
+  when no slug is present, **strips this platform's slug** back off when the URL
+  already ends in one (dashes and underscores interchangeable, so both
+  `peek_backoffice_api-v1` and `peek-backoffice-api-v1` match), and **throws** when
+  it ends in a *different* platform's slug (a wiring mistake). When `apiUrl` is
+  absent the base is `baseUrl/appId` (the deprecated default construction, with a
+  hardcoded default `baseUrl`) — the fallback will be removed and a URL will
+  become required. Either way, no app-id segment is inserted beyond the base, so
+  `appId` is unused with `apiUrl` (and `gatewayKey` isn't required — the registry
+  endpoint authenticates on the JWT, like v2). `createAccessServiceForInstall`
+  (§ below) is the front door for the `apiUrl` path.
+- **Peek registry vs. legacy v1 slug.** Registry modes — an app-endpoint `apiUrl`,
+  or the deprecated `mode: "v2"` — route the `sales` endpoint through the
+  `peek_backoffice_api-v1` slug, so the GraphQL POST hits `<base>/peek_backoffice_api-v1`
+  (no trailing `sales` segment). The legacy v1 gateway (default, no `apiUrl`/`mode`)
+  has no extendable slug, so `sales` sits directly under the base
+  (`<baseUrl>/<appId>/sales`) and the default `baseUrl` is the backoffice-GraphQL
+  gateway; v2's default `baseUrl` is the app-registry installations API. `apiUrl`,
+  when set, supersedes `mode`/`baseUrl` entirely. All other behaviour (JWT auth,
+  headers, retries, resource services) is unchanged.
 
 ### 2. `TokenManager` — auth
 `src/internal/token-manager.ts`
@@ -120,11 +135,10 @@ own `url`/`init`, log their own "Making … request" line, and pass a per-respon
 callback that handles the transport-specific success/error parsing.
 Responsibilities:
 
-- Builds the endpoint URL as `${baseUrl}/${appId}/${endpointName}`, or
-  `${baseUrl}/${appId}/${endpointPathPrefix}/${endpointName}` when an
-  `endpointPathPrefix` is set (v2 mode inserts `peek_backoffice_api-v1`). Today
-  every operation routes through the single `sales` endpoint
-  (`gateway-endpoints.ts`).
+- Builds the endpoint URL as `joinUrl(baseApiUrl, endpoints.pathFor(endpointName))`.
+  Today every operation routes through the single `sales` endpoint
+  (`gateway-endpoints.ts`), whose slug is `peek_backoffice_api-v1` in registry
+  modes and empty (the `sales` segment itself) on the legacy v1 gateway.
 - Sets headers: `X-Peek-Auth: Bearer <jwt>`, `pk-api-key: <gatewayKey>`,
   `Content-Type: application/json`, `x-peek-sdk: js-<package version>`.
 - Collapses query whitespace (`\s+` → single space) before sending.
@@ -487,8 +501,8 @@ plumbing rather than forking the package.
   the base URL to the app-registry installations API, and exposes
   `getProductService()` (plus a deprecated `getAllActivities()` short-form).
 - **`RestClient`** (`src/internal/cng/rest-client.ts`) — the REST sibling of
-  `GraphQLClient`. Builds `${baseUrl}/${appId}/${extendableSlug}/${path}` with
-  `extendableSlug = cng_backoffice_api-v1`, GETs it with `X-Peek-Auth: Bearer`
+  `GraphQLClient`. Builds `joinUrl(baseApiUrl, endpoints.pathFor(endpoint), path)`
+  — the `products` endpoint's slug is `cng_backoffice_api-v1` — GETs it with `X-Peek-Auth: Bearer`
   and `x-peek-sdk` (no `pk-api-key`, no `{query,variables}` body), and runs
   through the shared
   `requestWithRetry` loop. Reads the body with the shared `parseBody` helper
@@ -542,8 +556,8 @@ routing, endpoint, and response shape differ:
   the app-registry base URL, and exposes `getProductService()` +
   `getAllActivities()`.
 - **`RestClient`** (`src/internal/acme/rest-client.ts`) — the CNG REST client
-  cloned with `extendableSlug = acme_backoffice_api-v1` (same `-v1` separator
-  as CNG/Peek), logging `"Making ACME request"` and throwing
+  cloned with the `templates` endpoint's slug `acme_backoffice_api-v1` (same `-v1`
+  separator as CNG/Peek), logging `"Making ACME request"` and throwing
   `AcmeApiError` on non-2xx. Sends the same `X-Peek-Auth` / `x-peek-sdk`
   headers (§3b).
 - **Products triad** (`src/internal/acme/products/`) — `product-queries.ts`

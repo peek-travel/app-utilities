@@ -69,7 +69,7 @@ describe("CngAccessService", () => {
     );
   });
 
-  it("uses apiUrl as the base and appends only the REST path (no appId/slug)", async () => {
+  it("treats apiUrl as the base and inserts the CNG slug before the REST path", async () => {
     const calls: string[] = [];
     const fetchFn = (async (url: string) => {
       calls.push(url);
@@ -86,8 +86,41 @@ describe("CngAccessService", () => {
     await cng.getAllActivities();
 
     expect(calls[0]).toBe(
-      "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app/api/v2/app-registry/products?active=1",
+      "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app/cng_backoffice_api-v1/api/v2/app-registry/products?active=1",
     );
+  });
+
+  it("strips an already-present CNG slug (dash or underscore) back to the base", async () => {
+    const calls: string[] = [];
+    const fetchFn = (async (url: string) => {
+      calls.push(url);
+      return textResponse({ data: [] });
+    }) as unknown as typeof fetch;
+
+    const cng = new CngAccessService({
+      installId: "install-123",
+      jwtSecret: "secret",
+      issuer: "app-name",
+      apiUrl: "https://x.test/demo-app/cng-backoffice-api-v1",
+      fetch: fetchFn,
+    });
+    await cng.getAllActivities();
+
+    expect(calls[0]).toBe(
+      "https://x.test/demo-app/cng_backoffice_api-v1/api/v2/app-registry/products?active=1",
+    );
+  });
+
+  it("throws when apiUrl carries a different platform's slug", () => {
+    expect(
+      () =>
+        new CngAccessService({
+          installId: "install-123",
+          jwtSecret: "secret",
+          issuer: "app-name",
+          apiUrl: "https://x.test/demo-app/peek_backoffice_api-v1",
+        }),
+    ).toThrow(/peek.*backoffice.*cng|cng.*peek/i);
   });
 
   it("needs no appId when apiUrl is set", () => {
