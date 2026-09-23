@@ -84,7 +84,7 @@ describe("AcmeAccessService", () => {
     );
   });
 
-  it("uses apiUrl as the base and appends only the REST path (no appId/slug)", async () => {
+  it("appends the ACME extendable slug to apiUrl before the REST path", async () => {
     const calls: string[] = [];
     const fetchFn = (async (url: string) => {
       calls.push(url);
@@ -101,8 +101,41 @@ describe("AcmeAccessService", () => {
     await acme.getAllActivities();
 
     expect(calls[0]).toBe(
-      "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app/v2/b2b/event/templates/names?pageSize=-1&page=1",
+      "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app/acme_backoffice_api-v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
     );
+  });
+
+  it("accepts an apiUrl that already carries the ACME slug (dash or underscore)", async () => {
+    const calls: string[] = [];
+    const fetchFn = (async (url: string) => {
+      calls.push(url);
+      return textResponse({ list: [] });
+    }) as unknown as typeof fetch;
+
+    const acme = new AcmeAccessService({
+      installId: "install-123",
+      jwtSecret: "secret",
+      issuer: "app-name",
+      apiUrl: "https://x.test/demo-app/acme-backoffice-api-v1",
+      fetch: fetchFn,
+    });
+    await acme.getAllActivities();
+
+    expect(calls[0]).toBe(
+      "https://x.test/demo-app/acme-backoffice-api-v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
+    );
+  });
+
+  it("throws when apiUrl carries a different platform's slug", () => {
+    expect(
+      () =>
+        new AcmeAccessService({
+          installId: "install-123",
+          jwtSecret: "secret",
+          issuer: "app-name",
+          apiUrl: "https://x.test/demo-app/cng_backoffice_api-v1",
+        }),
+    ).toThrow(/backoffice/i);
   });
 
   it("needs no appId when apiUrl is set", () => {

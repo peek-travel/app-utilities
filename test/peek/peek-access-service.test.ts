@@ -505,8 +505,9 @@ describe("PeekAccessService v2 mode", () => {
 describe("PeekAccessService apiUrl mode", () => {
   const API_URL =
     "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app";
+  const RESOLVED_URL = `${API_URL}/peek_backoffice_api-v1`;
 
-  it("POSTs every call to apiUrl unmodified (no appId/prefix/endpoint segments)", async () => {
+  it("POSTs every call to apiUrl with the Peek extendable slug appended", async () => {
     const { fetchFn, calls } = makeEmptyFetch();
 
     const service = new PeekAccessService({
@@ -518,7 +519,34 @@ describe("PeekAccessService apiUrl mode", () => {
     });
     await service.getProductService().getAllProducts();
 
-    expect(calls[0]!.url).toBe(API_URL);
+    expect(calls[0]!.url).toBe(RESOLVED_URL);
+  });
+
+  it("accepts an apiUrl that already carries the Peek slug (dash or underscore)", async () => {
+    const { fetchFn, calls } = makeEmptyFetch();
+
+    const service = new PeekAccessService({
+      installId: "install-1",
+      jwtSecret: "secret",
+      issuer: "Peek Test",
+      apiUrl: `${API_URL}/peek-backoffice-api-v1`,
+      fetch: fetchFn,
+    });
+    await service.getProductService().getAllProducts();
+
+    expect(calls[0]!.url).toBe(`${API_URL}/peek-backoffice-api-v1`);
+  });
+
+  it("throws when apiUrl carries a different platform's slug", () => {
+    expect(
+      () =>
+        new PeekAccessService({
+          installId: "install-1",
+          jwtSecret: "secret",
+          issuer: "Peek Test",
+          apiUrl: `${API_URL}/cng_backoffice_api-v1`,
+        }),
+    ).toThrow(/backoffice/i);
   });
 
   it("needs neither appId nor gatewayKey when apiUrl is set", () => {
@@ -545,7 +573,7 @@ describe("PeekAccessService apiUrl mode", () => {
     });
     await service.getProductService().getAllProducts();
 
-    expect(calls[0]!.url).toBe(API_URL);
+    expect(calls[0]!.url).toBe(RESOLVED_URL);
   });
 
   it("still mints and sends a bearer token", async () => {

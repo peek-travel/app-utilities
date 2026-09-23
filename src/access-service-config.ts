@@ -21,11 +21,15 @@ export interface BaseAccessServiceConfig {
   issuer: string;
   /**
    * The install's **app endpoint URL** — persist the install webhook's `apiUrl`
-   * and pass it here. When set it is used **as given**: for Peek it is the sole
-   * request URL (every call POSTs to it); for CNG/ACME it is the base and the
-   * REST path is appended. No app-id/gateway segment is inserted, so `appId` is
-   * not required. This is the forward-looking way to target an install — prefer
-   * it over `baseUrl`/`appId`, which are deprecated (the hardcoded base-URL
+   * and pass it here. The access service normalises it so it carries that
+   * platform's backoffice extendable slug (e.g. `peek_backoffice_api-v1`): the
+   * slug is appended when absent, accepted when already present (dashes or
+   * underscores), and rejected — the constructor throws — when the URL carries a
+   * *different* platform's slug. Once normalised, for Peek it is the sole request
+   * URL (every call POSTs to it) and for CNG/ACME it is the base the REST path is
+   * appended to. No app-id/gateway segment is inserted, so `appId` is not
+   * required. This is the forward-looking way to target an install — prefer it
+   * over `baseUrl`/`appId`, which are deprecated (the hardcoded base-URL
    * fallbacks will be removed and a URL will become required in a future release).
    */
   apiUrl?: string;
@@ -82,6 +86,50 @@ export function requireNonEmpty(
   if (!value) {
     throw new Error(`${serviceName}: "${name}" is required`);
   }
+}
+
+/**
+ * Matches a backoffice-API extendable slug and captures the platform prefix —
+ * e.g. `peek` from `peek_backoffice_api-v1` or `peek-backoffice-api-v1`. Dashes
+ * and underscores are interchangeable as separators, so both spellings the app
+ * registry emits are recognised. Anchored to the whole segment so an ordinary
+ * install-path segment (e.g. `google-things-to-do-integration`) never matches.
+ */
+const EXTENDABLE_SLUG_RE = /^([a-z0-9]+)[-_]backoffice[-_]api[-_]v1$/i;
+
+/**
+ * Normalises the install's app endpoint (`apiUrl`) so it carries this service's
+ * platform-specific extendable slug (e.g. `peek_backoffice_api-v1`).
+ *
+ * The install webhook's `apiUrl` is the install's app endpoint *without* the
+ * per-platform routing segment, so it cannot be hit directly. This resolves it:
+ *
+ * - **No extension present** → append this service's slug (`apiUrl/slug`).
+ * - **This service's extension already present** → accept the URL as given
+ *   (dashes/underscores either way), only trimming a trailing slash.
+ * - **A different platform's extension present** → throw, since the URL targets
+ *   the wrong gateway and silently retargeting it would hit the wrong platform.
+ */
+export function resolveApiUrl(
+  apiUrl: string,
+  extendableSlug: string,
+  serviceName: string,
+): string {
+  const trimmed = apiUrl.replace(/\/+$/, "");
+  const lastSegment = trimmed.slice(trimmed.lastIndexOf("/") + 1);
+  const found = EXTENDABLE_SLUG_RE.exec(lastSegment);
+  if (!found) return `${trimmed}/${extendableSlug}`;
+
+  const foundPlatform = found[1]!.toLowerCase();
+  const expectedPlatform = EXTENDABLE_SLUG_RE.exec(extendableSlug)![1]!.toLowerCase();
+  if (foundPlatform !== expectedPlatform) {
+    throw new Error(
+      `${serviceName}: "apiUrl" carries a "${foundPlatform}" backoffice ` +
+        `extension but this service targets "${expectedPlatform}" — pass the ` +
+        `install's ${expectedPlatform} app endpoint`,
+    );
+  }
+  return trimmed;
 }
 
 /**

@@ -14,6 +14,7 @@ import { DailyNoteService } from "./internal/peek/daily-notes/daily-note-service
 import {
   createTokenManager,
   requireNonEmpty,
+  resolveApiUrl,
   DEFAULT_RETRY_DELAYS_MS,
   type BaseAccessServiceConfig,
 } from "./access-service-config.js";
@@ -155,9 +156,12 @@ export class PeekAccessService {
     const logger = config.logger ?? noopLogger;
     const tokens = createTokenManager(config);
 
+    const apiUrl = hasApiUrl
+      ? resolveApiUrl(config.apiUrl!, V2_EXTENDABLE_SLUG, "PeekAccessService")
+      : undefined;
     const defaultBaseUrl = isV2 ? DEFAULT_V2_BASE_URL : DEFAULT_BASE_URL;
     this.client = new GraphQLClient({
-      apiUrl: config.apiUrl,
+      apiUrl,
       baseUrl: hasApiUrl ? undefined : (config.baseUrl ?? defaultBaseUrl),
       appId: hasApiUrl ? undefined : config.appId,
       gatewayKey: config.gatewayKey,

@@ -525,7 +525,7 @@ render({
     {name:"installId",type:"string",n:false,desc:"Install ID. Becomes the JWT subject. Required."},
     {name:"jwtSecret",type:"string",n:false,desc:"HMAC secret used to sign the JWT. Required."},
     {name:"issuer",type:"string",n:false,desc:"JWT issuer — the app name / app ID. Required."},
-    {name:"apiUrl",type:"string",n:"opt",desc:"The install's app endpoint URL (persist the install webhook's <code>apiUrl</code>). Used as given: for Peek it is the sole request URL; for CNG/ACME the base with the request path appended. No app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
+    {name:"apiUrl",type:"string",n:"opt",desc:"The install's app endpoint URL (persist the install webhook's <code>apiUrl</code>). Normalised to carry the platform's backoffice slug (e.g. <code>peek_backoffice_api-v1</code>): the slug is appended when absent, accepted when already present (dashes or underscores), and rejected (constructor throws) when the URL carries a different platform's slug. Once normalised, for Peek it is the sole request URL; for CNG/ACME the base with the request path appended. No app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
     {name:"appId",type:"string",n:"opt",desc:"<b>@deprecated</b> App ID inserted into the gateway endpoint path. Required only in legacy <code>baseUrl</code> mode."},
     {name:"baseUrl",type:"string",n:"opt",desc:"<b>@deprecated</b> Override the gateway base URL (per-service default). Prefer <code>apiUrl</code>."},
     {name:"tokenTtlSeconds",type:"number",n:"opt",desc:"JWT lifetime in seconds. Default 3600."},

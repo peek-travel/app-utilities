@@ -86,12 +86,21 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
   (see "Access options / PII" below).
 - **Endpoint URL — `apiUrl` (preferred) vs. `baseUrl`/`appId` (deprecated).**
   The install webhook's `apiUrl` is the install's app endpoint. When the config
-  carries `apiUrl`, the transport uses it **as given**: `GraphQLClient` POSTs
-  every call to that exact URL (Peek is single-endpoint, so `endpointName` is
-  logging-only), and the CNG/ACME `RestClient` treats it as the base and appends
-  only the REST `path`. No app-id/slug segment is inserted, so `appId` is unused
-  (and `gatewayKey` isn't required — the registry endpoint authenticates on the
-  JWT, like v2). When `apiUrl` is absent the transports fall back to the legacy
+  carries `apiUrl`, the access-service constructor first runs it through the
+  shared `resolveApiUrl(apiUrl, extendableSlug, serviceName)` helper
+  (`access-service-config.ts`), which ensures the URL carries that platform's
+  backoffice extendable slug: it **appends** the slug (`peek_backoffice_api-v1` /
+  `cng_backoffice_api-v1` / `acme_backoffice_api-v1`) when the last path segment
+  isn't already one, **accepts** the URL unchanged when it already ends in this
+  platform's slug (dashes and underscores are interchangeable, so both
+  `peek_backoffice_api-v1` and `peek-backoffice-api-v1` match), and **throws**
+  when it ends in a *different* platform's slug (routing it elsewhere would hit
+  the wrong gateway). The resolved URL is what reaches the transport:
+  `GraphQLClient` POSTs every call to that exact URL (Peek is single-endpoint, so
+  `endpointName` is logging-only), and the CNG/ACME `RestClient` treats it as the
+  base and appends only the REST `path`. No app-id segment is inserted, so `appId`
+  is unused (and `gatewayKey` isn't required — the registry endpoint
+  authenticates on the JWT, like v2). When `apiUrl` is absent the transports fall back to the legacy
   `baseUrl/appId/[slug/]endpoint` construction with a hardcoded default
   `baseUrl` — **deprecated**; the fallback will be removed and a URL will become
   required. `createAccessServiceForInstall` (§ below) is the front door for the

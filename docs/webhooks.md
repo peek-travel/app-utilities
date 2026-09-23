@@ -302,13 +302,15 @@ event**, so persist them alongside `installId`/`accountId`:
   date/time handling for the install (scheduling, day boundaries, display) needs
   the account's own zone, not the server's.
 - **`apiUrl`** — the **app endpoint URL** the registry serves this install from.
-  Use it **as given** for this install's API calls: hit it unmodified, do not
-  decompose it or append your own app id. If the registry tags traffic with an
-  app id in the path, that is the registry's concern and opaque to you. Store it
-  and pass it as the access service's **`apiUrl`** (for Peek it is the sole
-  request URL; for CNG/ACME it is the base and the REST path is appended) — or
-  hand the whole install to `createAccessServiceForInstall` (below), which wires
-  it for you.
+  Store it and pass it straight through as the access service's **`apiUrl`**: do
+  not decompose it or append your own app id. The service normalises it to carry
+  that platform's backoffice slug (e.g. `peek_backoffice_api-v1`) — appending the
+  slug when it is absent, accepting a URL that already carries it (dashes or
+  underscores), and throwing if it carries a *different* platform's slug. Once
+  normalised, for Peek it is the sole request URL; for CNG/ACME it is the base and
+  the REST path is appended. If the registry tags traffic with an app id in the
+  path, that is the registry's concern and opaque to you. Or hand the whole
+  install to `createAccessServiceForInstall` (below), which wires it for you.
 
 Both default to `""` when a delivery omits them, so treat empty as "not
 reported" and keep any value you previously stored.

@@ -42,8 +42,8 @@ describe("createAccessServiceForInstall", () => {
     );
     await (service as PeekAccessService).getProductService().getAllProducts();
 
-    // Peek POSTs to the apiUrl unmodified.
-    expect(calls[0]).toBe(API_URL);
+    // Peek POSTs to the apiUrl with the platform extendable slug appended.
+    expect(calls[0]).toBe(`${API_URL}/peek_backoffice_api-v1`);
   });
 
   it.each([null, "newbrand"] as const)(

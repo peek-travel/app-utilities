@@ -14,6 +14,7 @@
 import {
   createTokenManager,
   requireNonEmpty,
+  resolveApiUrl,
   DEFAULT_RETRY_DELAYS_MS,
   type BaseAccessServiceConfig,
 } from "./access-service-config.js";
@@ -67,7 +68,9 @@ export class CngAccessService {
     const tokens = createTokenManager(config);
 
     this.client = new RestClient({
-      apiUrl: config.apiUrl,
+      apiUrl: hasApiUrl
+        ? resolveApiUrl(config.apiUrl!, CNG_EXTENDABLE_SLUG, "CngAccessService")
+        : undefined,
       baseUrl: hasApiUrl ? undefined : (config.baseUrl ?? DEFAULT_BASE_URL),
       appId: hasApiUrl ? undefined : config.appId,
       extendableSlug: CNG_EXTENDABLE_SLUG,

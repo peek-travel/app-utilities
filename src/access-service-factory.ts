@@ -26,7 +26,11 @@ import type { PeekPlatform } from "./models/peek/auth-token.js";
 export interface InstallAccessTarget {
   /** Which platform serves the install (the install webhook's `platform`). */
   platform: PeekPlatform | null;
-  /** The install's app endpoint URL (the install webhook's `apiUrl`), used as given. */
+  /**
+   * The install's app endpoint URL (the install webhook's `apiUrl`). The chosen
+   * access service normalises it to carry that platform's backoffice extendable
+   * slug (appending it when absent, throwing on a different platform's slug).
+   */
   apiUrl: string;
   /** The install id (the install webhook's `installId`) — becomes the JWT subject. */
   installId: string;

@@ -12,6 +12,28 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 0.9.1
+
+### `apiUrl` now carries the platform backoffice slug automatically `[fix]`
+
+- **What:** The access services (`PeekAccessService`, `CngAccessService`,
+  `AcmeAccessService`) now normalise the `apiUrl` config field so requests target
+  that platform's backoffice extendable slug. Given the install webhook's raw
+  `apiUrl` (e.g. `https://apps.peek.com/installations-api/<install>`), the service
+  now appends the slug (`.../peek_backoffice_api-v1` for Peek, `cng_…`/`acme_…`
+  for the others) instead of hitting the URL without it. A URL that already ends
+  in the correct slug — spelled with dashes *or* underscores
+  (`peek-backoffice-api-v1` / `peek_backoffice_api-v1`) — is accepted unchanged.
+  A URL ending in a *different* platform's slug makes the constructor throw.
+- **Why:** Previously the raw `apiUrl` was used verbatim, so calls went to the
+  install root without the backoffice routing segment and failed. This makes the
+  webhook-supplied `apiUrl` work directly.
+- **Caller action:** None if you passed the fully-qualified endpoint (with the
+  slug) before — it still works. If you were manually appending the slug to work
+  around the old behavior, you can now pass the webhook's `apiUrl` as-is.
+
+---
+
 ## 0.9.0
 
 ### `[additive]` Every gateway request now sends an `x-peek-sdk` header

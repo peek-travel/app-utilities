@@ -15,6 +15,7 @@
 import {
   createTokenManager,
   requireNonEmpty,
+  resolveApiUrl,
   DEFAULT_RETRY_DELAYS_MS,
   type BaseAccessServiceConfig,
 } from "./access-service-config.js";
@@ -68,7 +69,9 @@ export class AcmeAccessService {
     const tokens = createTokenManager(config);
 
     this.client = new RestClient({
-      apiUrl: config.apiUrl,
+      apiUrl: hasApiUrl
+        ? resolveApiUrl(config.apiUrl!, ACME_EXTENDABLE_SLUG, "AcmeAccessService")
+        : undefined,
       baseUrl: hasApiUrl ? undefined : (config.baseUrl ?? DEFAULT_BASE_URL),
       appId: hasApiUrl ? undefined : config.appId,
       extendableSlug: ACME_EXTENDABLE_SLUG,
