@@ -995,6 +995,7 @@ render({
     {name:"operatorNotes",type:"string",n:"opt",desc:"Operator notes."},
     {name:"customQuestionAnswers",type:"CustomQuestionAnswerInput[]",n:"opt",desc:"Answers, validated/resolved before creation."},
     {name:"requireRequiredQuestions",type:"boolean",n:"opt",desc:"Fail if a required question unanswered (default false)."},
+    {name:"acceptAllCustomQuestionIds",type:"boolean",n:"opt",desc:"Accept a <code>cq_…</code> id not in the activity's question list as a plain text answer instead of failing; by-name answers still must match (default false)."},
     {name:"skipCustomerEmail",type:"boolean",n:"opt",desc:"Suppress confirmation email (default false)."},
     {name:"parentOrderId",type:"string | null",n:"opt",desc:"Clone quote from an existing order."},
     {name:"markAsPaid",type:"boolean",n:"opt",desc:"Mark paid after creation (requires <code>idempotencyKey</code>)."},

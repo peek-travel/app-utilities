@@ -1124,6 +1124,78 @@ describe("BookingService.create", () => {
     expect(bookingQuoteOf(calls).questionAnswers).toBeUndefined();
   });
 
+  // Builds a service whose productService counts getCustomQuestions calls, so we
+  // can assert the fetch is skipped when acceptAllCustomQuestionIds allows it.
+  function makeServiceCountingQuestions(customQuestions: CustomQuestion[]): {
+    service: BookingService;
+    calls: RecordedCall[];
+    questionFetchCount: () => number;
+  } {
+    const calls: RecordedCall[] = [];
+    const handler = createHandler();
+    const fetchFn = (async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string);
+      calls.push({ query: body.query as string, variables: body.variables });
+      return { status: 200, ok: true, text: async () => JSON.stringify(handler(body.query, body.variables)) } as unknown as Response;
+    }) as unknown as typeof fetch;
+    let fetchCount = 0;
+    const productService = {
+      getAllProducts: async () => [],
+      getCustomQuestions: async () => {
+        fetchCount += 1;
+        return customQuestions;
+      },
+    } as unknown as ProductService;
+    const client = new GraphQLClient({
+      baseApiUrl: "https://gw.test/gql/app-1",
+      endpoints: peekApiEndpoints(false),
+      gatewayKey: "gw-key",
+      getToken: () => "tok",
+      retryDelaysMs: [],
+      logger: noopLogger,
+      fetchFn,
+    });
+    return {
+      service: new BookingService(client, { productService }, { accessOptions: { fullCustomerAccess: true } }),
+      calls,
+      questionFetchCount: () => fetchCount,
+    };
+  }
+
+  it("acceptAllCustomQuestionIds accepts an unknown id and skips the questions fetch", async () => {
+    const { service, calls, questionFetchCount } = makeServiceCountingQuestions(QUESTIONS);
+    await service.create({
+      ...validCreate,
+      acceptAllCustomQuestionIds: true,
+      customQuestionAnswers: [{ questionIdOrText: "cq_notinlist", value: "free text" }],
+    });
+    // Every answer was by id, so the activity's questions were never fetched.
+    expect(questionFetchCount()).toBe(0);
+    const answers = bookingQuoteOf(calls).questionAnswers as Array<Record<string, unknown>>;
+    expect(answers).toHaveLength(1);
+    expect(answers[0]).toMatchObject({
+      questionId: "cq_notinlist",
+      questionAnswerText: "free text",
+    });
+  });
+
+  it("acceptAllCustomQuestionIds still fetches questions to resolve a by-name answer", async () => {
+    const { service, calls, questionFetchCount } = makeServiceCountingQuestions(QUESTIONS);
+    await service.create({
+      ...validCreate,
+      acceptAllCustomQuestionIds: true,
+      customQuestionAnswers: [
+        { questionIdOrText: "cq_unknown", value: "blind" }, // accepted as text
+        { questionIdOrText: "Dietary Notes", value: "vegan" }, // needs the list
+      ],
+    });
+    expect(questionFetchCount()).toBe(1);
+    const answers = bookingQuoteOf(calls).questionAnswers as Array<Record<string, unknown>>;
+    expect(answers).toHaveLength(2);
+    expect(answers[0]).toMatchObject({ questionId: "cq_unknown", questionAnswerText: "blind" });
+    expect(answers[1]).toMatchObject({ questionId: "cq_text", questionAnswerText: "vegan" });
+  });
+
   it.each(["o_abc123", "O-123ABC"])("accepts a valid parentOrderId: %s", async (parentOrderId) => {
     const { service } = makeService(createHandler());
     await expect(service.create({ ...validCreate, parentOrderId })).resolves.toBeDefined();

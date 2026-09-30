@@ -190,6 +190,11 @@ stay internal.
   additionally enforces that every required (non-per-guest) custom question is
   answered — validation runs even when `customQuestionAnswers` is empty/omitted,
   and an unanswered required question fails creation before the quote.
+  `CreateBookingInput.acceptAllCustomQuestionIds?: boolean` (default `false`)
+  relaxes the id check: a `cq_…` id not in the activity's question list is
+  accepted as a plain text answer instead of failing creation (by-name answers
+  still must match). When every answer is by id (and no required check runs) the
+  questions fetch is skipped entirely.
 
 ## Errors
 

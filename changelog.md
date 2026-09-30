@@ -12,6 +12,28 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 0.10.0
+
+### `acceptAllCustomQuestionIds` relaxes the custom-question id check on `create` `[additive]`
+
+- **What:** `CreateBookingInput` gains an optional
+  `acceptAllCustomQuestionIds` flag (default `false`). When `true`, a
+  `customQuestionAnswers` entry whose `questionIdOrText` is a `cq_…` id that is
+  **not** among the activity's custom questions is accepted and sent as-is (as a
+  plain text answer) instead of failing the booking. Answers given by question
+  **name** are unaffected — they still must match a question, so the activity's
+  custom questions are fetched only when a by-name answer (or
+  `requireRequiredQuestions`) needs them; when every answer is by id the fetch is
+  skipped entirely.
+- **Why:** Callers that already hold valid `cq_…` ids (e.g. from another system)
+  could previously have a booking rejected because the id was not in the list
+  returned for the activity. This lets them opt out of that check.
+- **Caller action:** None — the default (`false`) preserves the existing
+  strict-match behavior. Set `acceptAllCustomQuestionIds: true` to skip the id
+  check.
+
+---
+
 ## 0.9.1
 
 ### `apiUrl` is the base API URL; each service appends its own routing slug `[fix]`
