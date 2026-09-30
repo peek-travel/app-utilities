@@ -164,7 +164,7 @@ export type {
   BookingAddons,
   BookingAddonsMutationResult,
 } from "./models/peek/booking-addon.js";
-export type { Guide, Review } from "./models/peek/review.js";
+export type { Guide, ProductReviewSummary, Review } from "./models/peek/review.js";
 export type { Waiver } from "./models/peek/waiver.js";
 export { INSTALL_STATUSES } from "./models/peek/install.js";
 export type {

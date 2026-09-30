@@ -43,7 +43,10 @@ import {
   parseSaleNode,
   toBookingAddon,
 } from "./addon-converter.js";
-import { resolveCustomQuestionAnswers } from "./custom-question-answer.js";
+import {
+  isCustomQuestionId,
+  resolveCustomQuestionAnswers,
+} from "./custom-question-answer.js";
 import {
   ADDON_OPTION_STATUS_CANCELED,
   RESERVATION_STATUS_CONFIRMED,
@@ -870,23 +873,34 @@ export class BookingService {
    * Resolves the input's custom-question answers into the quote's
    * `questionAnswers` payload (each tagged with a fresh `refid`), or `null` when
    * none were supplied. Fetches the activity's custom questions to validate
-   * against; throws on the first unmatched/ambiguous/invalid answer.
+   * against; throws on the first unmatched/ambiguous/invalid answer. When
+   * `acceptAllCustomQuestionIds` is set the fetch is skipped if every answer is
+   * given by id (a by-name answer still needs the list to resolve).
    */
   private async buildQuestionAnswers(
     input: CreateBookingInput,
   ): Promise<Array<Record<string, unknown>> | null> {
     const answers = input.customQuestionAnswers ?? [];
     const requireRequired = input.requireRequiredQuestions ?? false;
+    const acceptAllIds = input.acceptAllCustomQuestionIds ?? false;
     // Nothing to resolve and no required-coverage check to enforce — skip the
     // questions fetch entirely.
     if (answers.length === 0 && !requireRequired) {
       return null;
     }
-    const questions = await this.deps.productService.getCustomQuestions(
-      input.activityId,
-    );
+    // When accepting all ids and not enforcing required-question coverage, the
+    // activity's questions are only needed to resolve by-name answers — every
+    // by-id answer is accepted as-is. Skip the fetch when no answer needs it.
+    const needsQuestions =
+      !acceptAllIds ||
+      requireRequired ||
+      answers.some((answer) => !isCustomQuestionId(answer.questionIdOrText));
+    const questions = needsQuestions
+      ? await this.deps.productService.getCustomQuestions(input.activityId)
+      : [];
     const resolved = resolveCustomQuestionAnswers(answers, questions, {
       requireRequired,
+      acceptAllIds,
     });
     if (resolved.length === 0) {
       return null;

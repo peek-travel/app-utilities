@@ -244,3 +244,69 @@ describe("ReviewService.getReviews — access options (fullCustomerAccess)", () 
     expect(review!.customerEmail).toBeNull();
   });
 });
+
+describe("ReviewService.getAllReviewSummaries", () => {
+  /** A fake gateway returning the `activities` review-summary payload. */
+  function summaryService(activities: unknown): { service: ReviewService; getQuery: () => string } {
+    let sentQuery = "";
+    const fetchFn = (async (_url: string, init: RequestInit) => {
+      sentQuery = JSON.parse(init.body as string).query as string;
+      return {
+        status: 200,
+        ok: true,
+        text: async () => JSON.stringify({ data: { activities } }),
+      } as unknown as Response;
+    }) as unknown as typeof fetch;
+    return { service: new ReviewService(buildClient(fetchFn)), getQuery: () => sentQuery };
+  }
+
+  it("maps every activity's reviewMeta to a clean summary", async () => {
+    const { service, getQuery } = summaryService([
+      {
+        id: "act-1",
+        name: "Downtown Bike Tour",
+        reviewMeta: { avgRating: 4.5, count: 10, fiveStar: 6, fourStar: 2, threeStar: 1, twoStar: 1, oneStar: 0 },
+      },
+      { id: "act-2", name: "No Reviews Yet", reviewMeta: null },
+    ]);
+
+    const summaries = await service.getAllReviewSummaries();
+    expect(summaries).toEqual([
+      {
+        productId: "act-1",
+        productName: "Downtown Bike Tour",
+        avgRating: 4.5,
+        countTotal: 10,
+        countOneStar: 0,
+        countTwoStar: 1,
+        countThreeStar: 1,
+        countFourStar: 2,
+        countFiveStar: 6,
+      },
+      {
+        productId: "act-2",
+        productName: "No Reviews Yet",
+        avgRating: null,
+        countTotal: 0,
+        countOneStar: 0,
+        countTwoStar: 0,
+        countThreeStar: 0,
+        countFourStar: 0,
+        countFiveStar: 0,
+      },
+    ]);
+    const query = getQuery().replace(/\s+/g, " ");
+    expect(query).toContain("activities");
+    expect(query).toContain("reviewMeta");
+  });
+
+  it("returns [] when no activities come back", async () => {
+    const { service } = summaryService([]);
+    expect(await service.getAllReviewSummaries()).toEqual([]);
+  });
+
+  it("returns [] when the activities field is absent", async () => {
+    const { service } = summaryService(undefined);
+    expect(await service.getAllReviewSummaries()).toEqual([]);
+  });
+});

@@ -380,6 +380,15 @@ Recurring patterns inside services:
   reviewOffset - 1, reviewCount)`; an offset of 0 sends no cursor. This is the
   one resource whose triad carries a fourth helper file (`review-cursor.ts`)
   alongside queries/converter/service.
+
+  `ReviewService.getAllReviewSummaries()` is a second, aggregate read on the same
+  service: a single `activities { id name reviewMeta { … } }` query (the same
+  `activities` connection `ProductService` reads) mapped by the pure
+  `fromActivityReviewSummaryNodes` into `ProductReviewSummary[]` — per-activity
+  average rating and per-star counts. It carries no per-review detail or PII, so
+  it is unaffected by `fullCustomerAccess`; an activity with no reviews maps to a
+  `null` `avgRating` and zero counts. `ProductReviewSummary` is exported from
+  `src/index.ts`.
 - **Composition** — `BookingService.addAddon` resolves an add-on's parent item
   through `ProductService`; `TimeslotService.assignGuide` resolves guides
   through the resource-pool + account-user services using the pure
@@ -399,7 +408,13 @@ Recurring patterns inside services:
   Per-guest questions are rejected (`not yet supported`). When
   `CreateBookingInput.requireRequiredQuestions` is set, the resolver also runs
   even if no answers were supplied and throws for the first required,
-  non-per-guest question left unanswered. This runs
+  non-per-guest question left unanswered. When
+  `CreateBookingInput.acceptAllCustomQuestionIds` is set, a `cq_…` id that is not
+  in the activity's question list is accepted as a plain text answer rather than
+  throwing (by-name answers are unaffected — they still must match a question);
+  the service uses `isCustomQuestionId` to skip the `getCustomQuestions` fetch
+  entirely when every answer is by id and no required-coverage check is enforced.
+  This runs
   before the first `createQuoteV2`, so a bad answer fails before any quote
   exists; the service then tags each resolved answer with a fresh `refid` and
   attaches them as the quote's `questionAnswers`. `addAddon` and `removeAddon` first call

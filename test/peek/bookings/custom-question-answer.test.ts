@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveCustomQuestionAnswers } from "../../../src/internal/peek/bookings/custom-question-answer.js";
+import {
+  isCustomQuestionId,
+  resolveCustomQuestionAnswers,
+} from "../../../src/internal/peek/bookings/custom-question-answer.js";
 import type { CustomQuestion } from "../../../src/models/peek/custom-question.js";
 
 const q = (over: Partial<CustomQuestion>): CustomQuestion => ({
@@ -219,4 +222,67 @@ describe("resolveCustomQuestionAnswers — requireRequired", () => {
   it("does not enforce coverage when requireRequired is off", () => {
     expect(resolveCustomQuestionAnswers([], [REQ_TEXT])).toEqual([]);
   });
+});
+
+describe("resolveCustomQuestionAnswers — acceptAllIds", () => {
+  it("accepts an unknown cq_ id as a text answer instead of throwing", () => {
+    expect(
+      resolveCustomQuestionAnswers(
+        [{ questionIdOrText: "cq_unknown", value: "anything" }],
+        ALL,
+        { acceptAllIds: true },
+      ),
+    ).toEqual([{ questionId: "cq_unknown", questionAnswerText: "anything" }]);
+  });
+
+  it("accepts an unknown id even with an empty question list", () => {
+    expect(
+      resolveCustomQuestionAnswers(
+        [{ questionIdOrText: "cq_x", value: "v" }],
+        [],
+        { acceptAllIds: true },
+      ),
+    ).toEqual([{ questionId: "cq_x", questionAnswerText: "v" }]);
+  });
+
+  it("still type-resolves a known id when acceptAllIds is set", () => {
+    expect(
+      resolveCustomQuestionAnswers(
+        [{ questionIdOrText: "cq_pick", value: "cqao_b" }],
+        ALL,
+        { acceptAllIds: true },
+      ),
+    ).toEqual([
+      { questionId: "cq_pick", questionAnswerOptionId: "cqao_b", questionAnswerText: "Hilton Chicago" },
+    ]);
+  });
+
+  it("does not relax an unmatched by-name answer (no id to accept)", () => {
+    expect(() =>
+      resolveCustomQuestionAnswers(
+        [{ questionIdOrText: "totally unknown", value: "x" }],
+        ALL,
+        { acceptAllIds: true },
+      ),
+    ).toThrow(/No custom question matches text/);
+  });
+
+  it("still throws on an unknown id when acceptAllIds is off", () => {
+    expect(() =>
+      resolveCustomQuestionAnswers([{ questionIdOrText: "cq_unknown", value: "x" }], ALL),
+    ).toThrow(/No custom question matches id "cq_unknown"/);
+  });
+});
+
+describe("isCustomQuestionId", () => {
+  it.each(["cq_abc123", "cq_x"])("is true for a cq_ id: %s", (id) => {
+    expect(isCustomQuestionId(id)).toBe(true);
+  });
+
+  it.each(["Dietary Notes", "cqao_a", "CQ_ABC", "cq_", "random"])(
+    "is false for free-text / non-question ids: %s",
+    (value) => {
+      expect(isCustomQuestionId(value)).toBe(false);
+    },
+  );
 });

@@ -382,6 +382,16 @@ export interface CreateBookingInput {
    * Default: `false`.
    */
   requireRequiredQuestions?: boolean;
+  /**
+   * When `true`, a `customQuestionAnswers` entry whose `questionIdOrText` is a
+   * `cq_…` id is accepted even if that id is **not** among the activity's custom
+   * questions — the check that a question id must match the activity's list is
+   * skipped, and the answer is sent as-is (as a text answer). Entries given by
+   * question **name** are unaffected: they still must match a question, so the
+   * activity's questions are fetched only when a by-name answer (or
+   * `requireRequiredQuestions`) needs them. Default: `false`.
+   */
+  acceptAllCustomQuestionIds?: boolean;
   /** Suppress the customer confirmation email. Default: false. */
   skipCustomerEmail?: boolean;
   /** Clone the quote from an existing order. */

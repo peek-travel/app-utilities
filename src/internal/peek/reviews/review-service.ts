@@ -5,17 +5,25 @@
  */
 import { SALES_ENDPOINT } from "../gateway-endpoints.js";
 import type { GraphQLBody, GraphQLClient } from "../graphql-client.js";
-import type { Review } from "../../../models/peek/review.js";
+import type {
+  ProductReviewSummary,
+  Review,
+} from "../../../models/peek/review.js";
 import {
   resolveAccessOptions,
   type AccessOptions,
 } from "../../../access-options.js";
-import { fromReviewNode } from "./review-converter.js";
+import {
+  fromActivityReviewSummaryNodes,
+  fromReviewNode,
+} from "./review-converter.js";
 import { encodeCursor } from "./review-cursor.js";
 import {
   buildReviewsQuery,
   buildReviewsVariables,
+  REVIEW_SUMMARIES_QUERY,
   type ReviewsResponse,
+  type ReviewSummariesResponse,
 } from "./review-queries.js";
 
 /** Number of reviews returned when `reviewCount` is omitted. */
@@ -92,6 +100,32 @@ export class ReviewService {
 
     const edges = body.data?.reviews?.edges ?? [];
     return edges.map((edge) => fromReviewNode(edge.node));
+  }
+
+  /**
+   * Returns an aggregate review summary for **every** activity — its average
+   * rating and the count of reviews at each star level. This reads the same
+   * activity list as `getAllProducts`; it carries no per-review detail or PII, so
+   * it is unaffected by `fullCustomerAccess`. An activity with no reviews comes
+   * back with a `null` `avgRating` and zero counts.
+   *
+   * @example
+   * ```ts
+   * const summaries = await peek.getReviewService().getAllReviewSummaries();
+   * for (const s of summaries) {
+   *   console.log(s.productName, s.avgRating, s.countTotal);
+   * }
+   * ```
+   */
+  async getAllReviewSummaries(): Promise<ProductReviewSummary[]> {
+    const body: GraphQLBody<ReviewSummariesResponse> =
+      await this.client.request<ReviewSummariesResponse>(
+        SALES_ENDPOINT,
+        REVIEW_SUMMARIES_QUERY,
+        {},
+      );
+
+    return fromActivityReviewSummaryNodes(body.data?.activities ?? []);
   }
 
   private validate(

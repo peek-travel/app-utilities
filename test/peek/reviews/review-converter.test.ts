@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  fromActivityReviewSummaryNode,
+  fromActivityReviewSummaryNodes,
   fromReviewNode,
   toDateOnly,
 } from "../../../src/internal/peek/reviews/review-converter.js";
-import type { ReviewNode } from "../../../src/internal/peek/reviews/review-queries.js";
+import type {
+  ActivityReviewSummaryNode,
+  ReviewNode,
+} from "../../../src/internal/peek/reviews/review-queries.js";
 
 function node(overrides: Partial<ReviewNode> = {}): ReviewNode {
   return {
@@ -57,5 +62,79 @@ describe("fromReviewNode", () => {
     const review = fromReviewNode(node({ activity: null }));
     expect(review.productId).toBe("");
     expect(review.productName).toBe("");
+  });
+});
+
+function summaryNode(
+  overrides: Partial<ActivityReviewSummaryNode> = {},
+): ActivityReviewSummaryNode {
+  return {
+    id: "act-1",
+    name: "Downtown Bike Tour",
+    reviewMeta: {
+      avgRating: 4.5,
+      count: 10,
+      fiveStar: 6,
+      fourStar: 2,
+      threeStar: 1,
+      twoStar: 1,
+      oneStar: 0,
+    },
+    ...overrides,
+  };
+}
+
+describe("fromActivityReviewSummaryNode", () => {
+  it("maps a fully populated node to the clean summary", () => {
+    expect(fromActivityReviewSummaryNode(summaryNode())).toEqual({
+      productId: "act-1",
+      productName: "Downtown Bike Tour",
+      avgRating: 4.5,
+      countTotal: 10,
+      countOneStar: 0,
+      countTwoStar: 1,
+      countThreeStar: 1,
+      countFourStar: 2,
+      countFiveStar: 6,
+    });
+  });
+
+  it("collapses a null reviewMeta to null average and zero counts", () => {
+    expect(fromActivityReviewSummaryNode(summaryNode({ reviewMeta: null }))).toEqual({
+      productId: "act-1",
+      productName: "Downtown Bike Tour",
+      avgRating: null,
+      countTotal: 0,
+      countOneStar: 0,
+      countTwoStar: 0,
+      countThreeStar: 0,
+      countFourStar: 0,
+      countFiveStar: 0,
+    });
+  });
+
+  it("keeps a null avgRating when there are no ratings", () => {
+    const summary = fromActivityReviewSummaryNode(
+      summaryNode({
+        reviewMeta: { avgRating: null, count: 0, fiveStar: 0, fourStar: 0, threeStar: 0, twoStar: 0, oneStar: 0 },
+      }),
+    );
+    expect(summary.avgRating).toBeNull();
+    expect(summary.countTotal).toBe(0);
+  });
+});
+
+describe("fromActivityReviewSummaryNodes", () => {
+  it("maps every node in order", () => {
+    const summaries = fromActivityReviewSummaryNodes([
+      summaryNode({ id: "act-1", name: "One" }),
+      summaryNode({ id: "act-2", name: "Two", reviewMeta: null }),
+    ]);
+    expect(summaries.map((s) => s.productId)).toEqual(["act-1", "act-2"]);
+    expect(summaries[1]!.avgRating).toBeNull();
+  });
+
+  it("returns [] for no activities", () => {
+    expect(fromActivityReviewSummaryNodes([])).toEqual([]);
   });
 });

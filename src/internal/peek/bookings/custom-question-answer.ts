@@ -25,6 +25,16 @@ export const QUESTION_TYPE_LOCATION = "LOCATION";
 const QUESTION_ID_REGEX = /^cq_[a-z0-9]+$/;
 const OPTION_ID_REGEX = /^cqao_[a-z0-9]+$/;
 
+/**
+ * Whether `idOrText` is a custom-question id (`cq_…`) rather than free-text.
+ * The service uses this to decide whether it must fetch the activity's questions:
+ * a by-name answer always needs the list to resolve, a by-id answer does not when
+ * unknown ids are being accepted (see `acceptAllIds`).
+ */
+export function isCustomQuestionId(idOrText: string): boolean {
+  return QUESTION_ID_REGEX.test(idOrText);
+}
+
 /** Checkbox truthiness — `value` (lowercased) must be one of the valid set. */
 const CHECKBOX_TRUE = new Set(["yes", "true"]);
 const CHECKBOX_VALID = new Set(["yes", "no", "true", "false"]);
@@ -74,14 +84,24 @@ function normalize(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-/** Finds the one question an input targets, by id or by lenient text match. */
+/**
+ * Finds the one question an input targets, by id or by lenient text match.
+ * Returns `null` (rather than throwing) for an unknown `cq_…` id when
+ * `acceptAllIds` is set — the caller then accepts the id blindly as a text
+ * answer. A by-name input is always resolved against the list (there is no id to
+ * accept), so `acceptAllIds` never relaxes an unmatched/ambiguous text match.
+ */
 function resolveQuestion(
   idOrText: string,
   questions: CustomQuestion[],
-): CustomQuestion {
+  acceptAllIds: boolean,
+): CustomQuestion | null {
   if (QUESTION_ID_REGEX.test(idOrText)) {
     const byId = questions.find((question) => question.id === idOrText);
-    if (!byId) throw new Error(errUnknownQuestionId(idOrText));
+    if (!byId) {
+      if (acceptAllIds) return null;
+      throw new Error(errUnknownQuestionId(idOrText));
+    }
     return byId;
   }
   const target = normalize(idOrText);
@@ -116,8 +136,15 @@ function resolveOption(
 function resolveOne(
   answer: CustomQuestionAnswerInput,
   questions: CustomQuestion[],
+  acceptAllIds: boolean,
 ): ResolvedCustomAnswer {
-  const question = resolveQuestion(answer.questionIdOrText, questions);
+  const question = resolveQuestion(answer.questionIdOrText, questions, acceptAllIds);
+  // An unknown id accepted blindly (acceptAllIds): there is no question
+  // definition to type-check against, so pass the id and value through as a
+  // plain text answer.
+  if (!question) {
+    return { questionId: answer.questionIdOrText, questionAnswerText: answer.value };
+  }
   // Per-guest answers require per-guest wiring the quote payload does not carry
   // yet — reject rather than silently drop the distinction.
   if (question.perGuest) {
@@ -163,6 +190,13 @@ export interface ResolveCustomQuestionOptions {
    * Per-guest questions are excluded (they cannot be answered here anyway).
    */
   requireRequired?: boolean;
+  /**
+   * When `true`, an answer identified by a `cq_…` id that is **not** in the
+   * activity's question list is accepted as-is (passed through as a text answer)
+   * instead of throwing. By-name answers are unaffected — they still must match a
+   * question, since there is no id to accept. Default: `false`.
+   */
+  acceptAllIds?: boolean;
 }
 
 /**
@@ -174,13 +208,17 @@ export interface ResolveCustomQuestionOptions {
  * any required, non-per-guest question with no answer throws. This check runs
  * even when `answers` is empty, so an activity with unanswered required
  * questions fails rather than booking without them.
+ *
+ * With `acceptAllIds`, an answer whose `cq_…` id is not in `questions` is
+ * accepted as a plain text answer instead of throwing.
  */
 export function resolveCustomQuestionAnswers(
   answers: CustomQuestionAnswerInput[],
   questions: CustomQuestion[],
   options?: ResolveCustomQuestionOptions,
 ): ResolvedCustomAnswer[] {
-  const resolved = answers.map((answer) => resolveOne(answer, questions));
+  const acceptAllIds = options?.acceptAllIds ?? false;
+  const resolved = answers.map((answer) => resolveOne(answer, questions, acceptAllIds));
   if (options?.requireRequired) {
     assertRequiredAnswered(resolved, questions);
   }

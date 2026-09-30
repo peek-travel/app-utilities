@@ -33,3 +33,29 @@ export interface Review {
   /** Free-text review. May be null. */
   comment: string | null;
 }
+
+/**
+ * Aggregate review statistics for a single activity (product), as returned by
+ * {@link ReviewService.getAllReviewSummaries}. Carries no per-review detail or
+ * PII — just the rating distribution and average.
+ */
+export interface ProductReviewSummary {
+  /** Activity (product) id the summary is for. */
+  productId: string;
+  /** Activity (product) name. */
+  productName: string;
+  /** Average star rating as a decimal, or `null` when there are no ratings. */
+  avgRating: number | null;
+  /** Total number of reviews. */
+  countTotal: number;
+  /** Number of 1-star reviews. */
+  countOneStar: number;
+  /** Number of 2-star reviews. */
+  countTwoStar: number;
+  /** Number of 3-star reviews. */
+  countThreeStar: number;
+  /** Number of 4-star reviews. */
+  countFourStar: number;
+  /** Number of 5-star reviews. */
+  countFiveStar: number;
+}
