@@ -6,6 +6,12 @@ Peek Pro Autopilot connector so the connector can become a thin consumer.
 Callers only ever touch `PeekAccessService`, the per-resource services it hands
 out, and the clean data models — never raw GraphQL.
 
+> **⚠️ Never bump the package version on your own.** Do not change `version` in
+> `package.json` (or any file that mirrors it) as part of doing the work. When you
+> are about to open a PR, **ask the user** whether they want to bump the version
+> and, if so, to which new version — then apply exactly that. See **Versioning**
+> below for the mechanics of applying a bump the user asks for.
+
 - If anything about a request is unclear or ambiguous, ask for clarification
   before starting any work. Don't guess at intent or proceed on assumptions when
   the goal, scope, or approach is uncertain.
@@ -109,7 +115,8 @@ out, and the clean data models — never raw GraphQL.
   by version. Any change that is potentially breaking for an existing consumer — a
   changed event contract, a removed/renamed attribute or serialization format, an
   altered default, a lifecycle/behavior change, or anything that requires callers
-  to update their code — MUST be recorded there under the target version's header
+  to update their code — MUST be recorded there under the `## Unreleased` header
+  (it is renamed to a version number only if/when the user asks for a bump)
   with (a) what changed, (b) why, and (c) the concrete action the caller has to
   take. Caller-visible fixes and new capabilities may be logged too, marked with
   their tag. **Do not** log internal-only work (refactors, test changes, invisible
@@ -255,12 +262,18 @@ gates every operation that touches customer financial data —
 
 # Versioning
 
-**Always bump the `version` in `package.json` when opening a PR**, to the
-`major.minor.patch` semver level that matches the change the PR carries. The
-package versions independently of the connector. Note `0.0.0` is the
-pre-release placeholder and cannot be re-published once a real version ships.
+**Never bump the `version` on your own.** Do not change `version` in
+`package.json` — or any file that mirrors it — as part of doing the work. The
+package versions independently of the connector, and the maintainer decides when
+and how far to bump.
 
-Pick the level from the most significant change in the PR:
+**When you are preparing a PR, ask the user** whether they want to bump the
+version and, if so, to exactly which new version. Do nothing to the version
+unless they say to. If they decline, leave every version literal untouched and
+keep new changelog entries under a `## Unreleased` heading.
+
+To help the user decide, you may suggest a level based on the most significant
+change in the PR (but still wait for their answer before applying it):
 
 - **major** — a breaking change: a removed/renamed public export, a changed
   method signature or return shape, an altered default, or anything a consumer
@@ -271,10 +284,12 @@ Pick the level from the most significant change in the PR:
 - **patch** — a caller-visible fix with no new surface, or a release that only
   carries internal work (refactors, tests, docs, build).
 
-Do **not** bump mid-stream while iterating on a branch — set the version once,
-as part of preparing the PR, so a branch carries exactly one bump.
+`0.0.0` is the pre-release placeholder and cannot be re-published once a real
+version ships.
 
-Everything that names the version must move together in that same commit:
+Only **when the user has asked for a specific bump**: set the version once (never
+mid-stream while iterating), so the branch carries exactly one bump, and move
+everything that names the version together in that same commit:
 
 - `package.json` `version`
 - `package-lock.json` — the two root `version` fields (lines ~3 and ~9)
@@ -317,6 +332,7 @@ install-script spawn — use `npm install --ignore-scripts`. If the
   `llms.txt` if the public entry points changed.
 - Update the matching `docs/html/*.html` reference (`peek`/`cng`/`acme`) if any
   service class, public method, or data model in that domain changed.
-- Record any caller-visible change (and, for breaking ones, the caller's required action) in `changelog.md`.
-- Before opening the PR, bump the version at the matching semver level and
-  update everything that names it — see **Versioning**.
+- Record any caller-visible change (and, for breaking ones, the caller's required action) in `changelog.md` under `## Unreleased`.
+- Before opening the PR, **ask the user whether to bump the version** (and to
+  which new version). Never bump on your own; only apply a bump the user asks for,
+  updating everything that names it — see **Versioning**.
