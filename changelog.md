@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## 0.10.0
+## Unreleased
 
 ### `ReviewService.getAllReviewSummaries()` returns per-activity rating summaries `[additive]`
 
