@@ -72,6 +72,53 @@ export interface ReviewsResponse {
   reviews: { edges: ReviewEdge[] } | null;
 }
 
+/**
+ * Fetches every activity with its aggregate review statistics. The `activities`
+ * connection is the same list `getAllProducts` reads; here only the id, name,
+ * and `reviewMeta` rating distribution are selected. Carries no PII, so it is
+ * unaffected by `fullCustomerAccess`.
+ */
+export const REVIEW_SUMMARIES_QUERY = `
+  query ReviewSummaries {
+    activities {
+      id
+      name
+      reviewMeta {
+        avgRating
+        count
+        fiveStar
+        fourStar
+        threeStar
+        twoStar
+        oneStar
+      }
+    }
+  }
+`;
+
+/** An activity's aggregate review statistics as returned by the gateway. */
+export interface ReviewMetaNode {
+  avgRating: number | null;
+  count: number;
+  fiveStar: number;
+  fourStar: number;
+  threeStar: number;
+  twoStar: number;
+  oneStar: number;
+}
+
+/** A single activity node as returned by {@link REVIEW_SUMMARIES_QUERY}. */
+export interface ActivityReviewSummaryNode {
+  id: string;
+  name: string;
+  reviewMeta: ReviewMetaNode | null;
+}
+
+/** The `data` payload of {@link REVIEW_SUMMARIES_QUERY}. */
+export interface ReviewSummariesResponse {
+  activities: ActivityReviewSummaryNode[];
+}
+
 /** Variables for {@link buildReviewsQuery}. */
 export interface ReviewsVariables {
   first: number;

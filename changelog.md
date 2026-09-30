@@ -14,6 +14,20 @@ action needed; `[additive]` only adds capability.
 
 ## 0.10.0
 
+### `ReviewService.getAllReviewSummaries()` returns per-activity rating summaries `[additive]`
+
+- **What:** New `ReviewService.getAllReviewSummaries()` method returning a
+  `ProductReviewSummary[]` — one entry per activity carrying `productId`,
+  `productName`, `avgRating` (decimal, `null` when the activity has no ratings),
+  `countTotal`, and the per-star counts `countOneStar`…`countFiveStar`. The new
+  `ProductReviewSummary` type is exported from the package root.
+- **Why:** Consumers wanting an activity's rating distribution previously had to
+  page all reviews and aggregate them client-side. This exposes the gateway's
+  precomputed summary directly.
+- **Caller action:** None — additive. Reach it via
+  `peek.getReviewService().getAllReviewSummaries()`. Carries no PII, so it is
+  unaffected by `fullCustomerAccess`.
+
 ### `acceptAllCustomQuestionIds` relaxes the custom-question id check on `create` `[additive]`
 
 - **What:** `CreateBookingInput` gains an optional

@@ -380,6 +380,15 @@ Recurring patterns inside services:
   reviewOffset - 1, reviewCount)`; an offset of 0 sends no cursor. This is the
   one resource whose triad carries a fourth helper file (`review-cursor.ts`)
   alongside queries/converter/service.
+
+  `ReviewService.getAllReviewSummaries()` is a second, aggregate read on the same
+  service: a single `activities { id name reviewMeta { … } }` query (the same
+  `activities` connection `ProductService` reads) mapped by the pure
+  `fromActivityReviewSummaryNodes` into `ProductReviewSummary[]` — per-activity
+  average rating and per-star counts. It carries no per-review detail or PII, so
+  it is unaffected by `fullCustomerAccess`; an activity with no reviews maps to a
+  `null` `avgRating` and zero counts. `ProductReviewSummary` is exported from
+  `src/index.ts`.
 - **Composition** — `BookingService.addAddon` resolves an add-on's parent item
   through `ProductService`; `TimeslotService.assignGuide` resolves guides
   through the resource-pool + account-user services using the pure

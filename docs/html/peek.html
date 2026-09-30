@@ -459,7 +459,8 @@ render({
    desc:"Review operations. Receives the resolved access options (reviewer PII on/off) from the access service.",
    obtain:"PeekAccessService.getReviewService()",
    methods:[
-     {name:"getReviews",sig:"(productId: string, reviewCount?: number, reviewOffset?: number): Promise&lt;Review[]&gt;",desc:"Up to <code>reviewCount</code> reviews for an activity, newest-first, skipping the <code>reviewOffset</code> newest.",notes:"<code>reviewCount</code> default 50 (validated 1–50); <code>reviewOffset</code> default 0 (validated non-negative). Single-page fetch via connection cursor. Reviewer <code>name</code>/<code>email</code> nulled when PII off. Throws <code>Error</code> on empty <code>productId</code>, invalid count, or invalid offset."}
+     {name:"getReviews",sig:"(productId: string, reviewCount?: number, reviewOffset?: number): Promise&lt;Review[]&gt;",desc:"Up to <code>reviewCount</code> reviews for an activity, newest-first, skipping the <code>reviewOffset</code> newest.",notes:"<code>reviewCount</code> default 50 (validated 1–50); <code>reviewOffset</code> default 0 (validated non-negative). Single-page fetch via connection cursor. Reviewer <code>name</code>/<code>email</code> nulled when PII off. Throws <code>Error</code> on empty <code>productId</code>, invalid count, or invalid offset."},
+     {name:"getAllReviewSummaries",sig:"(): Promise&lt;ProductReviewSummary[]&gt;",desc:"Aggregate review statistics for every activity — average rating and per-star counts.",notes:"Reads the same activity list as <code>getAllProducts</code>. Carries no per-review detail or PII, so it is unaffected by the PII switch. An activity with no reviews returns a <code>null</code> <code>avgRating</code> and zero counts."}
    ]
   }
  ],
@@ -1118,6 +1119,18 @@ render({
    fields:[
     {name:"id",type:"string",n:false,desc:"Guide id (e.g. <code>u_y6e4r</code>)."},
     {name:"name",type:"string",n:false,desc:"Guide display name."}
+   ]},
+  {name:"ProductReviewSummary",kind:"interface",file:"src/models/peek/review.ts",desc:"Aggregate review statistics for one activity, returned by <code>ReviewService.getAllReviewSummaries</code>. No per-review detail or PII.",
+   fields:[
+    {name:"productId",type:"string",n:false,desc:"Activity id."},
+    {name:"productName",type:"string",n:false,desc:"Activity name."},
+    {name:"avgRating",type:"number | null",n:true,desc:"Average star rating (decimal); <code>null</code> when there are no ratings."},
+    {name:"countTotal",type:"number",n:false,desc:"Total number of reviews."},
+    {name:"countOneStar",type:"number",n:false,desc:"Number of 1-star reviews."},
+    {name:"countTwoStar",type:"number",n:false,desc:"Number of 2-star reviews."},
+    {name:"countThreeStar",type:"number",n:false,desc:"Number of 3-star reviews."},
+    {name:"countFourStar",type:"number",n:false,desc:"Number of 4-star reviews."},
+    {name:"countFiveStar",type:"number",n:false,desc:"Number of 5-star reviews."}
    ]},
   {name:"AccessOptions",kind:"input",file:"src/access-options.ts",desc:"Cross-cutting access options passed once at access-service construction. Governs PII exposure and payment/modification gating. Threaded into <code>BookingService</code> and <code>ReviewService</code>.",
    fields:[{name:"fullCustomerAccess",type:"boolean",n:"opt",desc:"Expose customer PII and enable payment/modification ops (default false)."}]},
