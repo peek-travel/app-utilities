@@ -261,6 +261,60 @@ the add-on flows live in `addon-queries.ts` (the `sales` add-ons query + raw
 node shapes) and `addon-converter.ts` (raw node → the internal `AddonItem`
 detail model and the clean public `BookingAddon`).
 
+`bookings` carries a third sub-domain for **custom-field metadata** —
+`metadata-queries.ts` + `metadata-converter.ts`, surfaced by
+`BookingService.getMetaData(bookingId)` → `MetaData[]` (`[]` when the booking is
+not found or has no matching fields — the per-booking envelope was dropped in
+favour of returning the entries directly). Its query is
+a variant of the single-booking read: it reuses the shared `sales(...)` envelope
+(`buildSalesQuery`, extracted in `booking-queries.ts` and now shared by the
+listing/guests/payments/metadata readers) and the shared `buildBookingsVariables`
+(filtering by `bookingFilter.ids`), selecting only the `fieldResponses` tree. The
+clean model (`src/models/peek/booking-metadata.ts`) flattens each response's
+field (id/name/slug/type), prompt (label/hint/required), and `refid`, and carries
+one typed `value: MetaDataValue | null` — a **discriminated union keyed by
+`kind`**, one variant per gateway `…FieldResponseValue` type. The pure converter
+discriminates on the value's `__typename` (selected in the query); an
+unrecognized/future variant maps to `null` (never coerced). Numeric `Int` → `number`,
+`Decimal` → `string` (no float loss), `Date`/`Time` → ISO string. Every variant
+also carries a `displayValue` — a display-safe human string the converter renders
+per kind (booleans → `Yes`/`No`, amount+unit → `"3 hours"`, percent → `"12.5%"`,
+location → comma-joined parts, meta → `JSON.stringify`, and the `html` variant
+**HTML-escaped** via the local `escapeHtml`); it is `""` when the value is absent.
+`MetaData`, `MetaDataValue`, and the unit/type aliases
+(`MetaDataBarcodeType`/`MetaDataDurationUnit`/`MetaDataVolumeUnit`/`MetaDataWeightUnit`)
+are exported from `src/index.ts`.
+
+**Integrator scoping.** `getMetaData` returns only the fields whose `slug` starts
+with `integrator:<integrator>:` (case-sensitive exact prefix), stripping that
+prefix off each returned `slug` (pure `filterMetaDataByIntegrator`). The
+integrator is **per `BookingService`**, supplied by
+`PeekAccessService.getBookingService(integrator?)`; when omitted it defaults to
+the install's `issuer`. The accessor memoizes one `BookingService` per resolved
+integrator string (a `Map`), so the no-arg/default call and a `getBookingService(issuer)`
+call share an instance. The consumer-facing docs deliberately describe the param
+only as "do not set unless Peek engineering created a custom integrator id" and
+do **not** reveal the issuer default.
+
+**Writing metadata.** The `upsertBookingFieldResponses` mutation
+(`metadata-queries.ts`) is surfaced through **eight fixed-`fieldName` setters** on
+`BookingService` — `setMetaDataGuest`, `setMetaDataAttachment`,
+`setMetaDataManifestUrl`, `setMetaDataReservationId`, `setMetaDataBookingStatus`,
+`setMetaDataAssignedProduct`, `setMetaDataAssignedEmployee`,
+`setMetaDataInsurancePurchased`. Each hard-codes its `fieldName` (the caller only
+supplies the value) and funnels through one private `upsertFieldResponse` helper
+that validates the booking id, injects the service `integrator`, and maps the
+result union (`UpsertBookingFieldResponsesSuccess` / `BookingNotFoundError` /
+`GenericError`, discriminated by `__typename`) into a clean `SetMetaDataResult`
+(`{ success, bookingId, message }`) via the pure `toSetMetaDataResult` — the error
+variants resolve to `success: false` rather than throwing. `guest` takes
+`SetMetaDataGuestInput[]` (name/email required; DOB/waiver/notes optional) and
+`attachment` takes `SetMetaDataAttachmentInput[]` (name/attachmentUrl required);
+the other six take a single `string`/`boolean`. The setters are **not PII-gated**
+(operator-facing writes of caller-supplied data). `SetMetaDataGuestInput`,
+`SetMetaDataAttachmentInput`, and `SetMetaDataResult` are exported from
+`src/index.ts`.
+
 `bookings` also carries the webhook surface (`booking-webhook.ts`). A Peek
 booking webhook's payload shape is defined by the GraphQL field selection
 registered with it, so the registered query and the parser must stay in lockstep.
@@ -396,7 +450,14 @@ Recurring patterns inside services:
 - **Multi-step mutations** — booking creation (`createQuoteV2` →
   `createOrderFromQuote`) and both add-on mutations (`createQuoteFromOrder` →
   `updateQuoteV2` → `amendOrder`) are orchestrated as ordered request chains
-  with per-step error checks. When `CreateBookingInput.customQuestionAnswers`
+  with per-step error checks. When `CreateBookingInput.listPrice` is set, the pure
+  `bookings/list-price.ts` (`distributeListPrice`) splits that total across the
+  expanded ticket seats in integer cents — `floor(total / n)` for the first n-1,
+  the remainder to the last — and `create` attaches a per-ticket
+  `price { amount, currency }` to the `createQuoteV2` tickets, resolving the
+  currency from the activity via `ProductService.getAllProducts()` (fallback
+  `"USD"`, in parallel with the question-answer read). A malformed `listPrice`
+  throws before any network call. When `CreateBookingInput.customQuestionAnswers`
   is supplied, `create` first fetches the activity's custom questions
   (`ProductService.getCustomQuestions`) and runs the pure resolver in
   `bookings/custom-question-answer.ts` (`resolveCustomQuestionAnswers`) to match
@@ -459,8 +520,12 @@ When `fullCustomerAccess` is `false` (the default), two things happen:
      (name/country/DOB/email/phone/postalCode/`isGdpr`/`fieldResponses` — the
      guest list keeps only ids + participation/opt-in flags), the custom
      question answers (booking- and ticket-level), and the customer
-     `bookingPortalUrl`. Operator-facing fields (notes, the Peek Pro deep link,
-     money, resources) always stay.
+     `bookingPortalUrl`. Operator-facing fields (notes, the operator custom
+     status, the Peek Pro deep link, money, resources) always stay. The
+     booking-metadata query (`metadata-queries.ts`, behind `getMetaData`) gates
+     the `GuestFieldResponseValue` identity fields the same way — `name`/`email`/
+     `dateOfBirth` are only selected with `fullCustomerAccess`; `notes`/`waiverSigned`
+     always stay.
    - **Reviews** (`buildReviewsQuery`): drops the reviewer `name`/`email`; the
      review `comment`, rating, dates, and credited guides always stay.
    - **Waivers** (`parseWaiverWebhook`): the webhook delivers a *fixed* payload
@@ -474,8 +539,9 @@ When `fullCustomerAccess` is `false` (the default), two things happen:
    `getPaymentsOnFile`, `makePayment`, `refund`, `createInvoiceLink`,
    `addAddon`, `removeAddon` — throwing `PiiAccessDisabledError` (an exported
    typed error) before any network call. Non-payment reads/mutations
-   (`getById`, `getGuests`, `cancel`, `appendNote`, `setCheckinStatus`) and
-   `create` (**including `markAsPaid`**) remain available.
+   (`getById`, `getGuests`, `cancel`, `appendNote`, `setCheckinStatus`,
+   `updateCustomStatus`) and `create` (**including `markAsPaid`**) remain
+   available.
 
 The webhook **registration** query (`BOOKING_WEBHOOK_GQL_QUERY`) is deliberately
 unaffected — it is the maximal selection built from the full field fragments and

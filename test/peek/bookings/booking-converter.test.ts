@@ -52,6 +52,7 @@ function fullNode(): BookingNode {
     availabilityTimeId: "avail-1",
     bookingPortalUrl: "https://portal/b1",
     operatorNotes: "VIP",
+    operatorStatus: "Awaiting deposit",
     value: {
       total: { amount: "100.00", formatted: "$100.00" },
       convenienceFee: { amount: "2.00", formatted: "$2.00" },
@@ -134,6 +135,7 @@ describe("fromBookingNode", () => {
     expect(booking.isReturned).toBe(true);
     expect(booking.durationMin).toBe(90);
     expect(booking.notes).toBe("VIP");
+    expect(booking.customStatus).toBe("Awaiting deposit");
     expect(booking.valueDisplay).toBe("$100.00");
     expect(booking.outstandingBalanceAmount).toBe("10.00");
     expect(booking.promoCodes).toEqual(["SUMMER"]);
@@ -185,6 +187,7 @@ describe("fromBookingNode", () => {
       isCanceled: false,
       durationMin: 0,
       notes: "",
+      customStatus: null,
       promoCodes: [],
       tips: [],
       resources: [],

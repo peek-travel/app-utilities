@@ -198,6 +198,11 @@ export interface Booking {
   portalUrl: string | null;
   /** Operator notes on the booking (`""` when none). */
   notes: string;
+  /**
+   * Operator-facing custom status set on the booking (via
+   * {@link BookingService.updateCustomStatus}), or `null` when none is set.
+   */
+  customStatus: string | null;
 
   /** Total booking value, human-formatted (e.g. `"$75.00"`). `""` if absent. */
   valueDisplay: string;
@@ -367,6 +372,15 @@ export interface CreateBookingInput {
   guest: CreateBookingGuest;
   /** Operator notes to attach. */
   operatorNotes?: string;
+  /**
+   * Total list price for the booking, as a positive number string (commas
+   * allowed — `"100"`, `"1,000"`, `"10.00"`). When set, it is split evenly
+   * across the booking's tickets (each of the first n-1 tickets gets
+   * `floor(total / n)`, the last ticket the remainder) and sent per ticket in
+   * the activity's currency (falling back to `"USD"`). Omit to let Peek price
+   * the tickets from the activity's configured pricing.
+   */
+  listPrice?: string;
   /**
    * Answers to the activity's custom questions. When non-empty, the activity's
    * custom questions are fetched and each answer is validated/resolved before

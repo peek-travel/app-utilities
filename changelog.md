@@ -12,6 +12,98 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 0.9.3
+
+### `CreateBookingInput.listPrice` sets a per-ticket list price on `create` `[additive]`
+
+- **What:** `CreateBookingInput` gains an optional `listPrice` — a positive
+  number string (commas allowed: `"100"`, `"1,000"`, `"10.00"`) for the booking's
+  **total** list price. When set, `BookingService.create` splits it evenly across
+  the booking's tickets (each of the first n-1 tickets gets `floor(total / n)`,
+  the last ticket the remainder, so the parts sum exactly — e.g. `"10.00"` over 3
+  tickets → `3.33`, `3.33`, `3.34`) and sends a per-ticket `price { amount,
+  currency }` on the quote. The currency is the activity's own currency (resolved
+  via the product service), falling back to `"USD"`.
+- **Why:** Lets callers override the booked price instead of relying solely on
+  the activity's configured pricing.
+- **Caller action:** None — additive. Omit `listPrice` for the previous behavior.
+  A malformed `listPrice` (non-numeric or ≤ 0) throws before any network call.
+
+### `BookingService` metadata setters (`setMetaData*`) write custom-field responses `[additive]`
+
+- **What:** Eight new `BookingService` methods that upsert a booking's
+  custom-field responses, one per fixed field: `setMetaDataGuest`,
+  `setMetaDataAttachment`, `setMetaDataManifestUrl`, `setMetaDataReservationId`,
+  `setMetaDataBookingStatus`, `setMetaDataAssignedProduct`,
+  `setMetaDataAssignedEmployee`, `setMetaDataInsurancePurchased`. Each hard-codes
+  its field name (the caller supplies only the value), is scoped to the service
+  `integrator`, and returns a `SetMetaDataResult` (`{ success, bookingId,
+  message }`) — the gateway's `BookingNotFoundError`/`GenericError` outcomes
+  resolve to `success: false` rather than throwing. `setMetaDataGuest` takes
+  `SetMetaDataGuestInput[]` (`name`/`email` required) and `setMetaDataAttachment`
+  takes `SetMetaDataAttachmentInput[]` (`name`/`attachmentUrl` required). New
+  exported types: `SetMetaDataGuestInput`, `SetMetaDataAttachmentInput`,
+  `SetMetaDataResult`.
+- **Why:** Lets integrations write their scoped booking custom fields (guest
+  details, attachments, manifest URL, reservation/status/product/employee, and
+  insurance flag) through typed methods.
+- **Caller action:** None — additive. Reach them via
+  `peek.getBookingService().setMetaData…(id, …)`. Not PII-gated. Inspect
+  `result.success`/`result.message` for the outcome.
+
+### `BookingService.getMetaData()` returns a booking's custom-field metadata `[additive]`
+
+- **What:** New `BookingService.getMetaData(bookingId)` returning `MetaData[]`
+  (`[]` when the booking is not found or has no matching fields).
+  Each `MetaData` flattens the field definition (`id`/`name`/`slug`/`type`), its
+  prompt (`prompt`/`promptHint`/`isRequired`), and the response `refid`, plus a
+  typed `value: MetaDataValue | null` — a discriminated union keyed by `kind`,
+  one variant per gateway field-response type (`age`, `attachment`, `barcode`,
+  `date`, `guest`, `location`, `url`, `weight`, …). Each variant also carries a
+  `displayValue` — a display-safe human string (the `html` variant's is
+  HTML-escaped). New exported types:
+  `MetaData`, `MetaDataValue`, `MetaDataBarcodeType`,
+  `MetaDataDurationUnit`, `MetaDataVolumeUnit`, `MetaDataWeightUnit`.
+  `PeekAccessService.getBookingService()` gains an optional `integrator` string
+  that scopes the result: only fields whose slug starts with
+  `integrator:<integrator>:` are returned, with that prefix stripped.
+- **Why:** Exposes booking custom-field responses as clean, typed data.
+- **Caller action:** None — additive. Reach it via
+  `peek.getBookingService().getMetaData(id)`. Do not pass an `integrator` unless
+  Peek engineering created a custom integrator id for your integration. When
+  `fullCustomerAccess` is off, guest-value identity fields
+  (`name`/`email`/`dateOfBirth`) are not returned.
+
+### `BookingService.updateCustomStatus()` sets a booking's operator custom status `[additive]`
+
+- **What:** New `BookingService.updateCustomStatus(bookingId, customStatus)`
+  method. It sets the booking's operator-facing custom status and returns a
+  `boolean` — `true` when the gateway confirms the stored status equals the
+  requested `customStatus`, `false` otherwise. It validates the booking id
+  (`b_…`/`B-…`) and that `customStatus` is a non-empty (non-whitespace) string
+  before any network call.
+- **Why:** Exposes the operator custom-status field for callers that track their
+  own booking workflow state.
+- **Caller action:** None — additive. Reach it via
+  `peek.getBookingService().updateCustomStatus(id, status)`. It is **not**
+  PII-gated, so it is available regardless of `fullCustomerAccess`.
+
+### `Booking.customStatus` added to every booking read `[additive]`
+
+- **What:** The `Booking` model gains a `customStatus: string | null` field,
+  mapped from the booking's `operatorStatus`. It is populated on every booking
+  read (`getById`, `searchByTimeRange`, `searchByTimeslot`) and the
+  `parseBookingWebhook` result; it is `null` when no custom status is set. The
+  field is operator-facing (not PII), so it is returned regardless of
+  `fullCustomerAccess`.
+- **Why:** Surfaces the operator custom status alongside the rest of the booking
+  so callers can read it without a separate request.
+- **Caller action:** None — additive. A new always-present field. Consumers that
+  register the booking webhook query should update their registered
+  `output_fields_gql_query` to the current maximal selection (now including
+  `operatorStatus`) if they want the field on webhook deliveries — see
+  `docs/webhooks.md`.
+
 ## 0.9.2
 
 ### `ReviewService.getAllReviewSummaries()` returns per-activity rating summaries `[additive]`

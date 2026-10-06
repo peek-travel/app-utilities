@@ -128,6 +128,7 @@ export class PeekAccessService {
   private readonly productServiceOptions: ProductServiceOptions;
   private readonly accessOptions: ResolvedAccessOptions;
   private readonly jwtSecret: string;
+  private readonly issuer: string;
   private productService?: ProductService;
   private accountUserService?: AccountUserService;
   private resourcePoolService?: ResourcePoolService;
@@ -138,7 +139,7 @@ export class PeekAccessService {
   private dailyNoteService?: DailyNoteService;
   private availabilityService?: AvailabilityService;
   private membershipService?: MembershipService;
-  private bookingService?: BookingService;
+  private readonly bookingServices = new Map<string, BookingService>();
   private reviewService?: ReviewService;
 
   constructor(config: PeekAccessServiceConfig) {
@@ -155,6 +156,7 @@ export class PeekAccessService {
     if (!hasApiUrl && !isV2) requireNonEmpty(config.gatewayKey ?? "", "gatewayKey", "PeekAccessService");
 
     this.jwtSecret = config.jwtSecret;
+    this.issuer = config.issuer;
 
     const logger = config.logger ?? noopLogger;
     const tokens = createTokenManager(config);
@@ -336,17 +338,25 @@ export class PeekAccessService {
 
   /**
    * Returns the {@link BookingService} for this install, bound to the shared
-   * authenticated transport. The instance is created lazily and reused.
+   * authenticated transport. Instances are created lazily and reused per
+   * `integrator`.
+   *
+   * `integrator` scopes `getMetaData` results to a custom integrator id. **Do
+   * not set it** unless Peek engineering created a custom integrator id for this
+   * integration — omit it and the correct default is used.
    */
-  getBookingService(): BookingService {
-    if (!this.bookingService) {
-      this.bookingService = new BookingService(
+  getBookingService(integrator?: string): BookingService {
+    const resolved = integrator ?? this.issuer;
+    let service = this.bookingServices.get(resolved);
+    if (!service) {
+      service = new BookingService(
         this.client,
         { productService: this.getProductService() },
-        { accessOptions: this.accessOptions },
+        { accessOptions: this.accessOptions, integrator: resolved },
       );
+      this.bookingServices.set(resolved, service);
     }
-    return this.bookingService;
+    return service;
   }
 
   /**

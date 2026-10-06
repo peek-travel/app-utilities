@@ -49,6 +49,7 @@ describe("buildBookingsListingQuery", () => {
     expect(query).not.toContain("dateOfBirth");
     // Operator-facing + structural fields still present.
     expect(query).toContain("operatorNotes");
+    expect(query).toContain("operatorStatus");
     expect(query).toContain("resourcePoolAssignments {");
     // Guests section keeps only ids + participation/opt-in flags.
     expect(query).toContain("bookingGuests { id isParticipant optinSms optinMarketing }");

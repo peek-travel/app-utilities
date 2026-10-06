@@ -22,6 +22,12 @@ import type {
   Guest,
   NoteMode,
 } from "../../../models/peek/booking.js";
+import type {
+  MetaData,
+  SetMetaDataAttachmentInput,
+  SetMetaDataGuestInput,
+  SetMetaDataResult,
+} from "../../../models/peek/booking-metadata.js";
 import { ADD_ON_PRODUCT_TYPE } from "../../../models/peek/product.js";
 import type {
   BookingPaymentsOnFile,
@@ -37,6 +43,17 @@ import type {
 } from "../../../models/peek/booking-addon.js";
 import { fromBookingNode } from "./booking-converter.js";
 import { fromBookingGuestsResponse } from "./booking-guest-converter.js";
+import {
+  filterMetaDataByIntegrator,
+  fromBookingMetaDataNode,
+  toSetMetaDataResult,
+} from "./metadata-converter.js";
+import {
+  buildBookingMetaDataQuery,
+  UPSERT_BOOKING_FIELD_RESPONSES_MUTATION,
+  type BookingMetaDataResponse,
+  type UpsertBookingFieldResponsesResponse,
+} from "./metadata-queries.js";
 import { fromPaymentsOnFileResponse } from "./payments-on-file-converter.js";
 import {
   type AddonItem,
@@ -47,6 +64,7 @@ import {
   isCustomQuestionId,
   resolveCustomQuestionAnswers,
 } from "./custom-question-answer.js";
+import { distributeListPrice } from "./list-price.js";
 import {
   ADDON_OPTION_STATUS_CANCELED,
   RESERVATION_STATUS_CONFIRMED,
@@ -67,6 +85,7 @@ import {
   SEARCH_BY_PURCHASE_DATE,
   UPDATE_BOOKING_CHECKIN_MUTATION,
   UPDATE_OPERATOR_NOTES_MUTATION,
+  UPDATE_OPERATOR_STATUS_MUTATION,
   UPDATE_QUOTE_V2_MUTATION,
   buildBookingGuestsQuery,
   buildBookingsListingQuery,
@@ -82,6 +101,7 @@ import {
   type CreateOrderFromQuoteResponse,
   type CreateQuoteFromOrderResponse,
   type CreateQuoteV2Response,
+  type UpdateOperatorStatusResponse,
   type UpdateQuoteV2Response,
 } from "./booking-queries.js";
 
@@ -91,6 +111,8 @@ const DEFAULT_PAGE_SIZE = 50;
 const DEFAULT_CANCEL_NOTE = "Canceled";
 /** Default customer message attached to a charge. */
 const DEFAULT_CUSTOMER_MESSAGE = "Charge initiated via API";
+/** Currency used when the activity's own currency can't be resolved. */
+const DEFAULT_CURRENCY = "USD";
 
 // Booking/order ids come in two forms: a lowercase db id with `_`
 // (`b_abc123` / `o_abc123`) and an uppercase display id with `-`
@@ -121,6 +143,12 @@ export interface BookingServiceOptions {
   pageSize?: number;
   /** Cross-cutting access options (PII exposure). Default: PII off. */
   accessOptions?: AccessOptions;
+  /**
+   * Integrator id used to scope `getMetaData` results — only fields whose slug
+   * starts with `integrator:<integrator>:` are returned. Defaults to `""` (set
+   * by the access service to the install's issuer).
+   */
+  integrator?: string;
 }
 
 /** Dependencies the {@link BookingService} composes for add-on resolution. */
@@ -147,6 +175,19 @@ const ERROR_INVALID_BOOKING_ID =
   "bookingId is required and must be a valid booking id, e.g. 'b_abc123' or 'B-ABC123'";
 const ERROR_INVALID_ORDER_ID =
   "orderId is required and must be a valid order id, e.g. 'o_abc123' or 'O-ABC123'";
+const ERROR_CUSTOM_STATUS_REQUIRED = "customStatus is required and must be a non-empty string";
+const ERROR_GUESTS_REQUIRED = "at least one guest is required";
+const ERROR_ATTACHMENTS_REQUIRED = "at least one attachment is required";
+
+// The fixed `fieldName` values the metadata upsert accepts — one per setter.
+const META_FIELD_GUEST = "guest";
+const META_FIELD_ATTACHMENT = "attachment";
+const META_FIELD_MANIFEST_URL = "manifest_url";
+const META_FIELD_RESERVATION_ID = "reservation_id";
+const META_FIELD_BOOKING_STATUS = "booking_status";
+const META_FIELD_ASSIGNED_PRODUCT = "assigned_product";
+const META_FIELD_ASSIGNED_EMPLOYEE = "assigned_employee";
+const META_FIELD_INSURANCE_PURCHASED = "insurance_purchased";
 const ERROR_BOOKING_NOT_FOUND = "Booking not found";
 const ERROR_MULTIPLE_BOOKINGS_FOUND =
   "Expected exactly one booking for the provided bookingId";
@@ -160,6 +201,8 @@ export class BookingService {
   private readonly pageSize: number;
   /** Whether customer PII is requested and payment operations are allowed. */
   private readonly fullCustomerAccess: boolean;
+  /** Integrator id scoping `getMetaData` results. */
+  private readonly integrator: string;
 
   constructor(
     private readonly client: GraphQLClient,
@@ -168,6 +211,7 @@ export class BookingService {
   ) {
     this.pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
     this.fullCustomerAccess = resolveAccessOptions(options.accessOptions).fullCustomerAccess;
+    this.integrator = options.integrator ?? "";
   }
 
   /**
@@ -274,6 +318,171 @@ export class BookingService {
     return fromBookingGuestsResponse(body.data);
   }
 
+  /**
+   * Returns a booking's custom-field metadata (its `fieldResponses`), scoped to
+   * this service's integrator. Only fields whose slug starts with
+   * `integrator:<integrator>:` are returned, and that prefix is stripped from
+   * each returned `slug`. Returns `[]` when the booking is not found or has no
+   * matching fields.
+   *
+   * @example
+   * ```ts
+   * const meta = await peek.getBookingService().getMetaData("b_abc123");
+   * for (const field of meta) {
+   *   if (field.value?.kind === "url") console.log(field.slug, field.value.url);
+   * }
+   * ```
+   */
+  async getMetaData(bookingId: string): Promise<MetaData[]> {
+    assertBookingId(bookingId);
+    const body: GraphQLBody<BookingMetaDataResponse> =
+      await this.client.request<BookingMetaDataResponse>(
+        SALES_ENDPOINT,
+        buildBookingMetaDataQuery(this.fullCustomerAccess),
+        buildBookingsVariables({
+          pageSize: this.pageSize,
+          after: null,
+          bookingId: normalizeBookingId(bookingId),
+        }),
+      );
+
+    const firstEdge = (body.data?.sales?.edges ?? [])[0];
+    if (!firstEdge) {
+      return [];
+    }
+    return filterMetaDataByIntegrator(fromBookingMetaDataNode(firstEdge.node), this.integrator);
+  }
+
+  /**
+   * Sets the booking's `guest` metadata field. Each guest requires a `name` and
+   * `email`; `dateOfBirth`/`waiverSigned`/`notes` are optional.
+   */
+  async setMetaDataGuest(
+    bookingId: string,
+    guests: SetMetaDataGuestInput[],
+  ): Promise<SetMetaDataResult> {
+    if (!Array.isArray(guests) || guests.length === 0) {
+      throw new Error(ERROR_GUESTS_REQUIRED);
+    }
+    const built = guests.map((guest) => {
+      assertNonEmptyString(guest?.name, "guest name");
+      assertNonEmptyString(guest?.email, "guest email");
+      const out: Record<string, unknown> = { name: guest.name, email: guest.email };
+      if (guest.dateOfBirth !== undefined) out.dateOfBirth = guest.dateOfBirth;
+      if (guest.waiverSigned !== undefined) out.waiverSigned = guest.waiverSigned;
+      if (guest.notes !== undefined) out.notes = guest.notes;
+      return out;
+    });
+    return this.upsertFieldResponse(bookingId, { fieldName: META_FIELD_GUEST, guests: built });
+  }
+
+  /**
+   * Sets the booking's `attachment` metadata field. Each attachment requires a
+   * `name` and `attachmentUrl`.
+   */
+  async setMetaDataAttachment(
+    bookingId: string,
+    attachments: SetMetaDataAttachmentInput[],
+  ): Promise<SetMetaDataResult> {
+    if (!Array.isArray(attachments) || attachments.length === 0) {
+      throw new Error(ERROR_ATTACHMENTS_REQUIRED);
+    }
+    const built = attachments.map((attachment) => {
+      assertNonEmptyString(attachment?.name, "attachment name");
+      assertNonEmptyString(attachment?.attachmentUrl, "attachment attachmentUrl");
+      return { name: attachment.name, attachmentUrl: attachment.attachmentUrl };
+    });
+    return this.upsertFieldResponse(bookingId, {
+      fieldName: META_FIELD_ATTACHMENT,
+      attachments: built,
+    });
+  }
+
+  /** Sets the booking's `manifest_url` metadata field. */
+  async setMetaDataManifestUrl(bookingId: string, url: string): Promise<SetMetaDataResult> {
+    assertNonEmptyString(url, "url");
+    return this.upsertFieldResponse(bookingId, { fieldName: META_FIELD_MANIFEST_URL, url });
+  }
+
+  /** Sets the booking's `reservation_id` metadata field. */
+  async setMetaDataReservationId(
+    bookingId: string,
+    reservationId: string,
+  ): Promise<SetMetaDataResult> {
+    return this.setShortTextField(bookingId, META_FIELD_RESERVATION_ID, reservationId, "reservationId");
+  }
+
+  /** Sets the booking's `booking_status` metadata field. */
+  async setMetaDataBookingStatus(bookingId: string, status: string): Promise<SetMetaDataResult> {
+    return this.setShortTextField(bookingId, META_FIELD_BOOKING_STATUS, status, "status");
+  }
+
+  /** Sets the booking's `assigned_product` metadata field. */
+  async setMetaDataAssignedProduct(
+    bookingId: string,
+    productName: string,
+  ): Promise<SetMetaDataResult> {
+    return this.setShortTextField(bookingId, META_FIELD_ASSIGNED_PRODUCT, productName, "productName");
+  }
+
+  /** Sets the booking's `assigned_employee` metadata field. */
+  async setMetaDataAssignedEmployee(
+    bookingId: string,
+    employeeName: string,
+  ): Promise<SetMetaDataResult> {
+    return this.setShortTextField(bookingId, META_FIELD_ASSIGNED_EMPLOYEE, employeeName, "employeeName");
+  }
+
+  /** Sets the booking's `insurance_purchased` metadata field. */
+  async setMetaDataInsurancePurchased(
+    bookingId: string,
+    insurancePurchased: boolean,
+  ): Promise<SetMetaDataResult> {
+    if (typeof insurancePurchased !== "boolean") {
+      throw new Error("insurancePurchased is required and must be a boolean");
+    }
+    return this.upsertFieldResponse(bookingId, {
+      fieldName: META_FIELD_INSURANCE_PURCHASED,
+      boolean: insurancePurchased,
+    });
+  }
+
+  /** Validates a non-empty `shortText` value and upserts it under `fieldName`. */
+  private setShortTextField(
+    bookingId: string,
+    fieldName: string,
+    value: string,
+    argName: string,
+  ): Promise<SetMetaDataResult> {
+    assertNonEmptyString(value, argName);
+    return this.upsertFieldResponse(bookingId, { fieldName, shortText: value });
+  }
+
+  /**
+   * Validates the booking id and upserts a single field response (scoped to this
+   * service's integrator), mapping the result union into a {@link SetMetaDataResult}.
+   */
+  private async upsertFieldResponse(
+    bookingId: string,
+    fieldResponse: Record<string, unknown>,
+  ): Promise<SetMetaDataResult> {
+    assertBookingId(bookingId);
+    const normalized = normalizeBookingId(bookingId);
+    const body: GraphQLBody<UpsertBookingFieldResponsesResponse> =
+      await this.client.request<UpsertBookingFieldResponsesResponse>(
+        SALES_ENDPOINT,
+        UPSERT_BOOKING_FIELD_RESPONSES_MUTATION,
+        {
+          input: {
+            bookingId: normalized,
+            integrator: this.integrator,
+            fieldResponses: [fieldResponse],
+          },
+        },
+      );
+    return toSetMetaDataResult(body.data?.upsertBookingFieldResponses, normalized);
+  }
+
   /** Returns the payments on file for a booking, or null when not found. */
   async getPaymentsOnFile(bookingId: string): Promise<BookingPaymentsOnFile | null> {
     this.assertPiiEnabled("getPaymentsOnFile");
@@ -332,6 +541,36 @@ export class BookingService {
     });
 
     return this.getById(normalized);
+  }
+
+  /**
+   * Sets a booking's operator-facing custom status. Returns `true` when the
+   * gateway confirms the stored `operatorStatus` equals the requested
+   * `customStatus`, `false` otherwise.
+   *
+   * @example
+   * ```ts
+   * const ok = await peek.getBookingService().updateCustomStatus("b_abc123", "Awaiting deposit");
+   * ```
+   *
+   * @throws {Error} when `bookingId` is not a valid booking id (`b_…`/`B-…`) or
+   * when `customStatus` is not a non-empty string.
+   */
+  async updateCustomStatus(bookingId: string, customStatus: string): Promise<boolean> {
+    assertBookingId(bookingId);
+    assertCustomStatus(customStatus);
+    const normalized = normalizeBookingId(bookingId);
+
+    const body: GraphQLBody<UpdateOperatorStatusResponse> =
+      await this.client.request<UpdateOperatorStatusResponse>(
+        SALES_ENDPOINT,
+        UPDATE_OPERATOR_STATUS_MUTATION,
+        { input: { id: normalized, operatorStatus: customStatus } },
+      );
+
+    return (
+      body.data?.updateOperatorStatusForBooking?.booking?.operatorStatus === customStatus
+    );
   }
 
   /** Cancels a booking and returns its id/displayId/status. */
@@ -783,17 +1022,34 @@ export class BookingService {
   async create(input: CreateBookingInput): Promise<CreatedBooking> {
     validateCreateInput(input);
 
-    // Resolve custom-question answers before anything is created: fetch the
-    // activity's questions and validate/map each answer, so a bad answer fails
-    // here rather than after a quote exists.
-    const questionAnswers = await this.buildQuestionAnswers(input);
+    // Split the optional list price across the tickets up front — a malformed
+    // amount throws here, before any quote exists.
+    const ticketCount = input.tickets.reduce((count, ticket) => count + ticket.quantity, 0);
+    const listPriceAmounts =
+      input.listPrice === undefined ? null : distributeListPrice(input.listPrice, ticketCount);
 
+    // Resolve custom-question answers (and, when a list price is set, the
+    // activity's currency) before anything is created: a bad answer fails here
+    // rather than after a quote exists, and the two reads run in parallel.
+    const [questionAnswers, currency] = await Promise.all([
+      this.buildQuestionAnswers(input),
+      listPriceAmounts ? this.resolveActivityCurrency(input.activityId) : Promise.resolve(""),
+    ]);
+
+    let seatIndex = 0;
     const tickets = input.tickets.flatMap((ticket) =>
-      Array.from({ length: ticket.quantity }, () => ({
-        resourceOptionId: ticket.resourceOptionId,
-        reservationStatus: "CONFIRMED",
-        refid: randomUUID(),
-      })),
+      Array.from({ length: ticket.quantity }, () => {
+        const seat: Record<string, unknown> = {
+          resourceOptionId: ticket.resourceOptionId,
+          reservationStatus: "CONFIRMED",
+          refid: randomUUID(),
+        };
+        if (listPriceAmounts) {
+          seat.price = { amount: listPriceAmounts[seatIndex]!, currency };
+        }
+        seatIndex += 1;
+        return seat;
+      }),
     );
 
     const bookingQuote: Record<string, unknown> = {
@@ -944,6 +1200,16 @@ export class BookingService {
     return result.transactionId;
   }
 
+  /**
+   * Resolves an activity's ISO currency via the product service, falling back to
+   * {@link DEFAULT_CURRENCY} when the activity (or its currency) can't be found.
+   */
+  private async resolveActivityCurrency(activityId: string): Promise<string> {
+    const products = await this.deps.productService.getAllProducts();
+    const match = products.find((product) => product.productId === activityId);
+    return match?.currency || DEFAULT_CURRENCY;
+  }
+
   /** Finds the parent item id of an add-on by matching its option id. */
   private async resolveParentItemId(addonOptionId: string): Promise<string> {
     const products = await this.deps.productService.getAllProducts();
@@ -1049,6 +1315,20 @@ function assertIdempotencyKey(idempotencyKey: string): void {
 function assertBookingId(bookingId: string): void {
   if (!(BOOKING_DB_ID_REGEX.test(bookingId) || BOOKING_DISPLAY_ID_REGEX.test(bookingId))) {
     throw new Error(ERROR_INVALID_BOOKING_ID);
+  }
+}
+
+/** Throws unless `customStatus` is a non-empty (non-whitespace) string. */
+function assertCustomStatus(customStatus: string): void {
+  if (typeof customStatus !== "string" || customStatus.trim().length === 0) {
+    throw new Error(ERROR_CUSTOM_STATUS_REQUIRED);
+  }
+}
+
+/** Throws unless `value` is a non-empty (non-whitespace) string, naming `field`. */
+function assertNonEmptyString(value: unknown, field: string): void {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`${field} is required and must be a non-empty string`);
   }
 }
 

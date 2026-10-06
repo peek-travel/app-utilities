@@ -133,12 +133,34 @@ final authority and may still reject the request.
 - `getDailyNoteService()` — `getToday()`, `update(note)`
 - `getAvailabilityService()` — `getAvailabilityTimes({activityId, date, resourceOptionQuantities})`
 - `getMembershipService()` — `getAll()`, `purchase(input)`
-- `getBookingService()` — `getById(id, opts?)`, `searchByTimeRange(input)`,
-  `searchByTimeslot(id, opts?)`, `getGuests(id)`, `getPaymentsOnFile(id)`,
-  `appendNote(id, note, mode?)`, `setCheckinStatus(id, checkedIn)`, `cancel(id, notes?)`,
+- `getBookingService(integrator?)` — `getById(id, opts?)`, `searchByTimeRange(input)`,
+  `searchByTimeslot(id, opts?)`, `getGuests(id)`,
+  `getMetaData(id)` → `MetaData[]` (booking custom-field responses, `[]` when not
+  found; each `MetaData` carries a typed `value: MetaDataValue | null` discriminated
+  union — every variant also has a display-safe `displayValue` string (the
+  `html` variant's is HTML-escaped); returns only fields whose slug starts with
+  `integrator:<integrator>:`,
+  that prefix stripped). The `integrator` arg on the accessor scopes
+  `getMetaData` — **do not set it** unless Peek engineering created a custom
+  integrator id for this integration.
+  Eight metadata setters (fixed `fieldName`, caller supplies the value;
+  integrator-scoped; return `SetMetaDataResult {success, bookingId, message}`;
+  not PII-gated): `setMetaDataGuest(id, guests: SetMetaDataGuestInput[])`
+  (name+email required), `setMetaDataAttachment(id, attachments:
+  SetMetaDataAttachmentInput[])` (name+attachmentUrl required),
+  `setMetaDataManifestUrl(id, url)`, `setMetaDataReservationId(id, reservationId)`,
+  `setMetaDataBookingStatus(id, status)`, `setMetaDataAssignedProduct(id, productName)`,
+  `setMetaDataAssignedEmployee(id, employeeName)`,
+  `setMetaDataInsurancePurchased(id, insurancePurchased)`. `getPaymentsOnFile(id)`,
+  `appendNote(id, note, mode?)`, `setCheckinStatus(id, checkedIn)`,
+  `updateCustomStatus(id, customStatus)` → `boolean` (sets the operator custom
+  status; not PII-gated), `cancel(id, notes?)`,
   `makePayment(input)`, `refund(input)`, `createInvoiceLink(id)`,
   `listAddons(id)`, `addAddon(id, {addonOptionId, quantity})`,
-  `removeAddon(id, {addonOptionId, quantity})`, `create(input)`
+  `removeAddon(id, {addonOptionId, quantity})`, `create(input)` (optional
+  `input.listPrice` — total booking price string, commas allowed; split evenly
+  across tickets with the remainder cent on the last, sent per ticket in the
+  activity currency, fallback USD)
 - `getReviewService()` — `getReviews(productId, reviewCount?, reviewOffset?)`
   (single newest-first page of `Review`s, count 1–50, offset ≥ 0);
   `getAllReviewSummaries()` → `ProductReviewSummary[]` (one per activity:
