@@ -14,10 +14,32 @@ action needed; `[additive]` only adds capability.
 
 ## Unreleased
 
+### `BookingService` metadata setters (`setMetaData*`) write custom-field responses `[additive]`
+
+- **What:** Eight new `BookingService` methods that upsert a booking's
+  custom-field responses, one per fixed field: `setMetaDataGuest`,
+  `setMetaDataAttachment`, `setMetaDataManifestUrl`, `setMetaDataReservationId`,
+  `setMetaDataBookingStatus`, `setMetaDataAssignedProduct`,
+  `setMetaDataAssignedEmployee`, `setMetaDataInsurancePurchased`. Each hard-codes
+  its field name (the caller supplies only the value), is scoped to the service
+  `integrator`, and returns a `SetMetaDataResult` (`{ success, bookingId,
+  message }`) — the gateway's `BookingNotFoundError`/`GenericError` outcomes
+  resolve to `success: false` rather than throwing. `setMetaDataGuest` takes
+  `SetMetaDataGuestInput[]` (`name`/`email` required) and `setMetaDataAttachment`
+  takes `SetMetaDataAttachmentInput[]` (`name`/`attachmentUrl` required). New
+  exported types: `SetMetaDataGuestInput`, `SetMetaDataAttachmentInput`,
+  `SetMetaDataResult`.
+- **Why:** Lets integrations write their scoped booking custom fields (guest
+  details, attachments, manifest URL, reservation/status/product/employee, and
+  insurance flag) through typed methods.
+- **Caller action:** None — additive. Reach them via
+  `peek.getBookingService().setMetaData…(id, …)`. Not PII-gated. Inspect
+  `result.success`/`result.message` for the outcome.
+
 ### `BookingService.getMetaData()` returns a booking's custom-field metadata `[additive]`
 
-- **What:** New `BookingService.getMetaData(bookingId)` returning
-  `BookingMetaData | null` (`{ bookingId, displayId, metaData: MetaData[] }`).
+- **What:** New `BookingService.getMetaData(bookingId)` returning `MetaData[]`
+  (`[]` when the booking is not found or has no matching fields).
   Each `MetaData` flattens the field definition (`id`/`name`/`slug`/`type`), its
   prompt (`prompt`/`promptHint`/`isRequired`), and the response `refid`, plus a
   typed `value: MetaDataValue | null` — a discriminated union keyed by `kind`,
@@ -25,7 +47,7 @@ action needed; `[additive]` only adds capability.
   `date`, `guest`, `location`, `url`, `weight`, …). Each variant also carries a
   `displayValue` — a display-safe human string (the `html` variant's is
   HTML-escaped). New exported types:
-  `BookingMetaData`, `MetaData`, `MetaDataValue`, `MetaDataBarcodeType`,
+  `MetaData`, `MetaDataValue`, `MetaDataBarcodeType`,
   `MetaDataDurationUnit`, `MetaDataVolumeUnit`, `MetaDataWeightUnit`.
   `PeekAccessService.getBookingService()` gains an optional `integrator` string
   that scopes the result: only fields whose slug starts with

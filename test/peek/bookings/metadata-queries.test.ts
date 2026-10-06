@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { buildBookingMetaDataQuery } from "../../../src/internal/peek/bookings/metadata-queries.js";
+import {
+  buildBookingMetaDataQuery,
+  UPSERT_BOOKING_FIELD_RESPONSES_MUTATION,
+} from "../../../src/internal/peek/bookings/metadata-queries.js";
 
 /** Collapses whitespace so selection sets match regardless of layout. */
 function collapse(query: string): string {
@@ -43,5 +46,16 @@ describe("buildBookingMetaDataQuery", () => {
     // PII value fields are not pulled at all.
     expect(query).not.toContain("dateOfBirth");
     expect(query).not.toContain("... on GuestFieldResponseValue { dateOfBirth");
+  });
+});
+
+describe("UPSERT_BOOKING_FIELD_RESPONSES_MUTATION", () => {
+  it("selects the result union discriminated by __typename", () => {
+    const mutation = collapse(UPSERT_BOOKING_FIELD_RESPONSES_MUTATION);
+    expect(mutation).toContain("upsertBookingFieldResponses(input: $input)");
+    expect(mutation).toContain("__typename");
+    expect(mutation).toContain("... on UpsertBookingFieldResponsesSuccess { bookingId message }");
+    expect(mutation).toContain("... on BookingNotFoundError { message bookingId }");
+    expect(mutation).toContain("... on GenericError { message }");
   });
 });

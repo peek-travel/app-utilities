@@ -263,7 +263,9 @@ detail model and the clean public `BookingAddon`).
 
 `bookings` carries a third sub-domain for **custom-field metadata** —
 `metadata-queries.ts` + `metadata-converter.ts`, surfaced by
-`BookingService.getMetaData(bookingId)` → `BookingMetaData | null`. Its query is
+`BookingService.getMetaData(bookingId)` → `MetaData[]` (`[]` when the booking is
+not found or has no matching fields — the per-booking envelope was dropped in
+favour of returning the entries directly). Its query is
 a variant of the single-booking read: it reuses the shared `sales(...)` envelope
 (`buildSalesQuery`, extracted in `booking-queries.ts` and now shared by the
 listing/guests/payments/metadata readers) and the shared `buildBookingsVariables`
@@ -278,7 +280,7 @@ unrecognized/future variant maps to `null` (never coerced). Numeric `Int` → `n
 also carries a `displayValue` — a display-safe human string the converter renders
 per kind (booleans → `Yes`/`No`, amount+unit → `"3 hours"`, percent → `"12.5%"`,
 location → comma-joined parts, meta → `JSON.stringify`, and the `html` variant
-**HTML-escaped** via the local `escapeHtml`); it is `""` when the value is absent. `BookingMetaData`,
+**HTML-escaped** via the local `escapeHtml`); it is `""` when the value is absent.
 `MetaData`, `MetaDataValue`, and the unit/type aliases
 (`MetaDataBarcodeType`/`MetaDataDurationUnit`/`MetaDataVolumeUnit`/`MetaDataWeightUnit`)
 are exported from `src/index.ts`.
@@ -293,6 +295,25 @@ integrator string (a `Map`), so the no-arg/default call and a `getBookingService
 call share an instance. The consumer-facing docs deliberately describe the param
 only as "do not set unless Peek engineering created a custom integrator id" and
 do **not** reveal the issuer default.
+
+**Writing metadata.** The `upsertBookingFieldResponses` mutation
+(`metadata-queries.ts`) is surfaced through **eight fixed-`fieldName` setters** on
+`BookingService` — `setMetaDataGuest`, `setMetaDataAttachment`,
+`setMetaDataManifestUrl`, `setMetaDataReservationId`, `setMetaDataBookingStatus`,
+`setMetaDataAssignedProduct`, `setMetaDataAssignedEmployee`,
+`setMetaDataInsurancePurchased`. Each hard-codes its `fieldName` (the caller only
+supplies the value) and funnels through one private `upsertFieldResponse` helper
+that validates the booking id, injects the service `integrator`, and maps the
+result union (`UpsertBookingFieldResponsesSuccess` / `BookingNotFoundError` /
+`GenericError`, discriminated by `__typename`) into a clean `SetMetaDataResult`
+(`{ success, bookingId, message }`) via the pure `toSetMetaDataResult` — the error
+variants resolve to `success: false` rather than throwing. `guest` takes
+`SetMetaDataGuestInput[]` (name/email required; DOB/waiver/notes optional) and
+`attachment` takes `SetMetaDataAttachmentInput[]` (name/attachmentUrl required);
+the other six take a single `string`/`boolean`. The setters are **not PII-gated**
+(operator-facing writes of caller-supplied data). `SetMetaDataGuestInput`,
+`SetMetaDataAttachmentInput`, and `SetMetaDataResult` are exported from
+`src/index.ts`.
 
 `bookings` also carries the webhook surface (`booking-webhook.ts`). A Peek
 booking webhook's payload shape is defined by the GraphQL field selection

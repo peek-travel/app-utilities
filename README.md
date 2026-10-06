@@ -61,7 +61,7 @@ add-on pages for you.
 | `getDailyNoteService()` | `getToday()`, `update(note)` |
 | `getAvailabilityService()` | `getAvailabilityTimes(query)` |
 | `getMembershipService()` | `getAll()`, `purchase(input)` |
-| `getBookingService()` | `getById()`, `searchByTimeRange()`, `searchByTimeslot()`, `getGuests()`, `getMetaData()`, `getPaymentsOnFile()`, `appendNote()`, `setCheckinStatus()`, `updateCustomStatus()`, `cancel()`, `makePayment()`, `refund()`, `createInvoiceLink()`, `addAddon()`, `create()` |
+| `getBookingService()` | `getById()`, `searchByTimeRange()`, `searchByTimeslot()`, `getGuests()`, `getMetaData()`, `setMetaData*()` (8 field setters), `getPaymentsOnFile()`, `appendNote()`, `setCheckinStatus()`, `updateCustomStatus()`, `cancel()`, `makePayment()`, `refund()`, `createInvoiceLink()`, `addAddon()`, `create()` |
 
 > `getBookingService(integrator?)` takes an optional `integrator` string that
 > scopes `getMetaData()` results. **Do not set it** unless Peek engineering

@@ -79,6 +79,30 @@ export function buildBookingMetaDataQuery(fullCustomerAccess: boolean): string {
   `);
 }
 
+/**
+ * Upserts a booking's custom-field responses, scoped to an integrator. The
+ * result is a union — success or one of two typed errors — discriminated by
+ * `__typename`.
+ */
+export const UPSERT_BOOKING_FIELD_RESPONSES_MUTATION = `
+  mutation UpsertBookingFieldResponses($input: UpsertBookingFieldResponsesInput!) {
+    upsertBookingFieldResponses(input: $input) {
+      __typename
+      ... on UpsertBookingFieldResponsesSuccess { bookingId message }
+      ... on BookingNotFoundError { message bookingId }
+      ... on GenericError { message }
+    }
+  }
+`;
+
+export interface UpsertBookingFieldResponsesResponse {
+  upsertBookingFieldResponses?: {
+    __typename?: string;
+    bookingId?: string | null;
+    message?: string | null;
+  } | null;
+}
+
 // ---- Raw response shapes -------------------------------------------------
 
 /** The raw union value node — one branch populated per `__typename`. */

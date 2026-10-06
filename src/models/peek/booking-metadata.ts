@@ -131,12 +131,34 @@ export interface MetaData {
   value: MetaDataValue | null;
 }
 
-/** A booking's custom-field metadata. */
-export interface BookingMetaData {
-  /** Stable unique booking id. */
+/** A guest entry for `BookingService.setMetaDataGuest`. */
+export interface SetMetaDataGuestInput {
+  /** Guest name (required). */
+  name: string;
+  /** Guest email (required). */
+  email: string;
+  /** Date of birth as an ISO date (e.g. `"2010-06-21"`). */
+  dateOfBirth?: string;
+  /** Whether the guest signed the waiver. */
+  waiverSigned?: boolean;
+  /** Free-text notes. */
+  notes?: string;
+}
+
+/** An attachment entry for `BookingService.setMetaDataAttachment`. */
+export interface SetMetaDataAttachmentInput {
+  /** Display name for the attachment (required). */
+  name: string;
+  /** URL of the attachment (required). */
+  attachmentUrl: string;
+}
+
+/** The result of a `setMetaData…` write. */
+export interface SetMetaDataResult {
+  /** Whether the gateway reported the upsert succeeded. */
+  success: boolean;
+  /** The booking id echoed back (falls back to the requested id). */
   bookingId: string;
-  /** Human-facing display id (e.g. `"B-123456"`). */
-  displayId: string;
-  /** The booking's custom-field responses. */
-  metaData: MetaData[];
+  /** The gateway's success or error message (`""` when none). */
+  message: string;
 }

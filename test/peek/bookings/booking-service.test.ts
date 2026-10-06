@@ -312,11 +312,8 @@ describe("BookingService.getMetaData", () => {
     );
 
     const result = await service.getMetaData("B-ABC123");
-    expect(result).not.toBeNull();
-    expect(result!.bookingId).toBe("b_1");
-    expect(result!.displayId).toBe("B-1");
-    expect(result!.metaData).toHaveLength(1);
-    expect(result!.metaData[0]).toMatchObject({
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
       slug: "booking_url",
       value: { kind: "url", url: "https://x" },
     });
@@ -326,7 +323,7 @@ describe("BookingService.getMetaData", () => {
     expect(calls[0]!.query).toContain("fieldResponses");
   });
 
-  it("returns an empty metaData list when nothing matches the integrator", async () => {
+  it("returns an empty list when nothing matches the integrator", async () => {
     const { service } = makeService(
       () => ({ data: { sales: { edges: [{ node: META_NODE }] } } }),
       [],
@@ -334,13 +331,12 @@ describe("BookingService.getMetaData", () => {
       [],
       "nobody",
     );
-    const result = await service.getMetaData("b_1");
-    expect(result!.metaData).toEqual([]);
+    expect(await service.getMetaData("b_1")).toEqual([]);
   });
 
-  it("returns null when the booking is not found", async () => {
+  it("returns an empty list when the booking is not found", async () => {
     const { service } = makeService(() => ({ data: { sales: { edges: [] } } }), [], { fullCustomerAccess: true }, [], "bob");
-    expect(await service.getMetaData("b_1")).toBeNull();
+    expect(await service.getMetaData("b_1")).toEqual([]);
   });
 
   it("omits guest identity value fields from the query when PII is off", async () => {
@@ -361,6 +357,158 @@ describe("BookingService.getMetaData", () => {
     const { service, calls } = makeService(() => ({}), [], { fullCustomerAccess: true }, [], "bob");
     await expect(service.getMetaData("nope")).rejects.toThrow(/valid booking id/);
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("BookingService setMetaData*", () => {
+  const SUCCESS = {
+    data: {
+      upsertBookingFieldResponses: {
+        __typename: "UpsertBookingFieldResponsesSuccess",
+        bookingId: "b_1",
+        message: "ok",
+      },
+    },
+  };
+
+  function svc(handler: Handler = () => SUCCESS) {
+    return makeService(handler, [], { fullCustomerAccess: true }, [], "bob");
+  }
+  function inputOf(calls: RecordedCall[]) {
+    return calls[0]!.variables.input as {
+      bookingId: string;
+      integrator: string;
+      fieldResponses: Array<Record<string, unknown>>;
+    };
+  }
+
+  it("setMetaDataGuest sends the guest field with integrator + normalized id", async () => {
+    const { service, calls } = svc();
+    const result = await service.setMetaDataGuest("B-ABC123", [
+      { name: "Tyler A", email: "t@test.com", dateOfBirth: "2010-06-21", waiverSigned: true, notes: "Minor" },
+    ]);
+    expect(result).toEqual({ success: true, bookingId: "b_1", message: "ok" });
+    const input = inputOf(calls);
+    expect(input).toMatchObject({ bookingId: "b_abc123", integrator: "bob" });
+    expect(input.fieldResponses[0]).toEqual({
+      fieldName: "guest",
+      guests: [
+        { name: "Tyler A", email: "t@test.com", dateOfBirth: "2010-06-21", waiverSigned: true, notes: "Minor" },
+      ],
+    });
+    expect(calls[0]!.query).toContain("upsertBookingFieldResponses");
+  });
+
+  it("setMetaDataGuest omits optional guest fields when not provided", async () => {
+    const { service, calls } = svc();
+    await service.setMetaDataGuest("b_1", [{ name: "A", email: "a@b.co" }]);
+    expect(inputOf(calls).fieldResponses[0]!.guests).toEqual([{ name: "A", email: "a@b.co" }]);
+  });
+
+  it("setMetaDataGuest rejects empty list / missing name or email before any request", async () => {
+    const { service, calls } = svc();
+    await expect(service.setMetaDataGuest("b_1", [])).rejects.toThrow(/at least one guest/);
+    await expect(service.setMetaDataGuest("b_1", [{ name: "", email: "a@b.co" }])).rejects.toThrow(/guest name/);
+    await expect(service.setMetaDataGuest("b_1", [{ name: "A", email: " " }])).rejects.toThrow(/guest email/);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("setMetaDataAttachment sends attachments and validates each", async () => {
+    const { service, calls } = svc();
+    await service.setMetaDataAttachment("b_1", [
+      { name: "Signed Waiver", attachmentUrl: "https://files.example.com/waiver.pdf" },
+    ]);
+    expect(inputOf(calls).fieldResponses[0]).toEqual({
+      fieldName: "attachment",
+      attachments: [{ name: "Signed Waiver", attachmentUrl: "https://files.example.com/waiver.pdf" }],
+    });
+    const empty = svc();
+    await expect(empty.service.setMetaDataAttachment("b_1", [])).rejects.toThrow(/at least one attachment/);
+    const bad = svc();
+    await expect(bad.service.setMetaDataAttachment("b_1", [{ name: "x", attachmentUrl: "" }])).rejects.toThrow(
+      /attachmentUrl/,
+    );
+    expect(bad.calls).toHaveLength(0);
+  });
+
+  it("setMetaDataManifestUrl sends the url field and rejects empty", async () => {
+    const { service, calls } = svc();
+    await service.setMetaDataManifestUrl("b_1", "https://manifests.example.com/b_1");
+    expect(inputOf(calls).fieldResponses[0]).toEqual({
+      fieldName: "manifest_url",
+      url: "https://manifests.example.com/b_1",
+    });
+    await expect(svc().service.setMetaDataManifestUrl("b_1", "")).rejects.toThrow(/url/);
+  });
+
+  it("maps the four shortText setters to the right fieldName + shortText", async () => {
+    const cases = [
+      ["setMetaDataReservationId", "reservation_id", "RES-99812"],
+      ["setMetaDataBookingStatus", "booking_status", "CONFIRMED"],
+      ["setMetaDataAssignedProduct", "assigned_product", "Zipline Tour - 2pm"],
+      ["setMetaDataAssignedEmployee", "assigned_employee", "Dana Guide"],
+    ] as const;
+    for (const [method, fieldName, value] of cases) {
+      const { service, calls } = svc();
+      await (service[method] as (id: string, v: string) => Promise<unknown>)("b_1", value);
+      expect(inputOf(calls).fieldResponses[0]).toEqual({ fieldName, shortText: value });
+    }
+  });
+
+  it("shortText setters reject empty values before any request", async () => {
+    const methods = [
+      "setMetaDataReservationId",
+      "setMetaDataBookingStatus",
+      "setMetaDataAssignedProduct",
+      "setMetaDataAssignedEmployee",
+    ] as const;
+    for (const method of methods) {
+      const { service, calls } = svc();
+      await expect(
+        (service[method] as (id: string, v: string) => Promise<unknown>)("b_1", "  "),
+      ).rejects.toThrow(/non-empty string/);
+      expect(calls).toHaveLength(0);
+    }
+  });
+
+  it("setMetaDataInsurancePurchased sends a boolean and rejects non-boolean", async () => {
+    const { service, calls } = svc();
+    await service.setMetaDataInsurancePurchased("b_1", true);
+    expect(inputOf(calls).fieldResponses[0]).toEqual({ fieldName: "insurance_purchased", boolean: true });
+    await expect(
+      svc().service.setMetaDataInsurancePurchased("b_1", "yes" as unknown as boolean),
+    ).rejects.toThrow(/boolean/);
+  });
+
+  it("maps BookingNotFoundError and GenericError results to success=false", async () => {
+    const notFound = svc(() => ({
+      data: { upsertBookingFieldResponses: { __typename: "BookingNotFoundError", bookingId: "b_1", message: "nope" } },
+    }));
+    expect(await notFound.service.setMetaDataManifestUrl("b_1", "https://x")).toEqual({
+      success: false,
+      bookingId: "b_1",
+      message: "nope",
+    });
+    const generic = svc(() => ({
+      data: { upsertBookingFieldResponses: { __typename: "GenericError", message: "boom" } },
+    }));
+    expect(await generic.service.setMetaDataManifestUrl("b_1", "https://x")).toEqual({
+      success: false,
+      bookingId: "b_1",
+      message: "boom",
+    });
+  });
+
+  it("validates the booking id for a setter before any request", async () => {
+    const { service, calls } = svc();
+    await expect(service.setMetaDataManifestUrl("nope", "https://x")).rejects.toThrow(/valid booking id/);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("defaults the integrator to the service default (empty) when none is set", async () => {
+    const { service, calls } = makeService(() => SUCCESS, [], { fullCustomerAccess: true }, []);
+    await service.setMetaDataManifestUrl("b_1", "https://x");
+    expect(inputOf(calls).integrator).toBe("");
   });
 });
 

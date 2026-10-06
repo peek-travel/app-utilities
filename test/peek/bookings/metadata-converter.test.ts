@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   filterMetaDataByIntegrator,
   fromBookingMetaDataNode,
+  toSetMetaDataResult,
 } from "../../../src/internal/peek/bookings/metadata-converter.js";
 import type {
   BookingMetaDataNode,
@@ -24,17 +25,15 @@ function response(slug: string, value: MetaDataValueNode): MetaDataFieldResponse
 }
 
 describe("fromBookingMetaDataNode", () => {
-  it("maps the envelope and flattens field + prompt + refid", () => {
+  it("flattens field + prompt + refid into a MetaData list", () => {
     const node: BookingMetaDataNode = {
       id: "b_1",
       displayId: "B-1",
       fieldResponses: [response("shortText", { __typename: "ShortTextFieldResponseValue", shortText: "hi" })],
     };
     const result = fromBookingMetaDataNode(node);
-    expect(result.bookingId).toBe("b_1");
-    expect(result.displayId).toBe("B-1");
-    expect(result.metaData).toHaveLength(1);
-    expect(result.metaData[0]).toMatchObject({
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
       id: "f_shortText",
       name: "shortText",
       slug: "shortText",
@@ -55,7 +54,7 @@ describe("fromBookingMetaDataNode", () => {
         { fieldLocation: { field: { id: "f", name: "n", slug: "s", type: "t" }, prompt: null }, refid: "r", value: null },
       ],
     };
-    const [entry] = fromBookingMetaDataNode(node).metaData;
+    const [entry] = fromBookingMetaDataNode(node);
     expect(entry).toMatchObject({ prompt: null, promptHint: null, isRequired: false, value: null });
   });
 
@@ -85,7 +84,7 @@ describe("fromBookingMetaDataNode", () => {
       response("volume", { __typename: "VolumeFieldResponseValue", volume: { amount: "2.0", unit: "GALLON" } }),
       response("weight", { __typename: "WeightFieldResponseValue", weight: { amount: "3.0", unit: "KILOGRAM" } }),
     ];
-    const values = fromBookingMetaDataNode({ id: "b_1", displayId: "B-1", fieldResponses: responses }).metaData.map(
+    const values = fromBookingMetaDataNode({ id: "b_1", displayId: "B-1", fieldResponses: responses }).map(
       (m) => m.value,
     );
     expect(values).toEqual([
@@ -123,7 +122,7 @@ describe("fromBookingMetaDataNode", () => {
       response("ageDefault", { __typename: "AgeFieldResponseValue" }),
       response("guestPiiOff", { __typename: "GuestFieldResponseValue", notes: "n", waiverSigned: false }),
     ];
-    const values = fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: responses }).metaData.map(
+    const values = fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: responses }).map(
       (m) => m.value,
     );
     expect(values[0]).toBeNull();
@@ -166,7 +165,7 @@ describe("fromBookingMetaDataNode", () => {
       response("volume", { __typename: "VolumeFieldResponseValue" }),
       response("weight", { __typename: "WeightFieldResponseValue" }),
     ];
-    const values = fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: responses }).metaData.map(
+    const values = fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: responses }).map(
       (m) => m.value,
     );
     expect(values).toEqual([
@@ -200,7 +199,7 @@ describe("fromBookingMetaDataNode", () => {
       id: "b",
       displayId: "B",
       fieldResponses: [response("html", { __typename: "HtmlFieldResponseValue", html: `<a href="x">A & 'B'</a>` })],
-    }).metaData;
+    });
     expect(entry!.value).toEqual({
       kind: "html",
       html: `<a href="x">A & 'B'</a>`,
@@ -208,13 +207,13 @@ describe("fromBookingMetaDataNode", () => {
     });
   });
 
-  it("returns an empty envelope for a missing node", () => {
-    expect(fromBookingMetaDataNode(undefined)).toEqual({ bookingId: "", displayId: "", metaData: [] });
+  it("returns an empty list for a missing node", () => {
+    expect(fromBookingMetaDataNode(undefined)).toEqual([]);
   });
 
-  it("defaults id/displayId and metaData when the node has no ids or responses", () => {
-    expect(fromBookingMetaDataNode({})).toEqual({ bookingId: "", displayId: "", metaData: [] });
-    expect(fromBookingMetaDataNode({ id: "b_2", displayId: "B-2", fieldResponses: null }).metaData).toEqual([]);
+  it("returns an empty list when the node has no responses", () => {
+    expect(fromBookingMetaDataNode({})).toEqual([]);
+    expect(fromBookingMetaDataNode({ id: "b_2", displayId: "B-2", fieldResponses: null })).toEqual([]);
   });
 
   it("defaults the whole field when fieldLocation is absent", () => {
@@ -222,7 +221,7 @@ describe("fromBookingMetaDataNode", () => {
       id: "b",
       displayId: "B",
       fieldResponses: [{ refid: "r", value: null }],
-    }).metaData;
+    });
     expect(entry).toEqual({
       id: "",
       name: "",
@@ -240,7 +239,7 @@ describe("fromBookingMetaDataNode", () => {
 describe("fromBookingMetaDataNode — value edge cases", () => {
   /** Maps a single value node and returns its converted `value`. */
   function value(node: MetaDataValueNode): MetaData["value"] {
-    return fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: [response("s", node)] }).metaData[0]!
+    return fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: [response("s", node)] })[0]!
       .value;
   }
 
@@ -354,5 +353,40 @@ describe("filterMetaDataByIntegrator", () => {
   it("does not match when the integrator is a prefix of another integrator's name", () => {
     const bobby: MetaData[] = [{ ...entries[0]!, slug: "integrator:bobby:url" }];
     expect(filterMetaDataByIntegrator(bobby, "bob")).toEqual([]);
+  });
+});
+
+describe("toSetMetaDataResult", () => {
+  it("maps the success variant to success=true with the echoed id + message", () => {
+    expect(
+      toSetMetaDataResult(
+        { __typename: "UpsertBookingFieldResponsesSuccess", bookingId: "b_1", message: "ok" },
+        "b_fallback",
+      ),
+    ).toEqual({ success: true, bookingId: "b_1", message: "ok" });
+  });
+
+  it("maps BookingNotFoundError to success=false, keeping the id + message", () => {
+    expect(
+      toSetMetaDataResult(
+        { __typename: "BookingNotFoundError", bookingId: "b_x", message: "not found" },
+        "b_fallback",
+      ),
+    ).toEqual({ success: false, bookingId: "b_x", message: "not found" });
+  });
+
+  it("maps GenericError to success=false, falling back to the requested id", () => {
+    expect(
+      toSetMetaDataResult({ __typename: "GenericError", message: "boom" }, "b_fallback"),
+    ).toEqual({ success: false, bookingId: "b_fallback", message: "boom" });
+  });
+
+  it("defaults success=false / message='' for an absent or unknown result", () => {
+    expect(toSetMetaDataResult(null, "b_fallback")).toEqual({ success: false, bookingId: "b_fallback", message: "" });
+    expect(toSetMetaDataResult({ __typename: "SomethingNew" }, "b_fallback")).toEqual({
+      success: false,
+      bookingId: "b_fallback",
+      message: "",
+    });
   });
 });

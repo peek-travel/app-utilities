@@ -1,32 +1,31 @@
 /**
  * Pure functions mapping a raw booking-metadata node into the clean
- * {@link BookingMetaData} model, plus the integrator filter. I/O-free.
+ * {@link MetaData} list, plus the integrator filter. I/O-free.
  */
 import type {
-  BookingMetaData,
   MetaData,
   MetaDataBarcodeType,
   MetaDataDurationUnit,
   MetaDataValue,
   MetaDataVolumeUnit,
   MetaDataWeightUnit,
+  SetMetaDataResult,
 } from "../../../models/peek/booking-metadata.js";
 import type {
   BookingMetaDataNode,
   MetaDataFieldResponseNode,
   MetaDataValueNode,
+  UpsertBookingFieldResponsesResponse,
 } from "./metadata-queries.js";
 
-/** Converts a raw booking-metadata node into a {@link BookingMetaData}. */
+/** The `__typename` of the successful upsert result variant. */
+const UPSERT_SUCCESS_TYPENAME = "UpsertBookingFieldResponsesSuccess";
+
+/** Converts a raw booking-metadata node into a list of clean {@link MetaData}. */
 export function fromBookingMetaDataNode(
   node: BookingMetaDataNode | null | undefined,
-): BookingMetaData {
-  const data = node ?? {};
-  return {
-    bookingId: data.id || "",
-    displayId: data.displayId || "",
-    metaData: (data.fieldResponses ?? []).map(fromFieldResponseNode),
-  };
+): MetaData[] {
+  return (node?.fieldResponses ?? []).map(fromFieldResponseNode);
 }
 
 /** Maps a single raw field-response node into a {@link MetaData}. */
@@ -212,6 +211,23 @@ function escapeHtml(value: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/**
+ * Maps the `upsertBookingFieldResponses` result union into a clean
+ * {@link SetMetaDataResult}. `success` is true only for the success variant; the
+ * message and (when present) echoed booking id are carried across, falling back
+ * to the requested `bookingId`.
+ */
+export function toSetMetaDataResult(
+  node: UpsertBookingFieldResponsesResponse["upsertBookingFieldResponses"],
+  bookingId: string,
+): SetMetaDataResult {
+  return {
+    success: node?.__typename === UPSERT_SUCCESS_TYPENAME,
+    bookingId: node?.bookingId || bookingId,
+    message: node?.message || "",
+  };
 }
 
 /**
