@@ -139,7 +139,7 @@ final authority and may still reject the request.
   found; each `MetaData` carries a typed `value: MetaDataValue | null` discriminated
   union — every variant also has a display-safe `displayValue` string (the
   `html` variant's is HTML-escaped); returns only fields whose slug starts with
-  `integrator:<integrator>:`,
+  `integrators:<integrator>:`,
   that prefix stripped). The `integrator` arg on the accessor scopes
   `getMetaData` — **do not set it** unless Peek engineering created a custom
   integrator id for this integration.

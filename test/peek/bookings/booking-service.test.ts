@@ -288,14 +288,14 @@ describe("BookingService.getMetaData", () => {
     fieldResponses: [
       {
         fieldLocation: {
-          field: { id: "f1", name: "Booking URL", slug: "integrator:bob:booking_url", type: "URL" },
+          field: { id: "f1", name: "Booking URL", slug: "integrators:bob:booking_url", type: "URL" },
           prompt: { label: "URL", hint: null, isRequired: false },
         },
         refid: "r1",
         value: { __typename: "UrlFieldResponseValue", url: "https://x" },
       },
       {
-        fieldLocation: { field: { id: "f2", name: "Other", slug: "integrator:joe:other", type: "SHORT_TEXT" }, prompt: null },
+        fieldLocation: { field: { id: "f2", name: "Other", slug: "integrators:joe:other", type: "SHORT_TEXT" }, prompt: null },
         refid: "r2",
         value: { __typename: "ShortTextFieldResponseValue", shortText: "nope" },
       },

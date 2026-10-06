@@ -231,15 +231,15 @@ export function toSetMetaDataResult(
 }
 
 /**
- * Keeps only the metadata whose `slug` starts with `integrator:<integrator>:`
+ * Keeps only the metadata whose `slug` starts with `integrators:<integrator>:`
  * (case-sensitive exact prefix), stripping that prefix off the returned `slug`
- * (e.g. with `integrator = "bob"`, `integrator:bob:booking_url` → `booking_url`).
+ * (e.g. with `integrator = "bob"`, `integrators:bob:booking_url` → `booking_url`).
  */
 export function filterMetaDataByIntegrator(
   metaData: MetaData[],
   integrator: string,
 ): MetaData[] {
-  const prefix = `integrator:${integrator}:`;
+  const prefix = `integrators:${integrator}:`;
   return metaData
     .filter((entry) => entry.slug.startsWith(prefix))
     .map((entry) => ({ ...entry, slug: entry.slug.slice(prefix.length) }));

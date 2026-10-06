@@ -286,7 +286,7 @@ location → comma-joined parts, meta → `JSON.stringify`, and the `html` varia
 are exported from `src/index.ts`.
 
 **Integrator scoping.** `getMetaData` returns only the fields whose `slug` starts
-with `integrator:<integrator>:` (case-sensitive exact prefix), stripping that
+with `integrators:<integrator>:` (case-sensitive exact prefix), stripping that
 prefix off each returned `slug` (pure `filterMetaDataByIntegrator`). The
 integrator is **per `BookingService`**, supplied by
 `PeekAccessService.getBookingService(integrator?)`; when omitted it defaults to

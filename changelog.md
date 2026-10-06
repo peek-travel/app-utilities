@@ -12,6 +12,25 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## Unreleased
+
+### `BookingService.getMetaData()` integrator scoping now matches the real slug prefix `[fix]`
+
+- **What:** `getMetaData(bookingId)` filters a booking's custom fields to the
+  service `integrator` by a slug prefix. That prefix was `integrator:<integrator>:`
+  (singular), but the gateway actually stores integrator-scoped fields under
+  `integrators:<integrator>:` (plural), so the filter never matched and
+  `getMetaData` returned `[]` for every integrator-scoped booking. The prefix is
+  now `integrators:<integrator>:`, so matching fields are returned with that
+  prefix stripped from each `slug` as documented.
+- **Why:** the 0.9.3 filter used the wrong prefix, making `getMetaData` unusable
+  with an `integrator`. The upsert/write path (`setMetaData*`) was unaffected — it
+  sends the `integrator` input field, which the gateway maps to the stored slug.
+- **Caller action:** none — if you set an `integrator` via
+  `getBookingService(integrator)` and got back `[]`, you will now get the fields.
+
+---
+
 ## 0.9.3
 
 ### `CreateBookingInput.listPrice` sets a per-ticket list price on `create` `[additive]`
@@ -66,7 +85,7 @@ action needed; `[additive]` only adds capability.
   `MetaDataDurationUnit`, `MetaDataVolumeUnit`, `MetaDataWeightUnit`.
   `PeekAccessService.getBookingService()` gains an optional `integrator` string
   that scopes the result: only fields whose slug starts with
-  `integrator:<integrator>:` are returned, with that prefix stripped.
+  `integrators:<integrator>:` are returned, with that prefix stripped.
 - **Why:** Exposes booking custom-field responses as clean, typed data.
 - **Caller action:** None — additive. Reach it via
   `peek.getBookingService().getMetaData(id)`. Do not pass an `integrator` unless

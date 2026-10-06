@@ -110,8 +110,8 @@ export interface MetaData {
   name: string;
   /**
    * Field slug. When an `integrator` filter is applied, the matched
-   * `integrator:<integrator>:` prefix is stripped off (e.g.
-   * `integrator:bob:booking_url` → `booking_url`).
+   * `integrators:<integrator>:` prefix is stripped off (e.g.
+   * `integrators:bob:booking_url` → `booking_url`).
    */
   slug: string;
   /** Raw field type reported by the gateway (kept as a string). */

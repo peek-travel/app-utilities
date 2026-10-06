@@ -296,9 +296,9 @@ describe("fromBookingMetaDataNode — value edge cases", () => {
 
 describe("filterMetaDataByIntegrator", () => {
   const entries: MetaData[] = [
-    { id: "1", name: "a", slug: "integrator:bob:booking_url", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r1", value: null },
-    { id: "2", name: "b", slug: "integrator:BOB:booking_url", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r2", value: null },
-    { id: "3", name: "c", slug: "integrator:joe:other", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r3", value: null },
+    { id: "1", name: "a", slug: "integrators:bob:booking_url", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r1", value: null },
+    { id: "2", name: "b", slug: "integrators:BOB:booking_url", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r2", value: null },
+    { id: "3", name: "c", slug: "integrators:joe:other", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r3", value: null },
     { id: "4", name: "d", slug: "plain_field", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r4", value: null },
   ];
 
@@ -321,7 +321,7 @@ describe("filterMetaDataByIntegrator", () => {
     const entry: MetaData = {
       id: "x",
       name: "Booking URL",
-      slug: "integrator:bob:booking_url",
+      slug: "integrators:bob:booking_url",
       type: "URL",
       prompt: "P",
       promptHint: "H",
@@ -334,24 +334,24 @@ describe("filterMetaDataByIntegrator", () => {
 
   it("keeps all of multiple matches for the same integrator", () => {
     const many: MetaData[] = [
-      { ...entries[0]!, id: "a", slug: "integrator:bob:one" },
-      { ...entries[0]!, id: "b", slug: "integrator:bob:two" },
+      { ...entries[0]!, id: "a", slug: "integrators:bob:one" },
+      { ...entries[0]!, id: "b", slug: "integrators:bob:two" },
     ];
     expect(filterMetaDataByIntegrator(many, "bob").map((e) => e.slug)).toEqual(["one", "two"]);
   });
 
   it("matches only a leading prefix, not one appearing mid-slug", () => {
-    const mid: MetaData[] = [{ ...entries[0]!, slug: "x:integrator:bob:y" }];
+    const mid: MetaData[] = [{ ...entries[0]!, slug: "x:integrators:bob:y" }];
     expect(filterMetaDataByIntegrator(mid, "bob")).toEqual([]);
   });
 
   it("strips to an empty slug when the slug is exactly the prefix", () => {
-    const exact: MetaData[] = [{ ...entries[0]!, slug: "integrator:bob:" }];
+    const exact: MetaData[] = [{ ...entries[0]!, slug: "integrators:bob:" }];
     expect(filterMetaDataByIntegrator(exact, "bob")[0]!.slug).toBe("");
   });
 
   it("does not match when the integrator is a prefix of another integrator's name", () => {
-    const bobby: MetaData[] = [{ ...entries[0]!, slug: "integrator:bobby:url" }];
+    const bobby: MetaData[] = [{ ...entries[0]!, slug: "integrators:bobby:url" }];
     expect(filterMetaDataByIntegrator(bobby, "bob")).toEqual([]);
   });
 });
