@@ -145,7 +145,7 @@ export interface BookingServiceOptions {
   accessOptions?: AccessOptions;
   /**
    * Integrator id used to scope `getMetaData` results — only fields whose slug
-   * starts with `integrator:<integrator>:` are returned. Defaults to `""` (set
+   * starts with `integrators:<integrator>:` are returned. Defaults to `""` (set
    * by the access service to the install's issuer).
    */
   integrator?: string;
@@ -321,7 +321,7 @@ export class BookingService {
   /**
    * Returns a booking's custom-field metadata (its `fieldResponses`), scoped to
    * this service's integrator. Only fields whose slug starts with
-   * `integrator:<integrator>:` are returned, and that prefix is stripped from
+   * `integrators:<integrator>:` are returned, and that prefix is stripped from
    * each returned `slug`. Returns `[]` when the booking is not found or has no
    * matching fields.
    *

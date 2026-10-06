@@ -42,34 +42,30 @@ export type MetaDataVolumeUnit = "GALLON";
  * `number`; `Decimal` values are kept as strings to avoid float-precision loss;
  * `Date`/`Time` values are ISO strings.
  *
- * Every variant also carries a `displayValue` — a human-readable, display-safe
- * string rendering of the value (empty when the underlying value is absent). The
- * `html` variant's `displayValue` is HTML-escaped so it is safe to render as
- * text.
+ * A human-readable, display-safe rendering of the value lives on the parent
+ * {@link MetaData.displayValue}, not here.
  */
 export type MetaDataValue =
-  | { kind: "age"; age: number; displayValue: string }
+  | { kind: "age"; age: number }
   | {
       kind: "attachment";
       attachmentUrl: string;
       mime: string | null;
       name: string | null;
       size: number | null;
-      displayValue: string;
     }
   | {
       kind: "barcode";
       barcodeType: MetaDataBarcodeType | null;
       barcodeValue: string;
-      displayValue: string;
     }
-  | { kind: "boolean"; boolean: boolean; displayValue: string }
-  | { kind: "checkbox"; isChecked: boolean; displayValue: string }
-  | { kind: "currency"; currency: string; displayValue: string }
-  | { kind: "date"; date: string; displayValue: string }
-  | { kind: "decimal"; decimal: string | null; displayValue: string }
-  | { kind: "duration"; amount: number; unit: MetaDataDurationUnit | null; displayValue: string }
-  | { kind: "email"; email: string | null; displayValue: string }
+  | { kind: "boolean"; boolean: boolean }
+  | { kind: "checkbox"; isChecked: boolean }
+  | { kind: "currency"; currency: string }
+  | { kind: "date"; date: string }
+  | { kind: "decimal"; decimal: string | null }
+  | { kind: "duration"; amount: number; unit: MetaDataDurationUnit | null }
+  | { kind: "email"; email: string | null }
   | {
       kind: "guest";
       name: string | null;
@@ -77,11 +73,10 @@ export type MetaDataValue =
       dateOfBirth: string | null;
       notes: string | null;
       waiverSigned: boolean | null;
-      displayValue: string;
     }
-  | { kind: "html"; html: string; displayValue: string }
-  | { kind: "imageUrl"; imageUrl: string; displayValue: string }
-  | { kind: "integer"; integer: number; displayValue: string }
+  | { kind: "html"; html: string }
+  | { kind: "imageUrl"; imageUrl: string }
+  | { kind: "integer"; integer: number }
   | {
       kind: "location";
       country: string | null;
@@ -90,17 +85,16 @@ export type MetaDataValue =
       postalCode: string | null;
       region: string | null;
       streetAddress: string | null;
-      displayValue: string;
     }
-  | { kind: "longText"; longText: string; displayValue: string }
-  | { kind: "meta"; meta: unknown; displayValue: string }
-  | { kind: "percent"; percent: string | null; displayValue: string }
-  | { kind: "phone"; phone: string; displayValue: string }
-  | { kind: "shortText"; shortText: string; displayValue: string }
-  | { kind: "time"; time: string; displayValue: string }
-  | { kind: "url"; url: string | null; displayValue: string }
-  | { kind: "volume"; amount: string; unit: MetaDataVolumeUnit | null; displayValue: string }
-  | { kind: "weight"; amount: string; unit: MetaDataWeightUnit | null; displayValue: string };
+  | { kind: "longText"; longText: string }
+  | { kind: "meta"; meta: unknown }
+  | { kind: "percent"; percent: string | null }
+  | { kind: "phone"; phone: string }
+  | { kind: "shortText"; shortText: string }
+  | { kind: "time"; time: string }
+  | { kind: "url"; url: string | null }
+  | { kind: "volume"; amount: string; unit: MetaDataVolumeUnit | null }
+  | { kind: "weight"; amount: string; unit: MetaDataWeightUnit | null };
 
 /** A single booking custom-field response (one `fieldResponse`). */
 export interface MetaData {
@@ -110,8 +104,8 @@ export interface MetaData {
   name: string;
   /**
    * Field slug. When an `integrator` filter is applied, the matched
-   * `integrator:<integrator>:` prefix is stripped off (e.g.
-   * `integrator:bob:booking_url` → `booking_url`).
+   * `integrators:<integrator>:` prefix is stripped off (e.g.
+   * `integrators:bob:booking_url` → `booking_url`).
    */
   slug: string;
   /** Raw field type reported by the gateway (kept as a string). */
@@ -124,6 +118,12 @@ export interface MetaData {
   isRequired: boolean;
   /** The response's reference id. */
   refid: string;
+  /**
+   * A human-readable, display-safe string rendering of the value. Always
+   * present — `""` when the value is absent or of an unrecognized variant. The
+   * `html` value's rendering is HTML-escaped so it is safe to render as text.
+   */
+  displayValue: string;
   /**
    * The typed response value, or `null` when absent or of an unrecognized
    * (future) variant.

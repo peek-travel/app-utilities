@@ -12,6 +12,39 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 0.9.4
+
+### `MetaData.displayValue` moves up from the `value` union to the `MetaData` object `[breaking]`
+
+- **What:** The display-safe `displayValue` string is no longer a member of each
+  `MetaDataValue` variant — it is now a top-level field on `MetaData` itself
+  (`MetaData.displayValue`). It is always present (`""` when the value is absent
+  or an unrecognized variant); the `html` rendering is still HTML-escaped. The
+  `value` union now carries only the typed value fields per `kind`.
+- **Why:** every entry always has a display rendering regardless of the value's
+  `kind` (or whether `value` is `null`), so it belongs on the entry, not buried
+  inside — and only — the non-null value variants.
+- **Caller action:** read `metaData.displayValue` instead of
+  `metaData.value?.displayValue`. If you destructure or switch on `value`, drop
+  `displayValue` from those shapes; it no longer exists there.
+
+### `BookingService.getMetaData()` integrator scoping now matches the real slug prefix `[fix]`
+
+- **What:** `getMetaData(bookingId)` filters a booking's custom fields to the
+  service `integrator` by a slug prefix. That prefix was `integrator:<integrator>:`
+  (singular), but the gateway actually stores integrator-scoped fields under
+  `integrators:<integrator>:` (plural), so the filter never matched and
+  `getMetaData` returned `[]` for every integrator-scoped booking. The prefix is
+  now `integrators:<integrator>:`, so matching fields are returned with that
+  prefix stripped from each `slug` as documented.
+- **Why:** the 0.9.3 filter used the wrong prefix, making `getMetaData` unusable
+  with an `integrator`. The upsert/write path (`setMetaData*`) was unaffected — it
+  sends the `integrator` input field, which the gateway maps to the stored slug.
+- **Caller action:** none — if you set an `integrator` via
+  `getBookingService(integrator)` and got back `[]`, you will now get the fields.
+
+---
+
 ## 0.9.3
 
 ### `CreateBookingInput.listPrice` sets a per-ticket list price on `create` `[additive]`
@@ -66,7 +99,7 @@ action needed; `[additive]` only adds capability.
   `MetaDataDurationUnit`, `MetaDataVolumeUnit`, `MetaDataWeightUnit`.
   `PeekAccessService.getBookingService()` gains an optional `integrator` string
   that scopes the result: only fields whose slug starts with
-  `integrator:<integrator>:` are returned, with that prefix stripped.
+  `integrators:<integrator>:` are returned, with that prefix stripped.
 - **Why:** Exposes booking custom-field responses as clean, typed data.
 - **Caller action:** None — additive. Reach it via
   `peek.getBookingService().getMetaData(id)`. Do not pass an `integrator` unless

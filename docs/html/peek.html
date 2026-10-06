@@ -164,12 +164,14 @@ function render(DATA){
   document.title = DATA.title+" Platform — @peektravel/app-utilities";
   heroTitle.textContent = DATA.hero;
   heroSub.innerHTML = DATA.heroSub;
-  // sort: root *AccessService first, other services A–Z; models A–Z
+  // sort: root *AccessService first, other services A–Z; models A–Z;
+  // methods within each service A–Z
   DATA.services.sort((a,b)=>{
     const ra=/AccessService$/.test(a.name), rb=/AccessService$/.test(b.name);
     if(ra!==rb)return ra?-1:1;
     return a.name.localeCompare(b.name);
   });
+  DATA.services.forEach(s=>{if(s.methods)s.methods.sort((a,b)=>a.name.localeCompare(b.name));});
   DATA.models.sort((a,b)=>a.name.localeCompare(b.name));
   LINK_MAP={};
   DATA.models.forEach(m=>{LINK_MAP[m.name]='mdl-'+slug(m.name);});
@@ -441,7 +443,7 @@ render({
      {name:"searchByTimeRange",sig:"(input: BookingTimeRangeSearch): Promise&lt;Booking[]&gt;",desc:"All bookings in a time range (paginated).",notes:"<code>searchBy</code> defaults to purchase date."},
      {name:"searchByTimeslot",sig:"(timeslotId: string, options?: BookingReadOptions): Promise&lt;Booking[]&gt;",desc:"All bookings on a timeslot (paginated)."},
      {name:"getGuests",sig:"(bookingId: string): Promise&lt;Guest[]&gt;",desc:"Guests on a booking (primary included).",notes:"Validates booking id; guest identity fields stripped when PII off."},
-     {name:"getMetaData",sig:"(bookingId: string): Promise&lt;MetaData[]&gt;",desc:"Booking custom-field metadata (its field responses); <code>[]</code> when the booking is not found or has no matching fields.",notes:"Validates booking id. Returns only fields whose slug starts with <code>integrator:&lt;integrator&gt;:</code> (set on the service via <code>getBookingService(integrator?)</code>), with that prefix stripped from the returned slug. Guest-value identity fields (name/email/DOB) are stripped when PII off."},
+     {name:"getMetaData",sig:"(bookingId: string): Promise&lt;MetaData[]&gt;",desc:"Booking custom-field metadata (its field responses); <code>[]</code> when the booking is not found or has no matching fields.",notes:"Validates booking id. Returns only fields whose slug starts with <code>integrators:&lt;integrator&gt;:</code> (set on the service via <code>getBookingService(integrator?)</code>), with that prefix stripped from the returned slug. Guest-value identity fields (name/email/DOB) are stripped when PII off."},
      {name:"setMetaDataGuest",sig:"(bookingId: string, guests: SetMetaDataGuestInput[]): Promise&lt;SetMetaDataResult&gt;",desc:"Upserts the <code>guest</code> metadata field.",notes:"Each guest requires <code>name</code> + <code>email</code> (<code>dateOfBirth</code>/<code>waiverSigned</code>/<code>notes</code> optional). Scoped to the service <code>integrator</code>; validates booking id + a non-empty guest list."},
      {name:"setMetaDataAttachment",sig:"(bookingId: string, attachments: SetMetaDataAttachmentInput[]): Promise&lt;SetMetaDataResult&gt;",desc:"Upserts the <code>attachment</code> metadata field.",notes:"Each attachment requires <code>name</code> + <code>attachmentUrl</code>. Validates booking id + a non-empty list."},
      {name:"setMetaDataManifestUrl",sig:"(bookingId: string, url: string): Promise&lt;SetMetaDataResult&gt;",desc:"Upserts the <code>manifest_url</code> metadata field.",notes:"<code>url</code> must be a non-empty string."},
@@ -568,7 +570,7 @@ render({
    ]},
   {name:"ProductTicket",kind:"interface",file:"src/models/peek/product.ts",desc:"A bookable sub-option.",
    fields:[
-    {name:"id",type:"string",n:false,desc:"Ticket/option id."},
+    {name:"id",type:"string",n:false,desc:"Ticket/option id. Also the <code>resourceOptionId</code> — pass it as a ticket's <code>resourceOptionId</code> on <code>CreateBookingTicket</code>; <code>AvailabilityService.getAvailabilityTimes</code> reports it per slot."},
     {name:"name",type:"string",n:false,desc:"Ticket/option name."},
     {name:"minPrice",type:"PricingMoney | null",n:true,desc:"Lowest price across range; <code>null</code> for add-ons / when none."},
     {name:"maxPrice",type:"PricingMoney | null",n:true,desc:"Highest price across range; <code>null</code> for add-ons / when none."}
@@ -853,7 +855,7 @@ render({
     {name:"balanceCurrency",type:"string",n:false,desc:"Balance currency (default <code>USD</code>)."},
     {name:"balanceFormatted",type:"string",n:false,desc:"Balance formatted (default <code>$0.00</code>)."}
    ]},
-  {name:"MetaData",kind:"interface",file:"src/models/peek/booking-metadata.ts",desc:"A single booking custom-field response, returned (as a list) by <code>BookingService.getMetaData</code>. Flattens the field definition, its prompt, and the response <code>refid</code>, plus one typed <code>value</code>.",
+  {name:"MetaData",kind:"interface",file:"src/models/peek/booking-metadata.ts",desc:"A single booking custom-field response, returned (as a list) by <code>BookingService.getMetaData</code>. Flattens the field definition, its prompt, and the response <code>refid</code>, plus a display-safe <code>displayValue</code> and one typed <code>value</code>.",
    fields:[
     {name:"id",type:"string",n:false,desc:"Field definition id."},
     {name:"name",type:"string",n:false,desc:"Field name (human label)."},
@@ -863,11 +865,12 @@ render({
     {name:"promptHint",type:"string | null",n:true,desc:"Prompt hint text, or <code>null</code>."},
     {name:"isRequired",type:"boolean",n:false,desc:"Whether the field is required (<code>false</code> when no prompt)."},
     {name:"refid",type:"string",n:false,desc:"The response's reference id."},
+    {name:"displayValue",type:"string",n:false,desc:"Display-safe human string rendering of the value. Always present — <code>\"\"</code> when the value is absent or an unrecognized variant; the <code>html</code> value's rendering is HTML-escaped."},
     {name:"value",type:"MetaDataValue | null",n:true,desc:"Typed response value, or <code>null</code> when absent or an unrecognized variant."}
    ]},
   {name:"MetaDataValue",kind:"type",file:"src/models/peek/booking-metadata.ts",
-   desc:"Discriminated union (keyed by <code>kind</code>) of a booking custom-field value — one variant per gateway <code>…FieldResponseValue</code> type. <code>Int</code> → <code>number</code>; <code>Decimal</code> → <code>string</code>; <code>Date</code>/<code>Time</code> → ISO string. Every variant also carries <code>displayValue</code> — a display-safe human string (the <code>html</code> variant's is HTML-escaped; empty when the value is absent).",
-   def:'  { kind:"age"; age:number; displayValue:string }\n| { kind:"attachment"; attachmentUrl:string; mime:string|null; name:string|null; size:number|null; displayValue:string }\n| { kind:"barcode"; barcodeType:MetaDataBarcodeType|null; barcodeValue:string; displayValue:string }\n| { kind:"boolean"; boolean:boolean; displayValue:string }\n| { kind:"checkbox"; isChecked:boolean; displayValue:string }\n| { kind:"currency"; currency:string; displayValue:string }\n| { kind:"date"; date:string; displayValue:string }\n| { kind:"decimal"; decimal:string|null; displayValue:string }\n| { kind:"duration"; amount:number; unit:MetaDataDurationUnit|null; displayValue:string }\n| { kind:"email"; email:string|null; displayValue:string }\n| { kind:"guest"; name:string|null; email:string|null; dateOfBirth:string|null; notes:string|null; waiverSigned:boolean|null; displayValue:string }\n| { kind:"html"; html:string; displayValue:string }\n| { kind:"imageUrl"; imageUrl:string; displayValue:string }\n| { kind:"integer"; integer:number; displayValue:string }\n| { kind:"location"; country:string|null; county:string|null; locality:string|null; postalCode:string|null; region:string|null; streetAddress:string|null; displayValue:string }\n| { kind:"longText"; longText:string; displayValue:string }\n| { kind:"meta"; meta:unknown; displayValue:string }\n| { kind:"percent"; percent:string|null; displayValue:string }\n| { kind:"phone"; phone:string; displayValue:string }\n| { kind:"shortText"; shortText:string; displayValue:string }\n| { kind:"time"; time:string; displayValue:string }\n| { kind:"url"; url:string|null; displayValue:string }\n| { kind:"volume"; amount:string; unit:MetaDataVolumeUnit|null; displayValue:string }\n| { kind:"weight"; amount:string; unit:MetaDataWeightUnit|null; displayValue:string }'},
+   desc:"Discriminated union (keyed by <code>kind</code>) of a booking custom-field value — one variant per gateway <code>…FieldResponseValue</code> type. <code>Int</code> → <code>number</code>; <code>Decimal</code> → <code>string</code>; <code>Date</code>/<code>Time</code> → ISO string. The display-safe rendering lives on the parent <code>MetaData.displayValue</code>, not on the variants.",
+   def:'  { kind:"age"; age:number }\n| { kind:"attachment"; attachmentUrl:string; mime:string|null; name:string|null; size:number|null }\n| { kind:"barcode"; barcodeType:MetaDataBarcodeType|null; barcodeValue:string }\n| { kind:"boolean"; boolean:boolean }\n| { kind:"checkbox"; isChecked:boolean }\n| { kind:"currency"; currency:string }\n| { kind:"date"; date:string }\n| { kind:"decimal"; decimal:string|null }\n| { kind:"duration"; amount:number; unit:MetaDataDurationUnit|null }\n| { kind:"email"; email:string|null }\n| { kind:"guest"; name:string|null; email:string|null; dateOfBirth:string|null; notes:string|null; waiverSigned:boolean|null }\n| { kind:"html"; html:string }\n| { kind:"imageUrl"; imageUrl:string }\n| { kind:"integer"; integer:number }\n| { kind:"location"; country:string|null; county:string|null; locality:string|null; postalCode:string|null; region:string|null; streetAddress:string|null }\n| { kind:"longText"; longText:string }\n| { kind:"meta"; meta:unknown }\n| { kind:"percent"; percent:string|null }\n| { kind:"phone"; phone:string }\n| { kind:"shortText"; shortText:string }\n| { kind:"time"; time:string }\n| { kind:"url"; url:string|null }\n| { kind:"volume"; amount:string; unit:MetaDataVolumeUnit|null }\n| { kind:"weight"; amount:string; unit:MetaDataWeightUnit|null }'},
   {name:"MetaDataBarcodeType",kind:"type",file:"src/models/peek/booking-metadata.ts",
    desc:"Barcode symbology on a <code>kind:\"barcode\"</code> value.",def:'"BARCODE_CODE128" | "BARCODE_CODE39" | "DATA_MATRIX" | "EAN_13" | "ITF" | "QR_CODE" | "TEXT" | "UPC"'},
   {name:"MetaDataDurationUnit",kind:"type",file:"src/models/peek/booking-metadata.ts",
@@ -1023,7 +1026,7 @@ render({
    ]},
   {name:"CreateBookingTicket",kind:"input",file:"src/models/peek/booking.ts",desc:"A ticket to book in <code>create</code>.",
    fields:[
-    {name:"resourceOptionId",type:"string",n:false,desc:"Resource option to book."},
+    {name:"resourceOptionId",type:"string",n:false,desc:"Resource option to book — this is the <code>ProductTicket.id</code> from the activity's <code>tickets</code>."},
     {name:"quantity",type:"number",n:false,desc:"Seats (expanded per unit)."}
    ]},
   {name:"CreateBookingGuest",kind:"input",file:"src/models/peek/booking.ts",desc:"The primary guest in <code>create</code>.",

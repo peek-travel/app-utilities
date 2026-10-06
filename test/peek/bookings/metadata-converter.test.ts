@@ -85,7 +85,7 @@ describe("fromBookingMetaDataNode", () => {
       response("weight", { __typename: "WeightFieldResponseValue", weight: { amount: "3.0", unit: "KILOGRAM" } }),
     ];
     const values = fromBookingMetaDataNode({ id: "b_1", displayId: "B-1", fieldResponses: responses }).map(
-      (m) => m.value,
+      (m) => ({ ...m.value, displayValue: m.displayValue }),
     );
     expect(values).toEqual([
       { kind: "age", age: 40, displayValue: "40" },
@@ -122,22 +122,22 @@ describe("fromBookingMetaDataNode", () => {
       response("ageDefault", { __typename: "AgeFieldResponseValue" }),
       response("guestPiiOff", { __typename: "GuestFieldResponseValue", notes: "n", waiverSigned: false }),
     ];
-    const values = fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: responses }).map(
-      (m) => m.value,
-    );
-    expect(values[0]).toBeNull();
-    expect(values[1]).toBeNull();
-    expect(values[2]).toBeNull();
-    expect(values[3]).toEqual({ kind: "age", age: 0, displayValue: "0" });
-    expect(values[4]).toEqual({
+    const entries = fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: responses });
+    expect(entries[0]!.value).toBeNull();
+    expect(entries[0]!.displayValue).toBe("");
+    expect(entries[1]!.value).toBeNull();
+    expect(entries[2]!.value).toBeNull();
+    expect(entries[3]!.value).toEqual({ kind: "age", age: 0 });
+    expect(entries[3]!.displayValue).toBe("0");
+    expect(entries[4]!.value).toEqual({
       kind: "guest",
       name: null,
       email: null,
       dateOfBirth: null,
       notes: "n",
       waiverSigned: false,
-      displayValue: "",
     });
+    expect(entries[4]!.displayValue).toBe("");
   });
 
   it("defaults every variant's absent fields (covers the fallback branches)", () => {
@@ -166,7 +166,7 @@ describe("fromBookingMetaDataNode", () => {
       response("weight", { __typename: "WeightFieldResponseValue" }),
     ];
     const values = fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: responses }).map(
-      (m) => m.value,
+      (m) => ({ ...m.value, displayValue: m.displayValue }),
     );
     expect(values).toEqual([
       { kind: "attachment", attachmentUrl: "", mime: null, name: null, size: null, displayValue: "" },
@@ -203,8 +203,8 @@ describe("fromBookingMetaDataNode", () => {
     expect(entry!.value).toEqual({
       kind: "html",
       html: `<a href="x">A & 'B'</a>`,
-      displayValue: "&lt;a href=&quot;x&quot;&gt;A &amp; &#39;B&#39;&lt;/a&gt;",
     });
+    expect(entry!.displayValue).toBe("&lt;a href=&quot;x&quot;&gt;A &amp; &#39;B&#39;&lt;/a&gt;");
   });
 
   it("returns an empty list for a missing node", () => {
@@ -231,16 +231,21 @@ describe("fromBookingMetaDataNode", () => {
       promptHint: null,
       isRequired: false,
       refid: "r",
+      displayValue: "",
       value: null,
     });
   });
 });
 
 describe("fromBookingMetaDataNode — value edge cases", () => {
-  /** Maps a single value node and returns its converted `value`. */
-  function value(node: MetaDataValueNode): MetaData["value"] {
-    return fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: [response("s", node)] })[0]!
-      .value;
+  /**
+   * Maps a single value node and returns its converted `value` with the
+   * parent's `displayValue` flattened back in, so these edge-case assertions can
+   * check the value fields and the rendering together.
+   */
+  function value(node: MetaDataValueNode): Record<string, unknown> {
+    const entry = fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: [response("s", node)] })[0]!;
+    return { ...entry.value, displayValue: entry.displayValue };
   }
 
   it("attachment displayValue prefers name, falling back to url when name is empty/null", () => {
@@ -296,9 +301,9 @@ describe("fromBookingMetaDataNode — value edge cases", () => {
 
 describe("filterMetaDataByIntegrator", () => {
   const entries: MetaData[] = [
-    { id: "1", name: "a", slug: "integrator:bob:booking_url", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r1", value: null },
-    { id: "2", name: "b", slug: "integrator:BOB:booking_url", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r2", value: null },
-    { id: "3", name: "c", slug: "integrator:joe:other", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r3", value: null },
+    { id: "1", name: "a", slug: "integrators:bob:booking_url", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r1", value: null },
+    { id: "2", name: "b", slug: "integrators:BOB:booking_url", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r2", value: null },
+    { id: "3", name: "c", slug: "integrators:joe:other", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r3", value: null },
     { id: "4", name: "d", slug: "plain_field", type: "t", prompt: null, promptHint: null, isRequired: false, refid: "r4", value: null },
   ];
 
@@ -321,7 +326,7 @@ describe("filterMetaDataByIntegrator", () => {
     const entry: MetaData = {
       id: "x",
       name: "Booking URL",
-      slug: "integrator:bob:booking_url",
+      slug: "integrators:bob:booking_url",
       type: "URL",
       prompt: "P",
       promptHint: "H",
@@ -334,24 +339,24 @@ describe("filterMetaDataByIntegrator", () => {
 
   it("keeps all of multiple matches for the same integrator", () => {
     const many: MetaData[] = [
-      { ...entries[0]!, id: "a", slug: "integrator:bob:one" },
-      { ...entries[0]!, id: "b", slug: "integrator:bob:two" },
+      { ...entries[0]!, id: "a", slug: "integrators:bob:one" },
+      { ...entries[0]!, id: "b", slug: "integrators:bob:two" },
     ];
     expect(filterMetaDataByIntegrator(many, "bob").map((e) => e.slug)).toEqual(["one", "two"]);
   });
 
   it("matches only a leading prefix, not one appearing mid-slug", () => {
-    const mid: MetaData[] = [{ ...entries[0]!, slug: "x:integrator:bob:y" }];
+    const mid: MetaData[] = [{ ...entries[0]!, slug: "x:integrators:bob:y" }];
     expect(filterMetaDataByIntegrator(mid, "bob")).toEqual([]);
   });
 
   it("strips to an empty slug when the slug is exactly the prefix", () => {
-    const exact: MetaData[] = [{ ...entries[0]!, slug: "integrator:bob:" }];
+    const exact: MetaData[] = [{ ...entries[0]!, slug: "integrators:bob:" }];
     expect(filterMetaDataByIntegrator(exact, "bob")[0]!.slug).toBe("");
   });
 
   it("does not match when the integrator is a prefix of another integrator's name", () => {
-    const bobby: MetaData[] = [{ ...entries[0]!, slug: "integrator:bobby:url" }];
+    const bobby: MetaData[] = [{ ...entries[0]!, slug: "integrators:bobby:url" }];
     expect(filterMetaDataByIntegrator(bobby, "bob")).toEqual([]);
   });
 });

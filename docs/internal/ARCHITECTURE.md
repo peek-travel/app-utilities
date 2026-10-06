@@ -276,17 +276,19 @@ one typed `value: MetaDataValue | null` — a **discriminated union keyed by
 `kind`**, one variant per gateway `…FieldResponseValue` type. The pure converter
 discriminates on the value's `__typename` (selected in the query); an
 unrecognized/future variant maps to `null` (never coerced). Numeric `Int` → `number`,
-`Decimal` → `string` (no float loss), `Date`/`Time` → ISO string. Every variant
-also carries a `displayValue` — a display-safe human string the converter renders
-per kind (booleans → `Yes`/`No`, amount+unit → `"3 hours"`, percent → `"12.5%"`,
-location → comma-joined parts, meta → `JSON.stringify`, and the `html` variant
-**HTML-escaped** via the local `escapeHtml`); it is `""` when the value is absent.
+`Decimal` → `string` (no float loss), `Date`/`Time` → ISO string. The parent
+`MetaData` carries a `displayValue` — a display-safe human string the converter
+renders per kind (booleans → `Yes`/`No`, amount+unit → `"3 hours"`, percent →
+`"12.5%"`, location → comma-joined parts, meta → `JSON.stringify`, and the `html`
+variant **HTML-escaped** via the local `escapeHtml`); it is always present, `""`
+when the value is absent. `fromValueNode` returns the typed value paired with its
+`displayValue`, which `fromFieldResponseNode` lifts onto the `MetaData`.
 `MetaData`, `MetaDataValue`, and the unit/type aliases
 (`MetaDataBarcodeType`/`MetaDataDurationUnit`/`MetaDataVolumeUnit`/`MetaDataWeightUnit`)
 are exported from `src/index.ts`.
 
 **Integrator scoping.** `getMetaData` returns only the fields whose `slug` starts
-with `integrator:<integrator>:` (case-sensitive exact prefix), stripping that
+with `integrators:<integrator>:` (case-sensitive exact prefix), stripping that
 prefix off each returned `slug` (pure `filterMetaDataByIntegrator`). The
 integrator is **per `BookingService`**, supplied by
 `PeekAccessService.getBookingService(integrator?)`; when omitted it defaults to

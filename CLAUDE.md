@@ -108,6 +108,18 @@ out, and the clean data models — never raw GraphQL.
   platform/UI pages to `docs/index.html` too.
 - Ensure test coverage remains above 95% (the Vitest gate enforces this on
   lines/functions/branches/statements).
+- **Keep the `scripts/gql-cli` test harness in sync with the service surface.**
+  `scripts/gql-cli/cli.ts` is the developer CLI that drives the real resource
+  services against the live gateway (it is outside `src/` and never bundled).
+  Whenever you add, remove, rename, or change the signature of a **public service
+  method**, update the harness in the same change: add/adjust its entry in the
+  `REGISTRY` array (name, `group`, `desc`, `params` with the right `ParamKind`,
+  the `pii` flag for PII-gated calls, and a `run` thunk), wire any new service or
+  constructor option into `buildContext`, and keep its client construction
+  matching how the matching `*AccessService` builds `GraphQLClient`. It must stay
+  compiling (`cd scripts/gql-cli && node ../../node_modules/typescript/bin/tsc
+  --noEmit -p tsconfig.json`). This is an internal tool, so do not log harness
+  updates in `changelog.md`.
 - Unless told otherwise, after everything is done, run the linter and fix any
   errors.
 - **Keep `changelog.md` up to date.** `changelog.md` is the consumer-facing
