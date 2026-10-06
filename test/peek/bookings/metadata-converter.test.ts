@@ -211,6 +211,88 @@ describe("fromBookingMetaDataNode", () => {
   it("returns an empty envelope for a missing node", () => {
     expect(fromBookingMetaDataNode(undefined)).toEqual({ bookingId: "", displayId: "", metaData: [] });
   });
+
+  it("defaults id/displayId and metaData when the node has no ids or responses", () => {
+    expect(fromBookingMetaDataNode({})).toEqual({ bookingId: "", displayId: "", metaData: [] });
+    expect(fromBookingMetaDataNode({ id: "b_2", displayId: "B-2", fieldResponses: null }).metaData).toEqual([]);
+  });
+
+  it("defaults the whole field when fieldLocation is absent", () => {
+    const [entry] = fromBookingMetaDataNode({
+      id: "b",
+      displayId: "B",
+      fieldResponses: [{ refid: "r", value: null }],
+    }).metaData;
+    expect(entry).toEqual({
+      id: "",
+      name: "",
+      slug: "",
+      type: "",
+      prompt: null,
+      promptHint: null,
+      isRequired: false,
+      refid: "r",
+      value: null,
+    });
+  });
+});
+
+describe("fromBookingMetaDataNode — value edge cases", () => {
+  /** Maps a single value node and returns its converted `value`. */
+  function value(node: MetaDataValueNode): MetaData["value"] {
+    return fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: [response("s", node)] }).metaData[0]!
+      .value;
+  }
+
+  it("attachment displayValue prefers name, falling back to url when name is empty/null", () => {
+    expect(value({ __typename: "AttachmentFieldResponseValue", attachmentUrl: "https://f", name: "r.pdf", size: 1 })).toMatchObject({ displayValue: "r.pdf" });
+    expect(value({ __typename: "AttachmentFieldResponseValue", attachmentUrl: "https://f", name: "" })).toMatchObject({ name: "", displayValue: "https://f" });
+    expect(value({ __typename: "AttachmentFieldResponseValue", attachmentUrl: "https://f", name: null, size: 0 })).toMatchObject({ name: null, size: 0, displayValue: "https://f" });
+  });
+
+  it("location joins only the present parts in address order, dropping empties", () => {
+    expect(value({ __typename: "LocationFieldResponseValue", locality: "Springfield", country: "US" })).toMatchObject({ displayValue: "Springfield, US" });
+    expect(value({ __typename: "LocationFieldResponseValue", streetAddress: "1 Main", locality: "", region: "IL", postalCode: null, country: "US" })).toMatchObject({ displayValue: "1 Main, IL, US" });
+  });
+
+  it("duration/volume/weight drop the unit from displayValue when it is null", () => {
+    expect(value({ __typename: "DurationFieldResponseValue", duration: { amount: 5, unit: null } })).toMatchObject({ amount: 5, unit: null, displayValue: "5" });
+    expect(value({ __typename: "VolumeFieldResponseValue", volume: { amount: "2.5", unit: null } })).toMatchObject({ displayValue: "2.5" });
+    expect(value({ __typename: "WeightFieldResponseValue", weight: { amount: "3.0", unit: null } })).toMatchObject({ displayValue: "3.0" });
+  });
+
+  it("preserves unknown enum values and lowercases them in displayValue (non-coercion)", () => {
+    expect(value({ __typename: "BarcodeFieldResponseValue", barcodeType: "FUTURE_CODE", barcodeValue: "z9" })).toEqual({ kind: "barcode", barcodeType: "FUTURE_CODE", barcodeValue: "z9", displayValue: "z9" });
+    expect(value({ __typename: "DurationFieldResponseValue", duration: { amount: 2, unit: "FORTNIGHTS" } })).toMatchObject({ unit: "FORTNIGHTS", displayValue: "2 fortnights" });
+    expect(value({ __typename: "WeightFieldResponseValue", weight: { amount: "1", unit: "GRAM" } })).toMatchObject({ unit: "GRAM", displayValue: "1 gram" });
+  });
+
+  it("renders meta of any JSON shape, and empty string for explicit null", () => {
+    expect(value({ __typename: "MetaFieldResponseValue", meta: { a: 1, b: [2, 3] } })).toEqual({ kind: "meta", meta: { a: 1, b: [2, 3] }, displayValue: '{"a":1,"b":[2,3]}' });
+    expect(value({ __typename: "MetaFieldResponseValue", meta: [1, 2] })).toMatchObject({ displayValue: "[1,2]" });
+    expect(value({ __typename: "MetaFieldResponseValue", meta: "hello" })).toMatchObject({ displayValue: '"hello"' });
+    expect(value({ __typename: "MetaFieldResponseValue", meta: 0 })).toMatchObject({ meta: 0, displayValue: "0" });
+    expect(value({ __typename: "MetaFieldResponseValue", meta: false })).toMatchObject({ meta: false, displayValue: "false" });
+    expect(value({ __typename: "MetaFieldResponseValue", meta: null })).toEqual({ kind: "meta", meta: null, displayValue: "" });
+  });
+
+  it("renders zero-ish decimal/percent/integer/age values rather than treating them as absent", () => {
+    expect(value({ __typename: "DecimalFieldResponseValue", decimal: "0" })).toMatchObject({ decimal: "0", displayValue: "0" });
+    expect(value({ __typename: "PercentFieldResponseValue", percent: "0" })).toMatchObject({ percent: "0", displayValue: "0%" });
+    expect(value({ __typename: "IntegerFieldResponseValue", integer: 0 })).toMatchObject({ displayValue: "0" });
+    expect(value({ __typename: "AgeFieldResponseValue", age: 0 })).toMatchObject({ displayValue: "0" });
+  });
+
+  it("keeps the waiverSigned=false / null distinction on the guest variant", () => {
+    expect(value({ __typename: "GuestFieldResponseValue", name: "Ada", waiverSigned: false })).toMatchObject({ waiverSigned: false, displayValue: "Ada" });
+    expect(value({ __typename: "GuestFieldResponseValue", name: "Ada" })).toMatchObject({ waiverSigned: null });
+  });
+
+  it("does not double-escape ampersands already part of an escape sequence", () => {
+    expect(value({ __typename: "HtmlFieldResponseValue", html: "a & <b> &amp; c" })).toMatchObject({
+      displayValue: "a &amp; &lt;b&gt; &amp;amp; c",
+    });
+  });
 });
 
 describe("filterMetaDataByIntegrator", () => {
@@ -230,5 +312,47 @@ describe("filterMetaDataByIntegrator", () => {
 
   it("returns nothing when no slug matches the integrator", () => {
     expect(filterMetaDataByIntegrator(entries, "nope")).toEqual([]);
+  });
+
+  it("returns an empty array for empty input", () => {
+    expect(filterMetaDataByIntegrator([], "bob")).toEqual([]);
+  });
+
+  it("preserves every non-slug field (and the value) on matched entries", () => {
+    const entry: MetaData = {
+      id: "x",
+      name: "Booking URL",
+      slug: "integrator:bob:booking_url",
+      type: "URL",
+      prompt: "P",
+      promptHint: "H",
+      isRequired: true,
+      refid: "r",
+      value: { kind: "url", url: "https://x", displayValue: "https://x" },
+    };
+    expect(filterMetaDataByIntegrator([entry], "bob")).toEqual([{ ...entry, slug: "booking_url" }]);
+  });
+
+  it("keeps all of multiple matches for the same integrator", () => {
+    const many: MetaData[] = [
+      { ...entries[0]!, id: "a", slug: "integrator:bob:one" },
+      { ...entries[0]!, id: "b", slug: "integrator:bob:two" },
+    ];
+    expect(filterMetaDataByIntegrator(many, "bob").map((e) => e.slug)).toEqual(["one", "two"]);
+  });
+
+  it("matches only a leading prefix, not one appearing mid-slug", () => {
+    const mid: MetaData[] = [{ ...entries[0]!, slug: "x:integrator:bob:y" }];
+    expect(filterMetaDataByIntegrator(mid, "bob")).toEqual([]);
+  });
+
+  it("strips to an empty slug when the slug is exactly the prefix", () => {
+    const exact: MetaData[] = [{ ...entries[0]!, slug: "integrator:bob:" }];
+    expect(filterMetaDataByIntegrator(exact, "bob")[0]!.slug).toBe("");
+  });
+
+  it("does not match when the integrator is a prefix of another integrator's name", () => {
+    const bobby: MetaData[] = [{ ...entries[0]!, slug: "integrator:bobby:url" }];
+    expect(filterMetaDataByIntegrator(bobby, "bob")).toEqual([]);
   });
 });

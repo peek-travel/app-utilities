@@ -17,6 +17,19 @@ describe("buildBookingMetaDataQuery", () => {
     expect(query).toContain("... on WeightFieldResponseValue { weight { amount unit } }");
   });
 
+  it("selects an inline fragment for every field-response value variant", () => {
+    const query = collapse(buildBookingMetaDataQuery(true));
+    const variants = [
+      "Age", "Attachment", "Barcode", "Boolean", "Checkbox", "Currency", "Date",
+      "Decimal", "Duration", "Email", "Guest", "Html", "ImageUrl", "Integer",
+      "Location", "LongText", "Meta", "Percent", "Phone", "ShortText", "Time",
+      "Url", "Volume", "Weight",
+    ];
+    for (const variant of variants) {
+      expect(query).toContain(`... on ${variant}FieldResponseValue`);
+    }
+  });
+
   it("requests guest identity value fields when fullCustomerAccess is true", () => {
     const query = collapse(buildBookingMetaDataQuery(true));
     expect(query).toContain(
