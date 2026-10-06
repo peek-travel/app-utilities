@@ -136,6 +136,7 @@ export function fromBookingNode(
 
     portalUrl: data.bookingPortalUrl || null,
     notes: data.operatorNotes || "",
+    customStatus: data.operatorStatus || null,
 
     valueDisplay: data.value?.total?.formatted || "",
     valueAmount: data.value?.total?.amount || "",

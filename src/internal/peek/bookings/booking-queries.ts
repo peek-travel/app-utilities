@@ -139,6 +139,7 @@ export function buildBookingQueryFields(fullCustomerAccess: boolean): string {
   availabilityTimeId
   ${fullCustomerAccess ? "bookingPortalUrl" : ""}
   operatorNotes
+  operatorStatus
   value {
     total {
       formatted
@@ -324,6 +325,20 @@ export const UPDATE_OPERATOR_NOTES_MUTATION = `
     }
   }
 `;
+
+export const UPDATE_OPERATOR_STATUS_MUTATION = `
+  mutation Account($input: UpdateOperatorStatusForBookingInput!) {
+    updateOperatorStatusForBooking(input: $input) {
+      booking { operatorStatus }
+    }
+  }
+`;
+
+export interface UpdateOperatorStatusResponse {
+  updateOperatorStatusForBooking?: {
+    booking?: { operatorStatus?: string | null } | null;
+  } | null;
+}
 
 export const UPDATE_BOOKING_CHECKIN_MUTATION = `
   mutation Account($input: UpdateBookingCheckInInput!) {
@@ -561,6 +576,7 @@ export interface BookingNode {
   availabilityTimeId?: string;
   bookingPortalUrl?: string;
   operatorNotes?: string | null;
+  operatorStatus?: string | null;
   value?: Record<string, { amount?: string; formatted?: string } | undefined> & {
     total?: { amount?: string; formatted?: string };
   };

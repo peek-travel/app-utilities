@@ -280,6 +280,59 @@ describe("BookingService.setCheckinStatus", () => {
   });
 });
 
+describe("BookingService.updateCustomStatus", () => {
+  it("sends the normalized id + status and returns true when the gateway confirms it", async () => {
+    const { service, calls } = makeService(() => ({
+      data: { updateOperatorStatusForBooking: { booking: { operatorStatus: "Hello World" } } },
+    }));
+
+    const ok = await service.updateCustomStatus("B-ABC123", "Hello World");
+    expect(ok).toBe(true);
+    const input = calls[0]!.variables.input as { id: string; operatorStatus: string };
+    expect(input.id).toBe("b_abc123");
+    expect(input.operatorStatus).toBe("Hello World");
+    expect(calls[0]!.query).toContain("updateOperatorStatusForBooking");
+  });
+
+  it("returns false when the stored status differs from the requested one", async () => {
+    const { service } = makeService(() => ({
+      data: { updateOperatorStatusForBooking: { booking: { operatorStatus: "Something else" } } },
+    }));
+    expect(await service.updateCustomStatus("b_1", "Hello World")).toBe(false);
+  });
+
+  it("returns false when the mutation returns no booking", async () => {
+    const { service } = makeService(() => ({ data: { updateOperatorStatusForBooking: null } }));
+    expect(await service.updateCustomStatus("b_1", "Hello World")).toBe(false);
+  });
+
+  it("works without fullCustomerAccess (not a PII-gated operation)", async () => {
+    const { service } = makeService(
+      () => ({
+        data: { updateOperatorStatusForBooking: { booking: { operatorStatus: "Hello World" } } },
+      }),
+      [],
+      { fullCustomerAccess: false },
+    );
+    expect(await service.updateCustomStatus("b_1", "Hello World")).toBe(true);
+  });
+
+  it("throws on an invalid booking id before any request", async () => {
+    const { service, calls } = makeService(() => ({}));
+    await expect(service.updateCustomStatus("nope", "Hello World")).rejects.toThrow(
+      /valid booking id/,
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  it("throws on an empty or whitespace-only custom status before any request", async () => {
+    const { service, calls } = makeService(() => ({}));
+    await expect(service.updateCustomStatus("b_1", "")).rejects.toThrow(/non-empty string/);
+    await expect(service.updateCustomStatus("b_1", "   ")).rejects.toThrow(/non-empty string/);
+    expect(calls).toHaveLength(0);
+  });
+});
+
 describe("BookingService.cancel", () => {
   it("cancels with a default note and returns the status", async () => {
     const { service, calls } = makeService(() => ({

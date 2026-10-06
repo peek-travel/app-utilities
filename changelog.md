@@ -12,6 +12,38 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## Unreleased
+
+### `BookingService.updateCustomStatus()` sets a booking's operator custom status `[additive]`
+
+- **What:** New `BookingService.updateCustomStatus(bookingId, customStatus)`
+  method. It sets the booking's operator-facing custom status and returns a
+  `boolean` — `true` when the gateway confirms the stored status equals the
+  requested `customStatus`, `false` otherwise. It validates the booking id
+  (`b_…`/`B-…`) and that `customStatus` is a non-empty (non-whitespace) string
+  before any network call.
+- **Why:** Exposes the operator custom-status field for callers that track their
+  own booking workflow state.
+- **Caller action:** None — additive. Reach it via
+  `peek.getBookingService().updateCustomStatus(id, status)`. It is **not**
+  PII-gated, so it is available regardless of `fullCustomerAccess`.
+
+### `Booking.customStatus` added to every booking read `[additive]`
+
+- **What:** The `Booking` model gains a `customStatus: string | null` field,
+  mapped from the booking's `operatorStatus`. It is populated on every booking
+  read (`getById`, `searchByTimeRange`, `searchByTimeslot`) and the
+  `parseBookingWebhook` result; it is `null` when no custom status is set. The
+  field is operator-facing (not PII), so it is returned regardless of
+  `fullCustomerAccess`.
+- **Why:** Surfaces the operator custom status alongside the rest of the booking
+  so callers can read it without a separate request.
+- **Caller action:** None — additive. A new always-present field. Consumers that
+  register the booking webhook query should update their registered
+  `output_fields_gql_query` to the current maximal selection (now including
+  `operatorStatus`) if they want the field on webhook deliveries — see
+  `docs/webhooks.md`.
+
 ## 0.9.2
 
 ### `ReviewService.getAllReviewSummaries()` returns per-activity rating summaries `[additive]`

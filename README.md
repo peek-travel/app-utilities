@@ -61,7 +61,7 @@ add-on pages for you.
 | `getDailyNoteService()` | `getToday()`, `update(note)` |
 | `getAvailabilityService()` | `getAvailabilityTimes(query)` |
 | `getMembershipService()` | `getAll()`, `purchase(input)` |
-| `getBookingService()` | `getById()`, `searchByTimeRange()`, `searchByTimeslot()`, `getGuests()`, `getPaymentsOnFile()`, `appendNote()`, `setCheckinStatus()`, `cancel()`, `makePayment()`, `refund()`, `createInvoiceLink()`, `addAddon()`, `create()` |
+| `getBookingService()` | `getById()`, `searchByTimeRange()`, `searchByTimeslot()`, `getGuests()`, `getPaymentsOnFile()`, `appendNote()`, `setCheckinStatus()`, `updateCustomStatus()`, `cancel()`, `makePayment()`, `refund()`, `createInvoiceLink()`, `addAddon()`, `create()` |
 
 ### Optional configuration
 

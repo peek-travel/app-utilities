@@ -67,6 +67,7 @@ import {
   SEARCH_BY_PURCHASE_DATE,
   UPDATE_BOOKING_CHECKIN_MUTATION,
   UPDATE_OPERATOR_NOTES_MUTATION,
+  UPDATE_OPERATOR_STATUS_MUTATION,
   UPDATE_QUOTE_V2_MUTATION,
   buildBookingGuestsQuery,
   buildBookingsListingQuery,
@@ -82,6 +83,7 @@ import {
   type CreateOrderFromQuoteResponse,
   type CreateQuoteFromOrderResponse,
   type CreateQuoteV2Response,
+  type UpdateOperatorStatusResponse,
   type UpdateQuoteV2Response,
 } from "./booking-queries.js";
 
@@ -147,6 +149,7 @@ const ERROR_INVALID_BOOKING_ID =
   "bookingId is required and must be a valid booking id, e.g. 'b_abc123' or 'B-ABC123'";
 const ERROR_INVALID_ORDER_ID =
   "orderId is required and must be a valid order id, e.g. 'o_abc123' or 'O-ABC123'";
+const ERROR_CUSTOM_STATUS_REQUIRED = "customStatus is required and must be a non-empty string";
 const ERROR_BOOKING_NOT_FOUND = "Booking not found";
 const ERROR_MULTIPLE_BOOKINGS_FOUND =
   "Expected exactly one booking for the provided bookingId";
@@ -332,6 +335,36 @@ export class BookingService {
     });
 
     return this.getById(normalized);
+  }
+
+  /**
+   * Sets a booking's operator-facing custom status. Returns `true` when the
+   * gateway confirms the stored `operatorStatus` equals the requested
+   * `customStatus`, `false` otherwise.
+   *
+   * @example
+   * ```ts
+   * const ok = await peek.getBookingService().updateCustomStatus("b_abc123", "Awaiting deposit");
+   * ```
+   *
+   * @throws {Error} when `bookingId` is not a valid booking id (`b_…`/`B-…`) or
+   * when `customStatus` is not a non-empty string.
+   */
+  async updateCustomStatus(bookingId: string, customStatus: string): Promise<boolean> {
+    assertBookingId(bookingId);
+    assertCustomStatus(customStatus);
+    const normalized = normalizeBookingId(bookingId);
+
+    const body: GraphQLBody<UpdateOperatorStatusResponse> =
+      await this.client.request<UpdateOperatorStatusResponse>(
+        SALES_ENDPOINT,
+        UPDATE_OPERATOR_STATUS_MUTATION,
+        { input: { id: normalized, operatorStatus: customStatus } },
+      );
+
+    return (
+      body.data?.updateOperatorStatusForBooking?.booking?.operatorStatus === customStatus
+    );
   }
 
   /** Cancels a booking and returns its id/displayId/status. */
@@ -1049,6 +1082,13 @@ function assertIdempotencyKey(idempotencyKey: string): void {
 function assertBookingId(bookingId: string): void {
   if (!(BOOKING_DB_ID_REGEX.test(bookingId) || BOOKING_DISPLAY_ID_REGEX.test(bookingId))) {
     throw new Error(ERROR_INVALID_BOOKING_ID);
+  }
+}
+
+/** Throws unless `customStatus` is a non-empty (non-whitespace) string. */
+function assertCustomStatus(customStatus: string): void {
+  if (typeof customStatus !== "string" || customStatus.trim().length === 0) {
+    throw new Error(ERROR_CUSTOM_STATUS_REQUIRED);
   }
 }
 

@@ -459,8 +459,8 @@ When `fullCustomerAccess` is `false` (the default), two things happen:
      (name/country/DOB/email/phone/postalCode/`isGdpr`/`fieldResponses` — the
      guest list keeps only ids + participation/opt-in flags), the custom
      question answers (booking- and ticket-level), and the customer
-     `bookingPortalUrl`. Operator-facing fields (notes, the Peek Pro deep link,
-     money, resources) always stay.
+     `bookingPortalUrl`. Operator-facing fields (notes, the operator custom
+     status, the Peek Pro deep link, money, resources) always stay.
    - **Reviews** (`buildReviewsQuery`): drops the reviewer `name`/`email`; the
      review `comment`, rating, dates, and credited guides always stay.
    - **Waivers** (`parseWaiverWebhook`): the webhook delivers a *fixed* payload
@@ -474,8 +474,9 @@ When `fullCustomerAccess` is `false` (the default), two things happen:
    `getPaymentsOnFile`, `makePayment`, `refund`, `createInvoiceLink`,
    `addAddon`, `removeAddon` — throwing `PiiAccessDisabledError` (an exported
    typed error) before any network call. Non-payment reads/mutations
-   (`getById`, `getGuests`, `cancel`, `appendNote`, `setCheckinStatus`) and
-   `create` (**including `markAsPaid`**) remain available.
+   (`getById`, `getGuests`, `cancel`, `appendNote`, `setCheckinStatus`,
+   `updateCustomStatus`) and `create` (**including `markAsPaid`**) remain
+   available.
 
 The webhook **registration** query (`BOOKING_WEBHOOK_GQL_QUERY`) is deliberately
 unaffected — it is the maximal selection built from the full field fragments and

@@ -135,7 +135,9 @@ final authority and may still reject the request.
 - `getMembershipService()` — `getAll()`, `purchase(input)`
 - `getBookingService()` — `getById(id, opts?)`, `searchByTimeRange(input)`,
   `searchByTimeslot(id, opts?)`, `getGuests(id)`, `getPaymentsOnFile(id)`,
-  `appendNote(id, note, mode?)`, `setCheckinStatus(id, checkedIn)`, `cancel(id, notes?)`,
+  `appendNote(id, note, mode?)`, `setCheckinStatus(id, checkedIn)`,
+  `updateCustomStatus(id, customStatus)` → `boolean` (sets the operator custom
+  status; not PII-gated), `cancel(id, notes?)`,
   `makePayment(input)`, `refund(input)`, `createInvoiceLink(id)`,
   `listAddons(id)`, `addAddon(id, {addonOptionId, quantity})`,
   `removeAddon(id, {addonOptionId, quantity})`, `create(input)`

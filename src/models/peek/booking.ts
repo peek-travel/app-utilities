@@ -198,6 +198,11 @@ export interface Booking {
   portalUrl: string | null;
   /** Operator notes on the booking (`""` when none). */
   notes: string;
+  /**
+   * Operator-facing custom status set on the booking (via
+   * {@link BookingService.updateCustomStatus}), or `null` when none is set.
+   */
+  customStatus: string | null;
 
   /** Total booking value, human-formatted (e.g. `"$75.00"`). `""` if absent. */
   valueDisplay: string;
