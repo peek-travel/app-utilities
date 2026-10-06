@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 0.9.4
 
 ### `MetaData.displayValue` moves up from the `value` union to the `MetaData` object `[breaking]`
 
