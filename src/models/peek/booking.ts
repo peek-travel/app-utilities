@@ -313,6 +313,11 @@ export type NoteMode = "append" | "overwrite";
 
 /** A requested ticket (resource option) and quantity for a new booking. */
 export interface CreateBookingTicket {
+  /**
+   * The resource option to book — this is the {@link ProductTicket.id} from the
+   * activity's `tickets` (also reported per slot by
+   * {@link AvailabilityService.getAvailabilityTimes}).
+   */
   resourceOptionId: string;
   quantity: number;
 }

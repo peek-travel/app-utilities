@@ -96,7 +96,12 @@ export interface ProductMeetingLocation {
 
 /** A single bookable sub-option (resource option or add-on item option). */
 export interface ProductTicket {
-  /** Unique identifier of the ticket / option. */
+  /**
+   * Unique identifier of the ticket / option. This is also the
+   * **`resourceOptionId`** — the id passed as a ticket's `resourceOptionId` when
+   * creating a booking (see {@link CreateBookingTicket}) and reported per slot by
+   * {@link AvailabilityService.getAvailabilityTimes}.
+   */
   id: string;
   /** Human-readable name of the ticket / option. */
   name: string;

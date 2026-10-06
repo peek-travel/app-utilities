@@ -570,7 +570,7 @@ render({
    ]},
   {name:"ProductTicket",kind:"interface",file:"src/models/peek/product.ts",desc:"A bookable sub-option.",
    fields:[
-    {name:"id",type:"string",n:false,desc:"Ticket/option id."},
+    {name:"id",type:"string",n:false,desc:"Ticket/option id. Also the <code>resourceOptionId</code> — pass it as a ticket's <code>resourceOptionId</code> on <code>CreateBookingTicket</code>; <code>AvailabilityService.getAvailabilityTimes</code> reports it per slot."},
     {name:"name",type:"string",n:false,desc:"Ticket/option name."},
     {name:"minPrice",type:"PricingMoney | null",n:true,desc:"Lowest price across range; <code>null</code> for add-ons / when none."},
     {name:"maxPrice",type:"PricingMoney | null",n:true,desc:"Highest price across range; <code>null</code> for add-ons / when none."}
@@ -1025,7 +1025,7 @@ render({
    ]},
   {name:"CreateBookingTicket",kind:"input",file:"src/models/peek/booking.ts",desc:"A ticket to book in <code>create</code>.",
    fields:[
-    {name:"resourceOptionId",type:"string",n:false,desc:"Resource option to book."},
+    {name:"resourceOptionId",type:"string",n:false,desc:"Resource option to book — this is the <code>ProductTicket.id</code> from the activity's <code>tickets</code>."},
     {name:"quantity",type:"number",n:false,desc:"Seats (expanded per unit)."}
    ]},
   {name:"CreateBookingGuest",kind:"input",file:"src/models/peek/booking.ts",desc:"The primary guest in <code>create</code>.",
