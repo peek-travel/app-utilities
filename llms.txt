@@ -137,8 +137,8 @@ final authority and may still reject the request.
   `searchByTimeslot(id, opts?)`, `getGuests(id)`,
   `getMetaData(id)` → `MetaData[]` (booking custom-field responses, `[]` when not
   found; each `MetaData` carries a typed `value: MetaDataValue | null` discriminated
-  union — every variant also has a display-safe `displayValue` string (the
-  `html` variant's is HTML-escaped); returns only fields whose slug starts with
+  union plus a display-safe `displayValue` string on the `MetaData` itself (the
+  `html` value's is HTML-escaped); returns only fields whose slug starts with
   `integrators:<integrator>:`,
   that prefix stripped). The `integrator` arg on the accessor scopes
   `getMetaData` — **do not set it** unless Peek engineering created a custom

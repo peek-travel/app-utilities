@@ -85,7 +85,7 @@ describe("fromBookingMetaDataNode", () => {
       response("weight", { __typename: "WeightFieldResponseValue", weight: { amount: "3.0", unit: "KILOGRAM" } }),
     ];
     const values = fromBookingMetaDataNode({ id: "b_1", displayId: "B-1", fieldResponses: responses }).map(
-      (m) => m.value,
+      (m) => ({ ...m.value, displayValue: m.displayValue }),
     );
     expect(values).toEqual([
       { kind: "age", age: 40, displayValue: "40" },
@@ -122,22 +122,22 @@ describe("fromBookingMetaDataNode", () => {
       response("ageDefault", { __typename: "AgeFieldResponseValue" }),
       response("guestPiiOff", { __typename: "GuestFieldResponseValue", notes: "n", waiverSigned: false }),
     ];
-    const values = fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: responses }).map(
-      (m) => m.value,
-    );
-    expect(values[0]).toBeNull();
-    expect(values[1]).toBeNull();
-    expect(values[2]).toBeNull();
-    expect(values[3]).toEqual({ kind: "age", age: 0, displayValue: "0" });
-    expect(values[4]).toEqual({
+    const entries = fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: responses });
+    expect(entries[0]!.value).toBeNull();
+    expect(entries[0]!.displayValue).toBe("");
+    expect(entries[1]!.value).toBeNull();
+    expect(entries[2]!.value).toBeNull();
+    expect(entries[3]!.value).toEqual({ kind: "age", age: 0 });
+    expect(entries[3]!.displayValue).toBe("0");
+    expect(entries[4]!.value).toEqual({
       kind: "guest",
       name: null,
       email: null,
       dateOfBirth: null,
       notes: "n",
       waiverSigned: false,
-      displayValue: "",
     });
+    expect(entries[4]!.displayValue).toBe("");
   });
 
   it("defaults every variant's absent fields (covers the fallback branches)", () => {
@@ -166,7 +166,7 @@ describe("fromBookingMetaDataNode", () => {
       response("weight", { __typename: "WeightFieldResponseValue" }),
     ];
     const values = fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: responses }).map(
-      (m) => m.value,
+      (m) => ({ ...m.value, displayValue: m.displayValue }),
     );
     expect(values).toEqual([
       { kind: "attachment", attachmentUrl: "", mime: null, name: null, size: null, displayValue: "" },
@@ -203,8 +203,8 @@ describe("fromBookingMetaDataNode", () => {
     expect(entry!.value).toEqual({
       kind: "html",
       html: `<a href="x">A & 'B'</a>`,
-      displayValue: "&lt;a href=&quot;x&quot;&gt;A &amp; &#39;B&#39;&lt;/a&gt;",
     });
+    expect(entry!.displayValue).toBe("&lt;a href=&quot;x&quot;&gt;A &amp; &#39;B&#39;&lt;/a&gt;");
   });
 
   it("returns an empty list for a missing node", () => {
@@ -231,16 +231,21 @@ describe("fromBookingMetaDataNode", () => {
       promptHint: null,
       isRequired: false,
       refid: "r",
+      displayValue: "",
       value: null,
     });
   });
 });
 
 describe("fromBookingMetaDataNode — value edge cases", () => {
-  /** Maps a single value node and returns its converted `value`. */
-  function value(node: MetaDataValueNode): MetaData["value"] {
-    return fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: [response("s", node)] })[0]!
-      .value;
+  /**
+   * Maps a single value node and returns its converted `value` with the
+   * parent's `displayValue` flattened back in, so these edge-case assertions can
+   * check the value fields and the rendering together.
+   */
+  function value(node: MetaDataValueNode): Record<string, unknown> {
+    const entry = fromBookingMetaDataNode({ id: "b", displayId: "B", fieldResponses: [response("s", node)] })[0]!;
+    return { ...entry.value, displayValue: entry.displayValue };
   }
 
   it("attachment displayValue prefers name, falling back to url when name is empty/null", () => {

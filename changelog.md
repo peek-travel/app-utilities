@@ -14,6 +14,20 @@ action needed; `[additive]` only adds capability.
 
 ## Unreleased
 
+### `MetaData.displayValue` moves up from the `value` union to the `MetaData` object `[breaking]`
+
+- **What:** The display-safe `displayValue` string is no longer a member of each
+  `MetaDataValue` variant — it is now a top-level field on `MetaData` itself
+  (`MetaData.displayValue`). It is always present (`""` when the value is absent
+  or an unrecognized variant); the `html` rendering is still HTML-escaped. The
+  `value` union now carries only the typed value fields per `kind`.
+- **Why:** every entry always has a display rendering regardless of the value's
+  `kind` (or whether `value` is `null`), so it belongs on the entry, not buried
+  inside — and only — the non-null value variants.
+- **Caller action:** read `metaData.displayValue` instead of
+  `metaData.value?.displayValue`. If you destructure or switch on `value`, drop
+  `displayValue` from those shapes; it no longer exists there.
+
 ### `BookingService.getMetaData()` integrator scoping now matches the real slug prefix `[fix]`
 
 - **What:** `getMetaData(bookingId)` filters a booking's custom fields to the
