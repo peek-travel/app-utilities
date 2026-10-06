@@ -22,6 +22,7 @@ import type {
   Guest,
   NoteMode,
 } from "../../../models/peek/booking.js";
+import type { BookingMetaData } from "../../../models/peek/booking-metadata.js";
 import { ADD_ON_PRODUCT_TYPE } from "../../../models/peek/product.js";
 import type {
   BookingPaymentsOnFile,
@@ -37,6 +38,14 @@ import type {
 } from "../../../models/peek/booking-addon.js";
 import { fromBookingNode } from "./booking-converter.js";
 import { fromBookingGuestsResponse } from "./booking-guest-converter.js";
+import {
+  filterMetaDataByIntegrator,
+  fromBookingMetaDataNode,
+} from "./metadata-converter.js";
+import {
+  buildBookingMetaDataQuery,
+  type BookingMetaDataResponse,
+} from "./metadata-queries.js";
 import { fromPaymentsOnFileResponse } from "./payments-on-file-converter.js";
 import {
   type AddonItem,
@@ -123,6 +132,12 @@ export interface BookingServiceOptions {
   pageSize?: number;
   /** Cross-cutting access options (PII exposure). Default: PII off. */
   accessOptions?: AccessOptions;
+  /**
+   * Integrator id used to scope `getMetaData` results — only fields whose slug
+   * starts with `integrator:<integrator>:` are returned. Defaults to `""` (set
+   * by the access service to the install's issuer).
+   */
+  integrator?: string;
 }
 
 /** Dependencies the {@link BookingService} composes for add-on resolution. */
@@ -163,6 +178,8 @@ export class BookingService {
   private readonly pageSize: number;
   /** Whether customer PII is requested and payment operations are allowed. */
   private readonly fullCustomerAccess: boolean;
+  /** Integrator id scoping `getMetaData` results. */
+  private readonly integrator: string;
 
   constructor(
     private readonly client: GraphQLClient,
@@ -171,6 +188,7 @@ export class BookingService {
   ) {
     this.pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
     this.fullCustomerAccess = resolveAccessOptions(options.accessOptions).fullCustomerAccess;
+    this.integrator = options.integrator ?? "";
   }
 
   /**
@@ -275,6 +293,42 @@ export class BookingService {
         }),
       );
     return fromBookingGuestsResponse(body.data);
+  }
+
+  /**
+   * Returns a booking's custom-field metadata (its `fieldResponses`), scoped to
+   * this service's integrator, or `null` when the booking is not found. Only
+   * fields whose slug starts with `integrator:<integrator>:` are returned, and
+   * that prefix is stripped from each returned `slug`.
+   *
+   * @example
+   * ```ts
+   * const meta = await peek.getBookingService().getMetaData("b_abc123");
+   * for (const field of meta?.metaData ?? []) {
+   *   if (field.value?.kind === "url") console.log(field.slug, field.value.url);
+   * }
+   * ```
+   */
+  async getMetaData(bookingId: string): Promise<BookingMetaData | null> {
+    assertBookingId(bookingId);
+    const body: GraphQLBody<BookingMetaDataResponse> =
+      await this.client.request<BookingMetaDataResponse>(
+        SALES_ENDPOINT,
+        buildBookingMetaDataQuery(this.fullCustomerAccess),
+        buildBookingsVariables({
+          pageSize: this.pageSize,
+          after: null,
+          bookingId: normalizeBookingId(bookingId),
+        }),
+      );
+
+    const firstEdge = (body.data?.sales?.edges ?? [])[0];
+    if (!firstEdge) {
+      return null;
+    }
+    const result = fromBookingMetaDataNode(firstEdge.node);
+    result.metaData = filterMetaDataByIntegrator(result.metaData, this.integrator);
+    return result;
   }
 
   /** Returns the payments on file for a booking, or null when not found. */

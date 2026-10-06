@@ -219,6 +219,23 @@ describe("PeekAccessService.getProductService", () => {
     expect(service.getBookingService()).toBe(bookingService);
   });
 
+  it("memoizes BookingService per integrator; default equals the issuer", () => {
+    const { fetchFn } = makeEmptyFetch();
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
+
+    const defaultService = service.getBookingService();
+    // No-arg resolves to the issuer, so passing it explicitly returns the same instance.
+    expect(service.getBookingService(REQUIRED_CONFIG.issuer)).toBe(defaultService);
+
+    const custom = service.getBookingService("bob");
+    expect(custom).toBeInstanceOf(BookingService);
+    expect(custom).not.toBe(defaultService);
+    expect(service.getBookingService("bob")).toBe(custom);
+  });
+
   it("returns a ReviewService and memoizes the instance", () => {
     const { fetchFn } = makeEmptyFetch();
     const service = new PeekAccessService({

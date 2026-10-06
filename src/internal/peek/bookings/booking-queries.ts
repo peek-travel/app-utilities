@@ -13,6 +13,29 @@ export function normalizeBookingId(bookingId: string): string {
 }
 
 /**
+ * Wraps a `sales` edge-node selection in the shared paginated `sales(...)` query
+ * envelope (the `query Sales(...)`/`pageInfo`/`edges { node { … } }` boilerplate
+ * every booking read uses). `nodeBody` is the raw selection placed inside
+ * `node { … }` (e.g. `... on Booking { … }`, optionally preceded by
+ * `Sale`-level fields like `order { … }`). All readers share it so the envelope
+ * lives in one place.
+ */
+export function buildSalesQuery(nodeBody: string): string {
+  return `
+    query Sales($after: String, $first: Int, $filter: SalesFilter!, $orderBy: SalesOrdering) {
+      sales(after: $after, first: $first, filter: $filter, orderBy: $orderBy) {
+        pageInfo { endCursor hasNextPage }
+        edges {
+          node {
+            ${nodeBody}
+          }
+        }
+      }
+    }
+  `;
+}
+
+/**
  * The customer-identity guest fields (name, contact, DOB, postal code, and the
  * free-text custom field responses). These are PII and are only selected when
  * `fullCustomerAccess` is set; the trailing group sits after the non-PII flags to keep
@@ -249,21 +272,12 @@ export function buildBookingsListingQuery(
         .replace("ticketQuantities {", `ticketQuantities { ${TICKET_VALUE_FIELDS}`)
     : baseFields;
 
-  return `
-    query Sales($after: String, $first: Int, $filter: SalesFilter!, $orderBy: SalesOrdering) {
-      sales(after: $after, first: $first, filter: $filter, orderBy: $orderBy) {
-        pageInfo { endCursor hasNextPage }
-        edges {
-          node {
-            ... on Booking {
-              ${fields}
-              ${guestsSection}
-            }
-          }
-        }
-      }
+  return buildSalesQuery(`
+    ... on Booking {
+      ${fields}
+      ${guestsSection}
     }
-  `;
+  `);
 }
 
 /**
@@ -271,52 +285,34 @@ export function buildBookingsListingQuery(
  * guest identity fields are omitted (only ids + participation/opt-in flags).
  */
 export function buildBookingGuestsQuery(fullCustomerAccess: boolean): string {
-  return `
-  query Sales($after: String, $first: Int, $filter: SalesFilter!, $orderBy: SalesOrdering) {
-    sales(after: $after, first: $first, filter: $filter, orderBy: $orderBy) {
-      pageInfo { endCursor hasNextPage }
-      edges {
-        node {
-          ... on Booking {
-            displayId
-            id
-            ${buildBookingGuestsFields(fullCustomerAccess)}
-          }
-        }
-      }
+  return buildSalesQuery(`
+    ... on Booking {
+      displayId
+      id
+      ${buildBookingGuestsFields(fullCustomerAccess)}
     }
-  }
-`;
+  `);
 }
 
 /** Query fetching a booking's order payments + payment sources. */
-export const BOOKING_PAYMENTS_ON_FILE_QUERY = `
-  query Sales($after: String, $first: Int, $filter: SalesFilter!, $orderBy: SalesOrdering) {
-    sales(after: $after, first: $first, filter: $filter, orderBy: $orderBy) {
-      pageInfo { endCursor hasNextPage }
-      edges {
-        node {
-          order {
-            payments {
-              id
-              paymentSource { id }
-              appliedAt
-              currentAmount { amount currency }
-              refundableAmount { amount currency }
-            }
-            id
-            displayId
-            paymentSources { description type id }
-          }
-          ... on Booking {
-            displayId
-            id
-          }
-        }
-      }
+export const BOOKING_PAYMENTS_ON_FILE_QUERY = buildSalesQuery(`
+  order {
+    payments {
+      id
+      paymentSource { id }
+      appliedAt
+      currentAmount { amount currency }
+      refundableAmount { amount currency }
     }
+    id
+    displayId
+    paymentSources { description type id }
   }
-`;
+  ... on Booking {
+    displayId
+    id
+  }
+`);
 
 export const UPDATE_OPERATOR_NOTES_MUTATION = `
   mutation Account($input: UpdateOperatorNotesForBookingInput!) {

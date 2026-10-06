@@ -148,6 +148,15 @@ export type {
   Ticket,
 } from "./models/peek/booking.js";
 export type {
+  BookingMetaData,
+  MetaData,
+  MetaDataBarcodeType,
+  MetaDataDurationUnit,
+  MetaDataValue,
+  MetaDataVolumeUnit,
+  MetaDataWeightUnit,
+} from "./models/peek/booking-metadata.js";
+export type {
   BookingPaymentsOnFile,
   InvoiceLinkResult,
   MakePaymentInput,

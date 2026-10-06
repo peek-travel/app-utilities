@@ -14,6 +14,29 @@ action needed; `[additive]` only adds capability.
 
 ## Unreleased
 
+### `BookingService.getMetaData()` returns a booking's custom-field metadata `[additive]`
+
+- **What:** New `BookingService.getMetaData(bookingId)` returning
+  `BookingMetaData | null` (`{ bookingId, displayId, metaData: MetaData[] }`).
+  Each `MetaData` flattens the field definition (`id`/`name`/`slug`/`type`), its
+  prompt (`prompt`/`promptHint`/`isRequired`), and the response `refid`, plus a
+  typed `value: MetaDataValue | null` — a discriminated union keyed by `kind`,
+  one variant per gateway field-response type (`age`, `attachment`, `barcode`,
+  `date`, `guest`, `location`, `url`, `weight`, …). Each variant also carries a
+  `displayValue` — a display-safe human string (the `html` variant's is
+  HTML-escaped). New exported types:
+  `BookingMetaData`, `MetaData`, `MetaDataValue`, `MetaDataBarcodeType`,
+  `MetaDataDurationUnit`, `MetaDataVolumeUnit`, `MetaDataWeightUnit`.
+  `PeekAccessService.getBookingService()` gains an optional `integrator` string
+  that scopes the result: only fields whose slug starts with
+  `integrator:<integrator>:` are returned, with that prefix stripped.
+- **Why:** Exposes booking custom-field responses as clean, typed data.
+- **Caller action:** None — additive. Reach it via
+  `peek.getBookingService().getMetaData(id)`. Do not pass an `integrator` unless
+  Peek engineering created a custom integrator id for your integration. When
+  `fullCustomerAccess` is off, guest-value identity fields
+  (`name`/`email`/`dateOfBirth`) are not returned.
+
 ### `BookingService.updateCustomStatus()` sets a booking's operator custom status `[additive]`
 
 - **What:** New `BookingService.updateCustomStatus(bookingId, customStatus)`

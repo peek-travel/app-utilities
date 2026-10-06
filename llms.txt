@@ -133,8 +133,16 @@ final authority and may still reject the request.
 - `getDailyNoteService()` — `getToday()`, `update(note)`
 - `getAvailabilityService()` — `getAvailabilityTimes({activityId, date, resourceOptionQuantities})`
 - `getMembershipService()` — `getAll()`, `purchase(input)`
-- `getBookingService()` — `getById(id, opts?)`, `searchByTimeRange(input)`,
-  `searchByTimeslot(id, opts?)`, `getGuests(id)`, `getPaymentsOnFile(id)`,
+- `getBookingService(integrator?)` — `getById(id, opts?)`, `searchByTimeRange(input)`,
+  `searchByTimeslot(id, opts?)`, `getGuests(id)`,
+  `getMetaData(id)` → `BookingMetaData | null` (booking custom-field responses;
+  each `MetaData` carries a typed `value: MetaDataValue | null` discriminated
+  union — every variant also has a display-safe `displayValue` string (the
+  `html` variant's is HTML-escaped); returns only fields whose slug starts with
+  `integrator:<integrator>:`,
+  that prefix stripped). The `integrator` arg on the accessor scopes
+  `getMetaData` — **do not set it** unless Peek engineering created a custom
+  integrator id for this integration. `getPaymentsOnFile(id)`,
   `appendNote(id, note, mode?)`, `setCheckinStatus(id, checkedIn)`,
   `updateCustomStatus(id, customStatus)` → `boolean` (sets the operator custom
   status; not PII-gated), `cancel(id, notes?)`,

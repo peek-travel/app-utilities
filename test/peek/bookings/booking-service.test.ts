@@ -25,6 +25,7 @@ function makeService(
   addOnProducts: Product[] = [],
   accessOptions: AccessOptions = { fullCustomerAccess: true },
   customQuestions: CustomQuestion[] = [],
+  integrator?: string,
 ): {
   service: BookingService;
   calls: RecordedCall[];
@@ -53,7 +54,7 @@ function makeService(
     service: new BookingService(
       new GraphQLClient(options),
       { productService },
-      { accessOptions },
+      { accessOptions, integrator },
     ),
     calls,
   };
@@ -277,6 +278,89 @@ describe("BookingService.setCheckinStatus", () => {
     await service.setCheckinStatus("b_1", false);
     const mutationCall = calls.find((c) => c.query.includes("updateBookingCheckIn"));
     expect((mutationCall!.variables.input as { checkedInAt: string | null }).checkedInAt).toBeNull();
+  });
+});
+
+describe("BookingService.getMetaData", () => {
+  const META_NODE = {
+    id: "b_1",
+    displayId: "B-1",
+    fieldResponses: [
+      {
+        fieldLocation: {
+          field: { id: "f1", name: "Booking URL", slug: "integrator:bob:booking_url", type: "URL" },
+          prompt: { label: "URL", hint: null, isRequired: false },
+        },
+        refid: "r1",
+        value: { __typename: "UrlFieldResponseValue", url: "https://x" },
+      },
+      {
+        fieldLocation: { field: { id: "f2", name: "Other", slug: "integrator:joe:other", type: "SHORT_TEXT" }, prompt: null },
+        refid: "r2",
+        value: { __typename: "ShortTextFieldResponseValue", shortText: "nope" },
+      },
+    ],
+  };
+
+  it("filters to the integrator, strips the prefix, and returns the envelope", async () => {
+    const { service, calls } = makeService(
+      () => ({ data: { sales: { edges: [{ node: META_NODE }] } } }),
+      [],
+      { fullCustomerAccess: true },
+      [],
+      "bob",
+    );
+
+    const result = await service.getMetaData("B-ABC123");
+    expect(result).not.toBeNull();
+    expect(result!.bookingId).toBe("b_1");
+    expect(result!.displayId).toBe("B-1");
+    expect(result!.metaData).toHaveLength(1);
+    expect(result!.metaData[0]).toMatchObject({
+      slug: "booking_url",
+      value: { kind: "url", url: "https://x" },
+    });
+    // Filters by the exact booking id.
+    const filter = calls[0]!.variables.filter as { bookingFilter: { ids: string[] } };
+    expect(filter.bookingFilter.ids).toEqual(["b_abc123"]);
+    expect(calls[0]!.query).toContain("fieldResponses");
+  });
+
+  it("returns an empty metaData list when nothing matches the integrator", async () => {
+    const { service } = makeService(
+      () => ({ data: { sales: { edges: [{ node: META_NODE }] } } }),
+      [],
+      { fullCustomerAccess: true },
+      [],
+      "nobody",
+    );
+    const result = await service.getMetaData("b_1");
+    expect(result!.metaData).toEqual([]);
+  });
+
+  it("returns null when the booking is not found", async () => {
+    const { service } = makeService(() => ({ data: { sales: { edges: [] } } }), [], { fullCustomerAccess: true }, [], "bob");
+    expect(await service.getMetaData("b_1")).toBeNull();
+  });
+
+  it("omits guest identity value fields from the query when PII is off", async () => {
+    const { service, calls } = makeService(
+      () => ({ data: { sales: { edges: [] } } }),
+      [],
+      { fullCustomerAccess: false },
+      [],
+      "bob",
+    );
+    await service.getMetaData("b_1");
+    const query = calls[0]!.query.replace(/\s+/g, " ");
+    expect(query).toContain("... on GuestFieldResponseValue { notes waiverSigned }");
+    expect(query).not.toContain("dateOfBirth");
+  });
+
+  it("throws on an invalid booking id before any request", async () => {
+    const { service, calls } = makeService(() => ({}), [], { fullCustomerAccess: true }, [], "bob");
+    await expect(service.getMetaData("nope")).rejects.toThrow(/valid booking id/);
+    expect(calls).toHaveLength(0);
   });
 });
 
