@@ -1048,6 +1048,7 @@ render({
     {name:"tickets",type:"CreateBookingTicket[]",n:false,desc:"Tickets to book."},
     {name:"guest",type:"CreateBookingGuest",n:false,desc:"Primary guest."},
     {name:"operatorNotes",type:"string",n:"opt",desc:"Operator notes."},
+    {name:"listPrice",type:"string",n:"opt",desc:"Total booking list price (positive number string; commas allowed — <code>100</code>, <code>1,000</code>, <code>10.00</code>). Split evenly across tickets (last ticket gets the remainder cent) and sent per ticket in the activity's currency (fallback <code>USD</code>). Omit to use Peek's configured pricing."},
     {name:"customQuestionAnswers",type:"CustomQuestionAnswerInput[]",n:"opt",desc:"Answers, validated/resolved before creation."},
     {name:"requireRequiredQuestions",type:"boolean",n:"opt",desc:"Fail if a required question unanswered (default false)."},
     {name:"acceptAllCustomQuestionIds",type:"boolean",n:"opt",desc:"Accept a <code>cq_…</code> id not in the activity's question list as a plain text answer instead of failing; by-name answers still must match (default false)."},

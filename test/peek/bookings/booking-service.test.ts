@@ -1264,6 +1264,75 @@ describe("BookingService.create", () => {
     expect(calls.every((c) => !c.query.includes("applyPaymentToOrder"))).toBe(true);
   });
 
+  function quoteTickets(calls: RecordedCall[]) {
+    const quoteInput = (calls.find((c) => c.query.includes("createQuoteV2"))!.variables.input as {
+      quoteInput: { bookingQuotes: Array<{ tickets: Array<Record<string, unknown>> }> };
+    }).quoteInput;
+    return quoteInput.bookingQuotes[0]!.tickets;
+  }
+
+  it("splits listPrice across tickets in the activity currency", async () => {
+    const product = { productId: "act-1", currency: "EUR" } as unknown as Product;
+    const { service, calls } = makeService(createHandler(), [product]);
+
+    await service.create({
+      ...validCreate,
+      tickets: [{ resourceOptionId: "r1", quantity: 3 }],
+      listPrice: "10.00",
+    });
+
+    expect(quoteTickets(calls).map((t) => t.price)).toEqual([
+      { amount: "3.33", currency: "EUR" },
+      { amount: "3.33", currency: "EUR" },
+      { amount: "3.34", currency: "EUR" },
+    ]);
+  });
+
+  it("distributes the list price across multiple ticket lines in order", async () => {
+    const product = { productId: "act-1", currency: "EUR" } as unknown as Product;
+    const { service, calls } = makeService(createHandler(), [product]);
+
+    await service.create({
+      ...validCreate,
+      tickets: [
+        { resourceOptionId: "r1", quantity: 2 },
+        { resourceOptionId: "r2", quantity: 1 },
+      ],
+      listPrice: "10.00",
+    });
+
+    expect(quoteTickets(calls)).toEqual([
+      expect.objectContaining({ resourceOptionId: "r1", price: { amount: "3.33", currency: "EUR" } }),
+      expect.objectContaining({ resourceOptionId: "r1", price: { amount: "3.33", currency: "EUR" } }),
+      expect.objectContaining({ resourceOptionId: "r2", price: { amount: "3.34", currency: "EUR" } }),
+    ]);
+  });
+
+  it("falls back to USD when the activity currency can't be resolved", async () => {
+    const { service, calls } = makeService(createHandler(), []); // no products
+
+    await service.create({ ...validCreate, listPrice: "10" }); // validCreate has quantity 2
+
+    expect(quoteTickets(calls).map((t) => t.price)).toEqual([
+      { amount: "5.00", currency: "USD" },
+      { amount: "5.00", currency: "USD" },
+    ]);
+  });
+
+  it("omits the ticket price when no listPrice is given", async () => {
+    const { service, calls } = makeService(createHandler());
+    await service.create(validCreate);
+    expect(quoteTickets(calls).every((t) => t.price === undefined)).toBe(true);
+  });
+
+  it("throws on an invalid listPrice before any network call", async () => {
+    const { service, calls } = makeService(createHandler());
+    await expect(service.create({ ...validCreate, listPrice: "abc" })).rejects.toThrow(
+      /positive number/,
+    );
+    expect(calls).toHaveLength(0);
+  });
+
   it("clones from a parent order when provided", async () => {
     const { service, calls } = makeService(createHandler());
     await service.create({ ...validCreate, parentOrderId: "o_parent" });

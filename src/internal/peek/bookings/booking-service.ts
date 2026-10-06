@@ -64,6 +64,7 @@ import {
   isCustomQuestionId,
   resolveCustomQuestionAnswers,
 } from "./custom-question-answer.js";
+import { distributeListPrice } from "./list-price.js";
 import {
   ADDON_OPTION_STATUS_CANCELED,
   RESERVATION_STATUS_CONFIRMED,
@@ -110,6 +111,8 @@ const DEFAULT_PAGE_SIZE = 50;
 const DEFAULT_CANCEL_NOTE = "Canceled";
 /** Default customer message attached to a charge. */
 const DEFAULT_CUSTOMER_MESSAGE = "Charge initiated via API";
+/** Currency used when the activity's own currency can't be resolved. */
+const DEFAULT_CURRENCY = "USD";
 
 // Booking/order ids come in two forms: a lowercase db id with `_`
 // (`b_abc123` / `o_abc123`) and an uppercase display id with `-`
@@ -1019,17 +1022,34 @@ export class BookingService {
   async create(input: CreateBookingInput): Promise<CreatedBooking> {
     validateCreateInput(input);
 
-    // Resolve custom-question answers before anything is created: fetch the
-    // activity's questions and validate/map each answer, so a bad answer fails
-    // here rather than after a quote exists.
-    const questionAnswers = await this.buildQuestionAnswers(input);
+    // Split the optional list price across the tickets up front — a malformed
+    // amount throws here, before any quote exists.
+    const ticketCount = input.tickets.reduce((count, ticket) => count + ticket.quantity, 0);
+    const listPriceAmounts =
+      input.listPrice === undefined ? null : distributeListPrice(input.listPrice, ticketCount);
 
+    // Resolve custom-question answers (and, when a list price is set, the
+    // activity's currency) before anything is created: a bad answer fails here
+    // rather than after a quote exists, and the two reads run in parallel.
+    const [questionAnswers, currency] = await Promise.all([
+      this.buildQuestionAnswers(input),
+      listPriceAmounts ? this.resolveActivityCurrency(input.activityId) : Promise.resolve(""),
+    ]);
+
+    let seatIndex = 0;
     const tickets = input.tickets.flatMap((ticket) =>
-      Array.from({ length: ticket.quantity }, () => ({
-        resourceOptionId: ticket.resourceOptionId,
-        reservationStatus: "CONFIRMED",
-        refid: randomUUID(),
-      })),
+      Array.from({ length: ticket.quantity }, () => {
+        const seat: Record<string, unknown> = {
+          resourceOptionId: ticket.resourceOptionId,
+          reservationStatus: "CONFIRMED",
+          refid: randomUUID(),
+        };
+        if (listPriceAmounts) {
+          seat.price = { amount: listPriceAmounts[seatIndex]!, currency };
+        }
+        seatIndex += 1;
+        return seat;
+      }),
     );
 
     const bookingQuote: Record<string, unknown> = {
@@ -1178,6 +1198,16 @@ export class BookingService {
       throw new Error("Failed to mark booking as paid");
     }
     return result.transactionId;
+  }
+
+  /**
+   * Resolves an activity's ISO currency via the product service, falling back to
+   * {@link DEFAULT_CURRENCY} when the activity (or its currency) can't be found.
+   */
+  private async resolveActivityCurrency(activityId: string): Promise<string> {
+    const products = await this.deps.productService.getAllProducts();
+    const match = products.find((product) => product.productId === activityId);
+    return match?.currency || DEFAULT_CURRENCY;
   }
 
   /** Finds the parent item id of an add-on by matching its option id. */

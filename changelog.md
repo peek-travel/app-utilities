@@ -12,7 +12,22 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 0.9.3
+
+### `CreateBookingInput.listPrice` sets a per-ticket list price on `create` `[additive]`
+
+- **What:** `CreateBookingInput` gains an optional `listPrice` — a positive
+  number string (commas allowed: `"100"`, `"1,000"`, `"10.00"`) for the booking's
+  **total** list price. When set, `BookingService.create` splits it evenly across
+  the booking's tickets (each of the first n-1 tickets gets `floor(total / n)`,
+  the last ticket the remainder, so the parts sum exactly — e.g. `"10.00"` over 3
+  tickets → `3.33`, `3.33`, `3.34`) and sends a per-ticket `price { amount,
+  currency }` on the quote. The currency is the activity's own currency (resolved
+  via the product service), falling back to `"USD"`.
+- **Why:** Lets callers override the booked price instead of relying solely on
+  the activity's configured pricing.
+- **Caller action:** None — additive. Omit `listPrice` for the previous behavior.
+  A malformed `listPrice` (non-numeric or ≤ 0) throws before any network call.
 
 ### `BookingService` metadata setters (`setMetaData*`) write custom-field responses `[additive]`
 

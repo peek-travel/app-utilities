@@ -450,7 +450,14 @@ Recurring patterns inside services:
 - **Multi-step mutations** — booking creation (`createQuoteV2` →
   `createOrderFromQuote`) and both add-on mutations (`createQuoteFromOrder` →
   `updateQuoteV2` → `amendOrder`) are orchestrated as ordered request chains
-  with per-step error checks. When `CreateBookingInput.customQuestionAnswers`
+  with per-step error checks. When `CreateBookingInput.listPrice` is set, the pure
+  `bookings/list-price.ts` (`distributeListPrice`) splits that total across the
+  expanded ticket seats in integer cents — `floor(total / n)` for the first n-1,
+  the remainder to the last — and `create` attaches a per-ticket
+  `price { amount, currency }` to the `createQuoteV2` tickets, resolving the
+  currency from the activity via `ProductService.getAllProducts()` (fallback
+  `"USD"`, in parallel with the question-answer read). A malformed `listPrice`
+  throws before any network call. When `CreateBookingInput.customQuestionAnswers`
   is supplied, `create` first fetches the activity's custom questions
   (`ProductService.getCustomQuestions`) and runs the pure resolver in
   `bookings/custom-question-answer.ts` (`resolveCustomQuestionAnswers`) to match

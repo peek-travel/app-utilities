@@ -373,6 +373,15 @@ export interface CreateBookingInput {
   /** Operator notes to attach. */
   operatorNotes?: string;
   /**
+   * Total list price for the booking, as a positive number string (commas
+   * allowed — `"100"`, `"1,000"`, `"10.00"`). When set, it is split evenly
+   * across the booking's tickets (each of the first n-1 tickets gets
+   * `floor(total / n)`, the last ticket the remainder) and sent per ticket in
+   * the activity's currency (falling back to `"USD"`). Omit to let Peek price
+   * the tickets from the activity's configured pricing.
+   */
+  listPrice?: string;
+  /**
    * Answers to the activity's custom questions. When non-empty, the activity's
    * custom questions are fetched and each answer is validated/resolved before
    * the booking is created — an unmatched question, ambiguous text/option, or
