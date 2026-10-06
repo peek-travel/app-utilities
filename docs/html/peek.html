@@ -164,12 +164,14 @@ function render(DATA){
   document.title = DATA.title+" Platform — @peektravel/app-utilities";
   heroTitle.textContent = DATA.hero;
   heroSub.innerHTML = DATA.heroSub;
-  // sort: root *AccessService first, other services A–Z; models A–Z
+  // sort: root *AccessService first, other services A–Z; models A–Z;
+  // methods within each service A–Z
   DATA.services.sort((a,b)=>{
     const ra=/AccessService$/.test(a.name), rb=/AccessService$/.test(b.name);
     if(ra!==rb)return ra?-1:1;
     return a.name.localeCompare(b.name);
   });
+  DATA.services.forEach(s=>{if(s.methods)s.methods.sort((a,b)=>a.name.localeCompare(b.name));});
   DATA.models.sort((a,b)=>a.name.localeCompare(b.name));
   LINK_MAP={};
   DATA.models.forEach(m=>{LINK_MAP[m.name]='mdl-'+slug(m.name);});

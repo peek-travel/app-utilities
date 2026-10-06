@@ -22,6 +22,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { GraphQLClient } from "../../src/internal/peek/graphql-client.js";
+import { resolveBaseApiUrl, requireNonEmpty } from "../../src/access-service-config.js";
+import {
+  V2_EXTENDABLE_SLUG,
+  peekApiEndpoints,
+} from "../../src/internal/peek/gateway-endpoints.js";
 import {
   AccountUserService,
   AvailabilityService,
@@ -53,6 +58,8 @@ import type {
   NoteMode,
   RefundInput,
   ResourcePoolMode,
+  SetMetaDataAttachmentInput,
+  SetMetaDataGuestInput,
   TimeslotFilter,
   UpdateEngineInput,
   UpsertOverridesInput,
@@ -190,6 +197,17 @@ function buildContext(authToken: string): Ctx {
   const fullCustomerAccess = /^(1|true|yes)$/i.test(
     process.env.PEEK_FULL_CUSTOMER_ACCESS ?? "",
   );
+  const integrator = process.env.PEEK_INTEGRATOR || undefined;
+
+  // Mirror PeekAccessService's constructor guards: without an `apiUrl` the legacy
+  // v1 gateway needs both `appId` (the URL path segment) and `gatewayKey` (the
+  // `pk-api-key` header). Fail fast with a clear message instead of silently
+  // building a `…/undefined/sales` URL (or dropping the key) and getting an
+  // opaque gateway error.
+  if (!apiUrl) {
+    requireNonEmpty(appId ?? "", "PEEK_APP_ID", "gql-cli");
+    requireNonEmpty(gatewayKey ?? "", "PEEK_GATEWAY_KEY", "gql-cli");
+  }
 
   const logger: Logger = process.env.PEEK_DEBUG
     ? {
@@ -199,10 +217,16 @@ function buildContext(authToken: string): Ctx {
       }
     : noopLogger;
 
+  // Mirror PeekAccessService's URL model: an `apiUrl` is the base directly (its
+  // own routing slug stripped back off) and routes through the registry slug;
+  // otherwise the base is `baseUrl/appId` on the legacy v1 gateway (no slug).
+  const useRegistrySlug = !!apiUrl;
+  const baseApiUrl = apiUrl
+    ? resolveBaseApiUrl(apiUrl, V2_EXTENDABLE_SLUG, "gql-cli")
+    : `${baseUrl}/${appId}`;
   const client = new GraphQLClient({
-    apiUrl,
-    baseUrl: apiUrl ? undefined : baseUrl,
-    appId: apiUrl ? undefined : appId,
+    baseApiUrl,
+    endpoints: peekApiEndpoints(useRegistrySlug),
     gatewayKey,
     getToken: () => authToken,
     retryDelaysMs: [1000, 2000, 4000],
@@ -228,7 +252,7 @@ function buildContext(authToken: string): Ctx {
     dailyNotes: new DailyNoteService(client),
     availability: new AvailabilityService(client),
     memberships: new MembershipService(client),
-    bookings: new BookingService(client, { productService: products }, { accessOptions }),
+    bookings: new BookingService(client, { productService: products }, { accessOptions, integrator }),
     reviews: new ReviewService(client, accessOptions),
   };
 }
@@ -324,6 +348,16 @@ const REGISTRY: FnSpec[] = [
   { name: "addBookingAddon", group: "bookings", desc: "Add an add-on to a booking.", pii: true, params: [p("bookingId", "string", "Booking id"), p("input", "json", "AddAddonInput JSON")], run: (c, [id, i]) => c.bookings.addAddon(id as string, i as AddAddonInput) },
   { name: "removeBookingAddon", group: "bookings", desc: "Remove an add-on from a booking.", pii: true, params: [p("bookingId", "string", "Booking id"), p("input", "json", "AddAddonInput JSON")], run: (c, [id, i]) => c.bookings.removeAddon(id as string, i as AddAddonInput) },
   { name: "createBooking", group: "bookings", desc: "Create a booking.", params: [p("input", "json", "CreateBookingInput JSON")], run: (c, [i]) => c.bookings.create(i as CreateBookingInput) },
+  { name: "updateCustomStatus", group: "bookings", desc: "Set a booking's operator custom status.", params: [p("bookingId", "string", "Booking id"), p("customStatus", "string", "Non-empty status text")], run: (c, [id, s]) => c.bookings.updateCustomStatus(id as string, s as string) },
+  { name: "getMetaData", group: "bookings", desc: "A booking's custom-field metadata (scoped by PEEK_INTEGRATOR).", params: [p("bookingId", "string", "Booking id")], run: (c, [id]) => c.bookings.getMetaData(id as string) },
+  { name: "setMetaDataGuest", group: "bookings", desc: "Upsert the guest metadata field.", params: [p("bookingId", "string", "Booking id"), p("guests", "json", "SetMetaDataGuestInput[] JSON")], run: (c, [id, g]) => c.bookings.setMetaDataGuest(id as string, g as SetMetaDataGuestInput[]) },
+  { name: "setMetaDataAttachment", group: "bookings", desc: "Upsert the attachment metadata field.", params: [p("bookingId", "string", "Booking id"), p("attachments", "json", "SetMetaDataAttachmentInput[] JSON")], run: (c, [id, a]) => c.bookings.setMetaDataAttachment(id as string, a as SetMetaDataAttachmentInput[]) },
+  { name: "setMetaDataManifestUrl", group: "bookings", desc: "Upsert the manifest_url metadata field.", params: [p("bookingId", "string", "Booking id"), p("url", "string", "Manifest URL")], run: (c, [id, u]) => c.bookings.setMetaDataManifestUrl(id as string, u as string) },
+  { name: "setMetaDataReservationId", group: "bookings", desc: "Upsert the reservation_id metadata field.", params: [p("bookingId", "string", "Booking id"), p("reservationId", "string", "Reservation id")], run: (c, [id, r]) => c.bookings.setMetaDataReservationId(id as string, r as string) },
+  { name: "setMetaDataBookingStatus", group: "bookings", desc: "Upsert the booking_status metadata field.", params: [p("bookingId", "string", "Booking id"), p("status", "string", "Status text")], run: (c, [id, s]) => c.bookings.setMetaDataBookingStatus(id as string, s as string) },
+  { name: "setMetaDataAssignedProduct", group: "bookings", desc: "Upsert the assigned_product metadata field.", params: [p("bookingId", "string", "Booking id"), p("productName", "string", "Product name")], run: (c, [id, n]) => c.bookings.setMetaDataAssignedProduct(id as string, n as string) },
+  { name: "setMetaDataAssignedEmployee", group: "bookings", desc: "Upsert the assigned_employee metadata field.", params: [p("bookingId", "string", "Booking id"), p("employeeName", "string", "Employee name")], run: (c, [id, n]) => c.bookings.setMetaDataAssignedEmployee(id as string, n as string) },
+  { name: "setMetaDataInsurancePurchased", group: "bookings", desc: "Upsert the insurance_purchased metadata field.", params: [p("bookingId", "string", "Booking id"), p("insurancePurchased", "boolean", "true|false")], run: (c, [id, b]) => c.bookings.setMetaDataInsurancePurchased(id as string, b as boolean) },
 
   // ── reviews ──
   { name: "getReviews", group: "reviews", desc: "Reviews for an activity.", params: [p("productId", "string", "Activity id"), p("reviewCount", "number", "Optional page size", false), p("reviewOffset", "number", "Optional offset", false)], run: (c, [id, n, o]) => c.reviews.getReviews(id as string, n as number | undefined, o as number | undefined) },
