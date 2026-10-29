@@ -50,6 +50,9 @@ it: `echo "$TOKEN" | ./run.sh getAllActivities`.
 # Custom questions for an activity
 ./run.sh getCustomQuestions 87cdf37f-1872-42cb-b0bd-518312624fc1
 
+# Every custom question defined on the account
+./run.sh getAllCustomQuestions
+
 # Reviews, page size 5, offset 10 (numbers coerced)
 ./run.sh getReviews prod_123 5 10
 

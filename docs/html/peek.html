@@ -319,6 +319,7 @@ render({
      {name:"getMembershipService",sig:"(): MembershipService",desc:"Membership service."},
      {name:"getBookingService",sig:"(integrator?: string): BookingService",desc:"Booking service (composed with product service; receives resolved access options). Instances are memoized per <code>integrator</code>.",notes:"<code>integrator</code> scopes <code>getMetaData</code> results. <b>Do not set it</b> unless Peek engineering created a custom integrator id for this integration."},
      {name:"getReviewService",sig:"(): ReviewService",desc:"Review service (receives resolved access options)."},
+     {name:"getCustomQuestionService",sig:"(): CustomQuestionService",desc:"Custom-question service."},
      {name:"verifyPeekAuthToken",sig:"(token: string): PeekAuthTokenClaims",desc:"Verifies an app-registry JWT (HMAC signature, expiry, <code>app_registry_v2</code> issuer, <code>Joken</code> audience). Accepts a raw <code>x-peek-auth</code> header value (strips leading <code>Bearer </code>).",notes:"Throws <code>JsonWebTokenError</code> / <code>TokenExpiredError</code> / <code>NotBeforeError</code> on verification failure; claim extraction never throws (absent <code>user</code> → <code>null</code>)."}
    ]
   },
@@ -333,6 +334,15 @@ render({
      {name:"getAllRentals",sig:"(): Promise&lt;Product[]&gt;",desc:"Products with type <code>RENTAL</code>.",notes:"Filters activities to <code>RENTAL_PRODUCT_TYPE</code>."},
      {name:"getAllAddons",sig:"(): Promise&lt;Product[]&gt;",desc:"Only add-on products.",notes:"Paginated."},
      {name:"getCustomQuestions",sig:"(productId: string): Promise&lt;CustomQuestion[]&gt;",desc:"Every custom question configured on one activity, in Peek's order.",notes:"Throws <code>Error</code> (\"A non-empty product id is required.\") on blank id before any network call; returns <code>[]</code> for an unknown activity. Definitions only — no PII, unaffected by <code>fullCustomerAccess</code>."}
+   ]
+  },
+  {
+   name:"CustomQuestionService",
+   file:"src/internal/peek/custom-questions/custom-question-service.ts",
+   desc:"Account-wide custom-question reads.",
+   obtain:"PeekAccessService.getCustomQuestionService()",
+   methods:[
+     {name:"getAll",sig:"(): Promise&lt;CustomQuestion[]&gt;",desc:"Every custom question defined on the account, across all activities.",notes:"The account-wide catalog carries no per-activity configuration, so <code>order</code> is <code>0</code> and <code>isRequired</code> is <code>false</code> on every entry. Definitions only — no PII, unaffected by <code>fullCustomerAccess</code>. Returns <code>[]</code> when none are defined."}
    ]
   },
   {
@@ -575,11 +585,11 @@ render({
     {name:"minPrice",type:"PricingMoney | null",n:true,desc:"Lowest price across range; <code>null</code> for add-ons / when none."},
     {name:"maxPrice",type:"PricingMoney | null",n:true,desc:"Highest price across range; <code>null</code> for add-ons / when none."}
    ]},
-  {name:"CustomQuestion",kind:"interface",file:"src/models/peek/custom-question.ts",desc:"A custom question configured on an activity (definition, no PII).",
+  {name:"CustomQuestion",kind:"interface",file:"src/models/peek/custom-question.ts",desc:"A custom question definition (no PII), whether configured on one activity or read from the account-wide catalog.",
    fields:[
     {name:"id",type:"string",n:false,desc:"Question id (e.g. <code>cq_anq67</code>)."},
-    {name:"order",type:"number",n:false,desc:"1-based position in the activity's question list."},
-    {name:"isRequired",type:"boolean",n:false,desc:"Whether an answer is required."},
+    {name:"order",type:"number",n:false,desc:"1-based position in the activity's question list; <code>0</code> for the account-wide catalog (no per-activity config)."},
+    {name:"isRequired",type:"boolean",n:false,desc:"Whether an answer is required; <code>false</code> for the account-wide catalog (no per-activity config)."},
     {name:"questionText",type:"string",n:false,desc:"Prompt shown to the guest (Peek <code>text</code>)."},
     {name:"hintText",type:"string | null",n:true,desc:"Helper/hint text, or <code>null</code>."},
     {name:"questionType",type:"string",n:false,desc:"Input type (e.g. <code>CHECK_BOX</code>, <code>TEXT</code>, <code>LOCATION</code>, <code>SELECT_ONE</code>)."},

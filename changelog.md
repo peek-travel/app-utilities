@@ -12,6 +12,23 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 0.9.5
+
+### New `CustomQuestionService` with account-wide `getAll()` `[additive]`
+
+- **What:** A new `CustomQuestionService`, obtained via
+  `PeekAccessService.getCustomQuestionService()`, exposes `getAll()` — returning
+  every custom question defined on the account (across all activities) as a
+  `CustomQuestion[]`, the same clean model as
+  `getProductService().getCustomQuestions(productId)`. Because the account-wide
+  catalog carries no per-activity configuration, `order` is `0` and `isRequired`
+  is `false` on every entry. These are question definitions, not customer
+  answers — no PII, so the result is unaffected by `fullCustomerAccess`.
+- **Why:** callers need the full catalog of custom questions for an account, not
+  just those configured on a single activity.
+- **Caller action:** none — additive. Reach the new read via
+  `peek.getCustomQuestionService().getAll()`.
+
 ## 0.9.4
 
 ### `MetaData.displayValue` moves up from the `value` union to the `MetaData` object `[breaking]`

@@ -1,8 +1,31 @@
 /**
- * Raw Peek GraphQL query and response shapes for an activity's custom
- * questions. These are an internal implementation detail of the package and are
- * deliberately not re-exported from the public entry point.
+ * Raw Peek GraphQL query and response shapes for custom questions — both the
+ * per-activity configuration read and the account-wide question catalog. These
+ * are an internal implementation detail of the package and are deliberately not
+ * re-exported from the public entry point.
  */
+
+/** Fetches every custom question defined on the account, regardless of activity. */
+export const ALL_CUSTOM_QUESTIONS_QUERY = `
+  query Sales {
+    questions {
+      id
+      questionType
+      text
+      answerDefaultValue
+      hint
+      internalLabel
+      perGuest
+      ... on ChoiceQuestion {
+        options {
+          id
+          text
+          order
+        }
+      }
+    }
+  }
+`;
 
 /** Fetches every custom question configured on a single activity. */
 export const CUSTOM_QUESTIONS_QUERY = `
@@ -68,4 +91,9 @@ export interface CustomQuestionsResponse {
     name: string;
     questionActivityConfigurations?: QuestionConfigurationNode[] | null;
   } | null;
+}
+
+/** The `data` payload of {@link ALL_CUSTOM_QUESTIONS_QUERY}. */
+export interface AllCustomQuestionsResponse {
+  questions?: RawQuestionNode[] | null;
 }
