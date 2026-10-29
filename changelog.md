@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 0.9.5
 
 ### New `CustomQuestionService` with account-wide `getAll()` `[additive]`
 
