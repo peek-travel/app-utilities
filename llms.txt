@@ -166,6 +166,12 @@ final authority and may still reject the request.
   `getAllReviewSummaries()` → `ProductReviewSummary[]` (one per activity:
   `avgRating` — decimal, `null` when no ratings — plus `countTotal` and per-star
   `countOneStar`…`countFiveStar`). No PII; unaffected by `fullCustomerAccess`.
+- `getCustomQuestionService()` — `getAll()` returns every custom question defined
+  on the account (across all activities) as the same `CustomQuestion[]` shape as
+  `getProductService().getCustomQuestions(productId)`. The account-wide catalog
+  carries no per-activity config, so `order` is `0` and `isRequired` is `false` on
+  every entry. Question definitions, not answers — no PII; unaffected by
+  `fullCustomerAccess`.
 
 ## Sibling accessors (CNG, ACME — REST, not GraphQL)
 

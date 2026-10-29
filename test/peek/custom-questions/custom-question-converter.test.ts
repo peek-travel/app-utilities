@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { fromQuestionConfigurations } from "../../../src/internal/peek/products/custom-question-converter.js";
-import type { QuestionConfigurationNode } from "../../../src/internal/peek/products/custom-question-queries.js";
+import {
+  fromQuestionConfigurations,
+  fromQuestionNodes,
+} from "../../../src/internal/peek/custom-questions/custom-question-converter.js";
+import type {
+  QuestionConfigurationNode,
+  RawQuestionNode,
+} from "../../../src/internal/peek/custom-questions/custom-question-queries.js";
 
 describe("fromQuestionConfigurations", () => {
   it("maps a free-text question, pulling order/isRequired from the config", () => {
@@ -96,5 +102,64 @@ describe("fromQuestionConfigurations", () => {
 
   it("returns an empty list for no configurations", () => {
     expect(fromQuestionConfigurations([])).toEqual([]);
+  });
+});
+
+describe("fromQuestionNodes", () => {
+  it("maps bare question nodes, defaulting order/isRequired", () => {
+    const questions: RawQuestionNode[] = [
+      {
+        id: "cq_gw5xn",
+        questionType: "TEXT",
+        text: "Text Input",
+        answerDefaultValue: null,
+        hint: "this is a hint text",
+        internalLabel: null,
+        perGuest: false,
+      },
+    ];
+
+    expect(fromQuestionNodes(questions)).toEqual([
+      {
+        id: "cq_gw5xn",
+        order: 0,
+        isRequired: false,
+        questionText: "Text Input",
+        hintText: "this is a hint text",
+        questionType: "TEXT",
+        internalLabel: null,
+        perGuest: false,
+        defaultValue: null,
+        options: [],
+      },
+    ]);
+  });
+
+  it("maps a choice question's options into { id, order, value }", () => {
+    const questions: RawQuestionNode[] = [
+      {
+        id: "cq_bq48e",
+        questionType: "SELECT_ONE",
+        text: "Multiple Choice",
+        perGuest: true,
+        options: [
+          { id: "cqao_mwdgvw", text: "Option A", order: 1 },
+          { id: "cqao_va78v7", text: "Option B", order: 2 },
+        ],
+      },
+    ];
+
+    expect(fromQuestionNodes(questions)[0]).toMatchObject({
+      questionType: "SELECT_ONE",
+      perGuest: true,
+      options: [
+        { id: "cqao_mwdgvw", order: 1, value: "Option A" },
+        { id: "cqao_va78v7", order: 2, value: "Option B" },
+      ],
+    });
+  });
+
+  it("returns an empty list for no questions", () => {
+    expect(fromQuestionNodes([])).toEqual([]);
   });
 });

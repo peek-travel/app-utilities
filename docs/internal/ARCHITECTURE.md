@@ -185,29 +185,37 @@ Each resource follows the same **three-file triad**:
 | `*-converter.ts` | Pure, I/O-free functions mapping raw GraphQL nodes → clean models. Easy to unit-test. |
 | `*-service.ts` | Public class holding the business logic; calls the shared client, then runs the converter. |
 
-Resources: `products`, `account-users`, `resource-pools`, `timeslots`,
-`resellers`, `promo-codes`, `pricing`, `daily-notes`, `availability`,
-`memberships`, `bookings`, `reviews`. Clean data shapes are split by brand: Peek
-models in `src/models/peek/`, CNG models in `src/models/cng/`.
+Resources: `products`, `custom-questions`, `account-users`, `resource-pools`,
+`timeslots`, `resellers`, `promo-codes`, `pricing`, `daily-notes`,
+`availability`, `memberships`, `bookings`, `reviews`. Clean data shapes are split
+by brand: Peek models in `src/models/peek/`, CNG models in `src/models/cng/`.
 
 `ProductService` exposes three top-level product filters in addition to the combined `getAllProducts()`:
 - `getAllActivities()` — fetches only the `activities` connection (one request, no add-on pagination).
 - `getAllAddons()` — fetches only the `itemOptions` connection, paginated.
 
-It also carries a second, single-activity read: `getCustomQuestions(productId)`
-returns an activity's operator-configured custom questions as a `CustomQuestion[]`
-(each with `options: CustomQuestionOption[]` for choice-style questions). This is
-a distinct sub-domain triad living beside the products triad —
-`custom-question-queries.ts` (the `activity(id)` → `questionActivityConfigurations`
-query and raw nodes, internal) and the pure `custom-question-converter.ts`
-(`fromQuestionConfigurations`) — with the service method on `ProductService`. The
-query resolves the choice options via an inline `... on ChoiceQuestion` fragment;
-the converter maps `question.text` → `questionText`, `hint` → `hintText`,
-`answerDefaultValue` → `defaultValue`, and lifts `order`/`isRequired` from the
-configuration node. These are **question definitions, not customer answers**, so
-they carry no PII and are unaffected by `fullCustomerAccess`. The method throws on
-a blank `productId` before any network call and returns `[]` for an unknown
-activity. `CustomQuestion`/`CustomQuestionOption` are exported from `src/index.ts`.
+Custom questions are their own resource triad under
+`src/internal/peek/custom-questions/` — `custom-question-queries.ts` (query
+strings and raw nodes, internal), the pure `custom-question-converter.ts`, and
+`CustomQuestionService`. Both reads map to the shared `CustomQuestion[]` model
+(each with `options: CustomQuestionOption[]` for choice-style questions), via the
+`... on ChoiceQuestion` inline fragment; the converter maps `question.text` →
+`questionText`, `hint` → `hintText`, and `answerDefaultValue` → `defaultValue`:
+
+- `CustomQuestionService.getAll()` reads the **account-wide** `questions` catalog
+  across all activities. The catalog carries no per-activity configuration, so
+  `order` is `0` and `isRequired` is `false` on every entry; the converter entry
+  point is `fromQuestionNodes`. Obtain the service via
+  `PeekAccessService.getCustomQuestionService()`.
+- `ProductService.getCustomQuestions(productId)` reuses the same queries/converter
+  module for the **single-activity** read (the `activity(id)` →
+  `questionActivityConfigurations` query), lifting `order`/`isRequired` from the
+  configuration node via `fromQuestionConfigurations`. It throws on a blank
+  `productId` before any network call and returns `[]` for an unknown activity.
+
+These are **question definitions, not customer answers**, so they carry no PII
+and are unaffected by `fullCustomerAccess`. `CustomQuestion`/`CustomQuestionOption`
+are exported from `src/index.ts`.
 
 `ProductService` also surfaces each activity's `currency` on the clean
 `Product` (empty string for add-ons, which have none) — the field pricing

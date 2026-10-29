@@ -14,7 +14,7 @@ import {
 } from "../../../models/peek/product.js";
 import type { CustomQuestion } from "../../../models/peek/custom-question.js";
 import { fromActivities, fromItemOptionNodes } from "./product-converter.js";
-import { fromQuestionConfigurations } from "./custom-question-converter.js";
+import { fromQuestionConfigurations } from "../custom-questions/custom-question-converter.js";
 import {
   ITEM_OPTIONS_QUERY,
   PRODUCTS_QUERY,
@@ -25,7 +25,7 @@ import {
 import {
   CUSTOM_QUESTIONS_QUERY,
   type CustomQuestionsResponse,
-} from "./custom-question-queries.js";
+} from "../custom-questions/custom-question-queries.js";
 
 /** Thrown-error message when a product id is missing or blank. */
 const ERROR_PRODUCT_ID_REQUIRED = "A non-empty product id is required.";

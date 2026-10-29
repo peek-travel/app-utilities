@@ -10,6 +10,7 @@
 import { AccountUserService } from "./internal/peek/account-users/account-user-service.js";
 import { AvailabilityService } from "./internal/peek/availability/availability-service.js";
 import { BookingService } from "./internal/peek/bookings/booking-service.js";
+import { CustomQuestionService } from "./internal/peek/custom-questions/custom-question-service.js";
 import { DailyNoteService } from "./internal/peek/daily-notes/daily-note-service.js";
 import {
   createTokenManager,
@@ -141,6 +142,7 @@ export class PeekAccessService {
   private membershipService?: MembershipService;
   private readonly bookingServices = new Map<string, BookingService>();
   private reviewService?: ReviewService;
+  private customQuestionService?: CustomQuestionService;
 
   constructor(config: PeekAccessServiceConfig) {
     const hasApiUrl = !!config.apiUrl;
@@ -368,6 +370,17 @@ export class PeekAccessService {
       this.reviewService = new ReviewService(this.client, this.accessOptions);
     }
     return this.reviewService;
+  }
+
+  /**
+   * Returns the {@link CustomQuestionService} for this install, bound to the
+   * shared authenticated transport. The instance is created lazily and reused.
+   */
+  getCustomQuestionService(): CustomQuestionService {
+    if (!this.customQuestionService) {
+      this.customQuestionService = new CustomQuestionService(this.client);
+    }
+    return this.customQuestionService;
   }
 
   // ─── Product short-forms ─────────────────────────────────────────────────

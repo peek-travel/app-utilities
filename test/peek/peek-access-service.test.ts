@@ -11,6 +11,7 @@ import { PromoCodeService } from "../../src/internal/peek/promo-codes/promo-code
 import { PricingService } from "../../src/internal/peek/pricing/pricing-service.js";
 import { ResellerService } from "../../src/internal/peek/resellers/reseller-service.js";
 import { ReviewService } from "../../src/internal/peek/reviews/review-service.js";
+import { CustomQuestionService } from "../../src/internal/peek/custom-questions/custom-question-service.js";
 import { ResourcePoolService } from "../../src/internal/peek/resource-pools/resource-pool-service.js";
 import { TimeslotService } from "../../src/internal/peek/timeslots/timeslot-service.js";
 import type { Logger } from "../../src/logger.js";
@@ -246,6 +247,18 @@ describe("PeekAccessService.getProductService", () => {
     const reviewService = service.getReviewService();
     expect(reviewService).toBeInstanceOf(ReviewService);
     expect(service.getReviewService()).toBe(reviewService);
+  });
+
+  it("returns a CustomQuestionService and memoizes the instance", () => {
+    const { fetchFn } = makeEmptyFetch();
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
+
+    const customQuestionService = service.getCustomQuestionService();
+    expect(customQuestionService).toBeInstanceOf(CustomQuestionService);
+    expect(service.getCustomQuestionService()).toBe(customQuestionService);
   });
 
   it("wires the default endpoint, global fetch, and a minted bearer token", async () => {

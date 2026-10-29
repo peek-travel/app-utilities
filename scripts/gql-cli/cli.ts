@@ -31,6 +31,7 @@ import {
   AccountUserService,
   AvailabilityService,
   BookingService,
+  CustomQuestionService,
   DailyNoteService,
   MembershipService,
   PricingService,
@@ -186,6 +187,7 @@ interface Ctx {
   memberships: MembershipService;
   bookings: BookingService;
   reviews: ReviewService;
+  customQuestions: CustomQuestionService;
 }
 
 /** Builds the internal client with the pasted token, then wires every service. */
@@ -254,6 +256,7 @@ function buildContext(authToken: string): Ctx {
     memberships: new MembershipService(client),
     bookings: new BookingService(client, { productService: products }, { accessOptions, integrator }),
     reviews: new ReviewService(client, accessOptions),
+    customQuestions: new CustomQuestionService(client),
   };
 }
 
@@ -361,6 +364,9 @@ const REGISTRY: FnSpec[] = [
 
   // ── reviews ──
   { name: "getReviews", group: "reviews", desc: "Reviews for an activity.", params: [p("productId", "string", "Activity id"), p("reviewCount", "number", "Optional page size", false), p("reviewOffset", "number", "Optional offset", false)], run: (c, [id, n, o]) => c.reviews.getReviews(id as string, n as number | undefined, o as number | undefined) },
+
+  // ── custom questions ──
+  { name: "getAllCustomQuestions", group: "custom-questions", desc: "All custom questions on the account.", params: [], run: (c) => c.customQuestions.getAll() },
 ];
 
 const BY_NAME = new Map(REGISTRY.map((f) => [f.name, f]));
