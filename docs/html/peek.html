@@ -305,7 +305,7 @@ render({
    file:"src/peek-access-service.ts",
    desc:"The public entry point. Construct one per install. Validates config and hands out the per-resource service classes through its <code>get…Service()</code> accessors (lazily created and memoized).",
    ctor:"new PeekAccessService(config: PeekAccessServiceConfig)",
-   example:"import { PeekAccessService } from \"@peektravel/app-utilities\";\n\nconst peek = new PeekAccessService({\n  installId: \"install_123\", // obtained from verifyPeekAuthToken(peekAuthToken).installId\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n  apiUrl: \"https://apps.peek.com/installations-api/my-app\", // from install webhook\n});\n\n// every product (activities + add-ons) as one flat list\nconst products = await peek.getProductService().getAllProducts();",
+   example:"import { PeekAccessService } from \"@peektravel/app-utilities\";\n\nconst peek = new PeekAccessService({\n  installId: \"install_123\", // obtained from verifyPeekAuthToken(peekAuthToken).installId\n  jwtSecret: process.env.APP_SECRET,\n  issuer: \"my-app\",\n  mode: \"v2\", // required connection generation; \"v2\" = registry\n  apiUrl: \"https://apps.peek.com/installations-api/my-app\", // from install webhook\n});\n\n// every product (activities + add-ons) as one flat list\nconst products = await peek.getProductService().getAllProducts();",
    methods:[
      {name:"getProductService",sig:"(): ProductService",desc:"Product service (lazily created + memoized)."},
      {name:"getAccountUserService",sig:"(): AccountUserService",desc:"Account-user service."},
@@ -539,8 +539,8 @@ render({
   {name:"PeekAccessServiceConfig",kind:"config",file:"src/peek-access-service.ts",extends:"BaseAccessServiceConfig",
    desc:"Constructor config for <code>PeekAccessService</code>. Adds the Peek-only fields below; all other fields are inherited. Exported from <code>src/index.ts</code>.",
    fields:[
-    {name:"gatewayKey",type:"string",n:"opt",desc:"API gateway key, sent as the <code>pk-api-key</code> header. Required in v1 mode; not used in v2."},
-    {name:"mode",type:'"v2"',n:"opt",desc:"Gateway mode. <code>\"v2\"</code> routes through the app-registry installations API; <code>\"v1\"</code> (default) uses the standard backoffice gateway."},
+    {name:"gatewayKey",type:"string",n:"opt",desc:"API gateway key, sent as the <code>pk-api-key</code> header. Required in <code>\"v1\"</code> mode (unless an <code>apiUrl</code> is set); not used in <code>\"v2\"</code>."},
+    {name:"mode",type:'"v1" | "v2"',n:false,desc:"<b>Required</b> connection generation (previously optional, default <code>\"v1\"</code>; now mandatory so updates force an explicit choice — the constructor throws if it is missing). <code>\"v2\"</code> (<b>use going forward</b>) routes through the app-registry installations API and <b>requires</b> the install webhook's <code>apiUrl</code> (throws without it). If you lack a webhook <code>apiUrl</code> you may pass the fallback <code>https://apps.peek.com/installations-api/&lt;appId&gt;</code> as the <code>apiUrl</code> yourself (a transitional bridge). <code>\"v1\"</code> (<b>@deprecated, will be removed</b>) is the legacy backoffice gateway and needs <code>gatewayKey</code>; it is the fastest update for installs that relied on the old default."},
     {name:"itemOptionsPageSize",type:"number",n:"opt",desc:"Page size for cursor-paginated item options. Default 50."}
    ]},
   {name:"BaseAccessServiceConfig",kind:"config",file:"src/access-service-config.ts",

@@ -369,6 +369,12 @@ It throws if `install.platform` is `null` or unrecognised — an install with an
 unknown platform has no service to route to, and silently defaulting would point
 it at the wrong gateway.
 
+`createAccessServiceForInstall` sets Peek's **required** `mode: "v2"` for you (a
+registry install is always the v2 connection). If you construct `PeekAccessService`
+by hand instead, `mode` is mandatory — pass `mode: "v2"` together with the
+`apiUrl`. (`mode: "v1"` is the deprecated legacy gateway and needs `gatewayKey`;
+see the README's *Connection mode* section.)
+
 Prefer this (or the config's `apiUrl` field) over `baseUrl`/`appId`, which are
 deprecated: they reconstruct the URL with a hardcoded gateway default that cannot
 be correct for every install. **The hardcoded base-URL fallbacks will be removed

@@ -12,6 +12,34 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## Unreleased
+
+### `PeekAccessService` `mode` is now a required `"v1" | "v2"` field `[breaking]`
+
+- **What:** `mode` on `PeekAccessServiceConfig` was an optional `"v2"` flag
+  (omitting it meant `"v1"`). It is now a **required** `"v1" | "v2"` field, and
+  the constructor throws (`"mode" is required …`) when it is missing or invalid —
+  so an untyped JS caller gets a loud error instead of silently running on v1.
+  `"v2"` is the app-registry connection to use going forward and now **requires**
+  the install webhook's `apiUrl` — the constructor throws if `"v2"` is selected
+  without one (there is no silent default base URL). `"v1"` is the legacy gateway
+  and is now **`@deprecated`** and will be removed. If you don't yet have a webhook
+  `apiUrl`, you may pass the documented fallback
+  `https://apps.peek.com/installations-api/<appId>` as the `apiUrl` yourself (a
+  transitional bridge; the old `app-registry.peeklabs.com` sandbox host is gone).
+- **Why:** v2 (the per-install `apiUrl` from the install webhook) is the
+  forward-looking connection, and we want every consumer to move to it. Making
+  `mode` mandatory turns a silent default into a deliberate, visible choice at
+  update time rather than a behaviour that can drift unnoticed.
+- **Caller action:** pass `mode` explicitly.
+  - If you relied on the previous default, the fastest no-behaviour-change update
+    is to add `mode: "v1"` (keep your existing `appId` + `gatewayKey`). Then plan
+    the migration to v2.
+  - For v2, pass `mode: "v2"` and the install's `apiUrl` (persisted from the
+    install webhook; see `docs/webhooks.md`). `createAccessServiceForInstall`
+    already sets `mode: "v2"` for you, so callers using the install factory need
+    no change. CNG/ACME configs are unaffected (they have no `mode`).
+
 ## 0.9.5
 
 ### New `CustomQuestionService` with account-wide `getAll()` `[additive]`

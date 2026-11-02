@@ -24,7 +24,8 @@ const REQUIRED_CONFIG = {
   issuer: "Peek Test",
   appId: "app-1",
   gatewayKey: "gw-key",
-};
+  mode: "v1",
+} as const;
 
 function jsonResponse(body: unknown, status = 200): Response {
   return {
@@ -73,7 +74,7 @@ describe("PeekAccessService constructor validation", () => {
     },
   );
 
-  it("does not require gatewayKey in v2 mode", () => {
+  it("requires apiUrl in v2 mode (throws without one)", () => {
     expect(
       () =>
         new PeekAccessService({
@@ -83,7 +84,29 @@ describe("PeekAccessService constructor validation", () => {
           appId: REQUIRED_CONFIG.appId,
           mode: "v2",
         }),
+    ).toThrow(/mode "v2" requires an "apiUrl"/);
+  });
+
+  it("needs neither appId nor gatewayKey in v2 mode when apiUrl is set", () => {
+    expect(
+      () =>
+        new PeekAccessService({
+          installId: REQUIRED_CONFIG.installId,
+          jwtSecret: REQUIRED_CONFIG.jwtSecret,
+          issuer: REQUIRED_CONFIG.issuer,
+          mode: "v2",
+          apiUrl: "https://apps.peek.com/installations-api/demo-app",
+        }),
     ).not.toThrow();
+  });
+
+  it('throws when mode is omitted (the type forbids it; a JS caller still gets a loud error)', () => {
+    const withoutMode: Record<string, unknown> = { ...REQUIRED_CONFIG };
+    delete withoutMode.mode;
+    expect(
+      // Cast models an untyped JS caller that skipped the now-mandatory `mode`.
+      () => new PeekAccessService(withoutMode as unknown as typeof REQUIRED_CONFIG),
+    ).toThrow(/"mode" is required/);
   });
 });
 
@@ -489,31 +512,20 @@ describe("PeekAccessService.verifyPeekAuthToken", () => {
 });
 
 describe("PeekAccessService v2 mode", () => {
-  it("uses the app-registry sandbox base URL by default", async () => {
+  it("routes through the slug when the documented fallback URL is passed as apiUrl", async () => {
     const { fetchFn, calls } = makeEmptyFetch();
     vi.stubGlobal("fetch", fetchFn);
 
-    const service = new PeekAccessService({ ...REQUIRED_CONFIG, mode: "v2" });
-    await service.getProductService().getAllProducts();
-
-    expect(calls[0]!.url).toBe(
-      "https://app-registry.peeklabs.com/installations-api/app-1/peek_backoffice_api-v1",
-    );
-  });
-
-  it("inserts peek_backoffice_api-v1 segment with a custom baseUrl", async () => {
-    const { fetchFn, calls } = makeEmptyFetch();
-
+    // A developer without a webhook apiUrl may pass the fallback base themselves.
     const service = new PeekAccessService({
       ...REQUIRED_CONFIG,
       mode: "v2",
-      fetch: fetchFn,
-      baseUrl: "https://app-registry.prod.peeklabs.com/installations-api",
+      apiUrl: "https://apps.peek.com/installations-api/app-1",
     });
     await service.getProductService().getAllProducts();
 
     expect(calls[0]!.url).toBe(
-      "https://app-registry.prod.peeklabs.com/installations-api/app-1/peek_backoffice_api-v1",
+      "https://apps.peek.com/installations-api/app-1/peek_backoffice_api-v1",
     );
   });
 
@@ -523,6 +535,7 @@ describe("PeekAccessService v2 mode", () => {
     const service = new PeekAccessService({
       ...REQUIRED_CONFIG,
       mode: "v2",
+      apiUrl: "https://apps.peek.com/installations-api/app-1",
       fetch: fetchFn,
     });
     await service.getProductService().getAllProducts();
@@ -544,6 +557,7 @@ describe("PeekAccessService apiUrl mode", () => {
       installId: "install-1",
       jwtSecret: "secret",
       issuer: "Peek Test",
+      mode: "v2",
       apiUrl: API_URL,
       fetch: fetchFn,
     });
@@ -559,6 +573,7 @@ describe("PeekAccessService apiUrl mode", () => {
       installId: "install-1",
       jwtSecret: "secret",
       issuer: "Peek Test",
+      mode: "v2",
       apiUrl: `${API_URL}/peek-backoffice-api-v1`,
       fetch: fetchFn,
     });
@@ -574,6 +589,7 @@ describe("PeekAccessService apiUrl mode", () => {
           installId: "install-1",
           jwtSecret: "secret",
           issuer: "Peek Test",
+          mode: "v2",
           apiUrl: `${API_URL}/cng_backoffice_api-v1`,
         }),
     ).toThrow(/backoffice/i);
@@ -586,6 +602,7 @@ describe("PeekAccessService apiUrl mode", () => {
           installId: "install-1",
           jwtSecret: "secret",
           issuer: "Peek Test",
+          mode: "v2",
           apiUrl: API_URL,
         }),
     ).not.toThrow();
@@ -613,6 +630,7 @@ describe("PeekAccessService apiUrl mode", () => {
       installId: "install-1",
       jwtSecret: "secret",
       issuer: "Peek Test",
+      mode: "v2",
       apiUrl: API_URL,
       fetch: fetchFn,
     });

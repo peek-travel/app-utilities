@@ -108,15 +108,22 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
   `appId` is unused with `apiUrl` (and `gatewayKey` isn't required — the registry
   endpoint authenticates on the JWT, like v2). `createAccessServiceForInstall`
   (§ below) is the front door for the `apiUrl` path.
-- **Peek registry vs. legacy v1 slug.** Registry modes — an app-endpoint `apiUrl`,
-  or the deprecated `mode: "v2"` — route the `sales` endpoint through the
-  `peek_backoffice_api-v1` slug, so the GraphQL POST hits `<base>/peek_backoffice_api-v1`
-  (no trailing `sales` segment). The legacy v1 gateway (default, no `apiUrl`/`mode`)
-  has no extendable slug, so `sales` sits directly under the base
-  (`<baseUrl>/<appId>/sales`) and the default `baseUrl` is the backoffice-GraphQL
-  gateway; v2's default `baseUrl` is the app-registry installations API. `apiUrl`,
-  when set, supersedes `mode`/`baseUrl` entirely. All other behaviour (JWT auth,
-  headers, retries, resource services) is unchanged.
+- **Peek registry (`"v2"`) vs. legacy (`"v1"`).** `mode` is a **required**
+  `"v1" | "v2"` field on `PeekAccessServiceConfig` (it used to be optional and
+  default to v1; it is now mandatory, with a constructor guard that throws so even
+  an untyped JS caller gets a loud, actionable error). `"v2"` routes the `sales`
+  endpoint through the `peek_backoffice_api-v1` slug, so the GraphQL POST hits
+  `<base>/peek_backoffice_api-v1` (no trailing `sales` segment); it **requires**
+  the install's `apiUrl` (the constructor throws without it — there is no silent
+  default). `V2_FALLBACK_BASE_URL` (`https://apps.peek.com/installations-api`) is
+  not applied automatically; it is only the documented value a developer can pass
+  as `apiUrl` (`<base>/<appId>`) when they lack a webhook URL. `"v1"` (**deprecated, will
+  be removed**) is the legacy backoffice-GraphQL gateway: no extendable slug, so
+  `sales` sits directly under the base (`<baseUrl>/<appId>/sales`), the default
+  `baseUrl` is the backoffice-GraphQL gateway, and `gatewayKey` is required. An
+  app-endpoint `apiUrl` also routes through the slug and, when set, supersedes
+  `baseUrl` entirely. All other behaviour (JWT auth, headers, retries, resource
+  services) is unchanged.
 
 ### 2. `TokenManager` — auth
 `src/internal/token-manager.ts`

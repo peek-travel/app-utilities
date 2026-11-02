@@ -31,6 +31,13 @@ export interface BaseAccessServiceConfig {
    * way to target an install — prefer it over `baseUrl`/`appId`, which are
    * deprecated (the hardcoded base-URL fallbacks will be removed and a URL will
    * become required in a future release).
+   *
+   * For Peek `mode: "v2"` this field is **required** (the constructor throws
+   * without it). If you do not yet have a webhook `apiUrl` — e.g. an install that
+   * predates webhook `apiUrl` delivery, which you don't want to uninstall /
+   * reinstall just to obtain one — you may pass the fallback
+   * `https://apps.peek.com/installations-api/<appId>` here yourself. Treat that as
+   * a transitional bridge and prefer the `apiUrl` the install webhook delivers.
    */
   apiUrl?: string;
   /**
