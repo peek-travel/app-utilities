@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 1.0.0
 
 ### `PeekAccessService` `mode` is now a required `"v1" | "v2"` field `[breaking]`
 
