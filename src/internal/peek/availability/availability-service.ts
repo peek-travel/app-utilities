@@ -13,6 +13,7 @@ import {
   AVAILABILITY_TIMES_QUERY,
   type AvailabilityTimesResponse,
 } from "./availability-queries.js";
+import { toAvailabilityTime } from "./availability-converter.js";
 
 export class AvailabilityService {
   constructor(private readonly client: GraphQLClient) {}
@@ -31,6 +32,6 @@ export class AvailabilityService {
           date: query.date,
         },
       );
-    return body.data?.availabilityTimes ?? [];
+    return (body.data?.availabilityTimes ?? []).map(toAvailabilityTime);
   }
 }

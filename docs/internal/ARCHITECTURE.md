@@ -268,6 +268,17 @@ amounts, `percentageAdjustment > -100`) lives in the service. The consumer-facin
 guide is `docs/external/pricing-api.md` — **keep it in sync** whenever this
 surface changes.
 
+`availability` is a full triad (`src/internal/peek/availability/`, model
+`src/models/peek/availability-time.ts`): `AvailabilityService.getAvailabilityTimes`
+reads `availabilityTimes` and `availability-converter.ts` maps each raw node to
+an `AvailabilityTime`. Each slot carries `minimumTicketsRequired` (normalized —
+a raw `0` meaning "no minimum" is reported as `1`) and a per-ticket `price`
+(`Money | null`). `Money` (`src/models/peek/money.ts`, `{ amount, currency,
+formatted }`) is the shared, public clean-money model reused across resources
+(booking add-ons, availability prices); it is distinct from the pricing domain's
+`PricingMoney` (which renames `formatted` → optional `displayPrice`). The
+internal `toPricingMoney` helper and `PricingMoney` are unaffected.
+
 `waivers` is a **webhook-only resource**: it has no GraphQL reads (so no
 queries/service/converter triad), just `src/internal/peek/waivers/waiver-webhook.ts`
 and the `src/models/peek/waiver.ts` model. See the webhook notes below.

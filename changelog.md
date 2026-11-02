@@ -12,6 +12,32 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 1.0.1
+
+### Shared `Money` model; `BookingAddonMoney` deprecated `[additive]`
+
+- **What:** The money shape `{ amount, currency, formatted }` is now exported as
+  a single shared `Money` type. `BookingAddon.total` is typed as `Money | null`,
+  and the previously-exported `BookingAddonMoney` is retained as a `@deprecated`
+  alias of `Money`.
+- **Why:** the same money shape is now returned by more than one resource (booking
+  add-ons and availability prices), so it lives in one place instead of a
+  resource-specific type.
+- **Caller action:** none — `BookingAddonMoney` still resolves (to `Money`).
+  Migrate references to `Money` at your convenience.
+
+### `AvailabilityTime` gains `minimumTicketsRequired` and `price` `[additive]`
+
+- **What:** Each `AvailabilityTime` returned by
+  `getAvailabilityService().getAvailabilityTimes(...)` now carries
+  `minimumTicketsRequired` (a `number`) and `price` (`Money | null`, the
+  per-ticket price). `minimumTicketsRequired` is normalized: when Peek reports
+  `0` (no minimum) it is surfaced as `1`, so it is always the smallest bookable
+  party size.
+- **Why:** callers choosing a slot need the minimum party size and per-ticket
+  price alongside the remaining availability.
+- **Caller action:** none — additive.
+
 ## 1.0.0
 
 ### `PeekAccessService` `mode` is now a required `"v1" | "v2"` field `[breaking]`

@@ -810,6 +810,8 @@ render({
     {name:"end",type:"string",n:false,desc:"Slot end (ISO datetime)."},
     {name:"duration",type:"Duration",n:false,desc:"Slot length."},
     {name:"status",type:"string",n:false,desc:"Availability status (open/closed/sold-out)."},
+    {name:"minimumTicketsRequired",type:"number",n:false,desc:"Minimum tickets to book the slot. Normalized: a raw <code>0</code> (no minimum) is reported as <code>1</code>."},
+    {name:"price",type:"Money | null",n:true,desc:"Per-ticket price for the slot, when reported."},
     {name:"availability",type:"Availability[]",n:false,desc:"Remaining availability per resource option."}
    ]},
   {name:"Duration",kind:"interface",file:"src/models/peek/availability-time.ts",desc:"A duration label + numeric length.",
@@ -1142,12 +1144,13 @@ render({
     {name:"orderId",type:"string",n:false,desc:"Order the invoice is for."},
     {name:"invoiceLink",type:"string",n:false,desc:"Customer-facing payable URL."}
    ]},
-  {name:"BookingAddonMoney",kind:"interface",file:"src/models/peek/booking-addon.ts",desc:"A money value on a booking add-on.",
+  {name:"Money",kind:"interface",file:"src/models/peek/money.ts",desc:"A monetary value returned by the gateway, shared across services and resources.",
    fields:[
-    {name:"amount",type:"string",n:false,desc:"Numeric amount string."},
-    {name:"currency",type:"string",n:false,desc:"ISO currency code."},
-    {name:"formatted",type:"string",n:false,desc:"Human-formatted amount."}
+    {name:"amount",type:"string",n:false,desc:"Numeric amount as a decimal string (e.g. <code>50.00</code>)."},
+    {name:"currency",type:"string",n:false,desc:"ISO 4217 currency code."},
+    {name:"formatted",type:"string",n:false,desc:"Human-formatted amount (e.g. <code>$50.00</code>)."}
    ]},
+  {name:"BookingAddonMoney",kind:"type",file:"src/models/peek/booking-addon.ts",desc:"<strong>Deprecated</strong> — alias of <code>Money</code>, retained for backwards compatibility.",def:"Money"},
   {name:"BookingAddonOption",kind:"interface",file:"src/models/peek/booking-addon.ts",desc:"A live option on a booking add-on.",
    fields:[
     {name:"addonOptionId",type:"string",n:false,desc:"Item option id."},
@@ -1158,7 +1161,7 @@ render({
    fields:[
     {name:"addonId",type:"string",n:false,desc:"Add-on item id."},
     {name:"addonName",type:"string",n:false,desc:"Add-on item name."},
-    {name:"total",type:"BookingAddonMoney | null",n:true,desc:"Line-item total, when present."},
+    {name:"total",type:"Money | null",n:true,desc:"Line-item total, when present."},
     {name:"addonOptions",type:"BookingAddonOption[]",n:false,desc:"Live options combined by option id."}
    ]},
   {name:"BookingAddons",kind:"interface",file:"src/models/peek/booking-addon.ts",desc:"All add-ons on a booking.",
