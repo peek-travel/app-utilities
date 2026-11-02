@@ -6,6 +6,7 @@
  * a given activity and date, each carrying its per-resource-option availability
  * so callers can decide whether a requested party fits.
  */
+import type { Money } from "./money.js";
 
 /**
  * A single bookable availability time slot for an activity.
@@ -26,6 +27,15 @@ export interface AvailabilityTime {
   duration: Duration;
   /** Availability status reported by Peek (e.g. open/closed/sold-out). */
   status: string;
+  /**
+   * Minimum number of tickets required to book this slot.
+   *
+   * Normalized: a raw value of `0` (no minimum) is reported as `1`, so callers
+   * can always treat it as the smallest bookable party size.
+   */
+  minimumTicketsRequired: number;
+  /** Per-ticket price for the slot, when reported by Peek. */
+  price: Money | null;
   /**
    * Remaining availability broken down per resource option. One entry per
    * resource option offered for the slot.

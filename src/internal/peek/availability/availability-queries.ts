@@ -1,8 +1,10 @@
 /**
  * Raw Peek GraphQL query and response shape for availability times. Internal.
- * The node matches the public {@link AvailabilityTime} model one-to-one.
+ * The raw node is mapped to the public {@link AvailabilityTime} model by the
+ * availability converter (it normalizes `minimumTicketsRequired`).
  */
-import type { AvailabilityTime } from "../../../models/peek/availability-time.js";
+import type { Availability, Duration } from "../../../models/peek/availability-time.js";
+import type { Money } from "../../../models/peek/money.js";
 
 /** Fetches availability times for an activity/date and resource-option quantities. */
 export const AVAILABILITY_TIMES_QUERY = `
@@ -20,6 +22,12 @@ export const AVAILABILITY_TIMES_QUERY = `
         }
       }
       status
+      minimumTicketsRequired
+      price {
+        amount
+        currency
+        formatted
+      }
       availability {
         qty
         taken
@@ -29,7 +37,20 @@ export const AVAILABILITY_TIMES_QUERY = `
   }
 `;
 
+/** A single raw availability-time node as returned by {@link AVAILABILITY_TIMES_QUERY}. */
+export interface AvailabilityTimeNode {
+  id: string;
+  time: string;
+  from: string;
+  end: string;
+  duration: Duration;
+  status: string;
+  minimumTicketsRequired: number | null;
+  price: Money | null;
+  availability: Availability[];
+}
+
 /** The `data` payload of {@link AVAILABILITY_TIMES_QUERY}. */
 export interface AvailabilityTimesResponse {
-  availabilityTimes: AvailabilityTime[];
+  availabilityTimes: AvailabilityTimeNode[];
 }

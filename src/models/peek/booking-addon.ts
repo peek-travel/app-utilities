@@ -5,16 +5,15 @@
  * model used to build add/cancel mutations (refids, reservation statuses) is
  * an internal implementation detail and is intentionally not exported.
  */
+import type { Money } from "./money.js";
 
-/** Money amount for an add-on line, as returned by the gateway. */
-export interface BookingAddonMoney {
-  /** Numeric amount as a string (e.g. `"10.00"`). */
-  amount: string;
-  /** ISO currency code (e.g. `"USD"`). */
-  currency: string;
-  /** Human-formatted amount (e.g. `"$10.00"`). */
-  formatted: string;
-}
+/**
+ * Money amount for an add-on line, as returned by the gateway.
+ *
+ * @deprecated Use the shared {@link Money} model instead. Retained as an alias
+ * for backwards compatibility.
+ */
+export type BookingAddonMoney = Money;
 
 /** A single add-on option with the quantity attached to the booking. */
 export interface BookingAddonOption {
@@ -33,7 +32,7 @@ export interface BookingAddon {
   /** The add-on item name (`itemSnapshot.name`). */
   addonName: string;
   /** The booking line-item total for this add-on, when present. */
-  total: BookingAddonMoney | null;
+  total: Money | null;
   /** Live options on this add-on, combined by option id with a count. */
   addonOptions: BookingAddonOption[];
 }
