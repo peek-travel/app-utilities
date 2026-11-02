@@ -106,6 +106,20 @@ out, and the clean data models — never raw GraphQL.
   (each component: tag, `use`, `demo` markup rendered live, attribute/property/
   event tables; a few need an `init` hook run after `whenOdysseyReady`). Add new
   platform/UI pages to `docs/index.html` too.
+- **`docs/html/changelog.html` is a generated mirror of `changelog.md` — never
+  hand-edit it.** It is the interactive HTML changelog (same shell as the platform
+  pages: left-nav of versions, filter, light/dark toggle) and is linked from
+  `docs/index.html` under the UI Components card. `scripts/build-changelog-html.mjs`
+  renders `changelog.md` → `docs/html/changelog.html`; `changelog.md` is the single
+  source of truth. **Whenever you touch `changelog.md`, regenerate the HTML in the
+  same change** by running `node scripts/build-changelog-html.mjs`, and commit both
+  files together. A Vitest drift guard (`test/changelog-html.test.ts`) re-renders
+  from `changelog.md` and fails if the committed HTML differs, so `npm test` catches
+  a stale file — **before any commit, verify it is not drifted** by running the test
+  suite (or `node scripts/build-changelog-html.mjs --check`, which exits non-zero on
+  drift). If you change the page's styling or the Markdown renderer, do it in
+  `scripts/build-changelog-html.mjs` and regenerate — not in the HTML. This is an
+  internal doc build, so do not log it in `changelog.md`.
 - Ensure test coverage remains above 95% (the Vitest gate enforces this on
   lines/functions/branches/statements).
 - **Keep the `scripts/gql-cli` test harness in sync with the service surface.**
@@ -133,7 +147,9 @@ out, and the clean data models — never raw GraphQL.
   take. Caller-visible fixes and new capabilities may be logged too, marked with
   their tag. **Do not** log internal-only work (refactors, test changes, invisible
   cleanups). Add the entry in the same change that makes the code change; never let
-  `changelog.md` drift behind the code.
+  `changelog.md` drift behind the code. **Whenever you edit `changelog.md`, also
+  regenerate `docs/html/changelog.html`** (`node scripts/build-changelog-html.mjs`)
+  and commit both — see the generated-HTML-changelog bullet above.
 
 # Architecture conventions
 
