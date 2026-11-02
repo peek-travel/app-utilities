@@ -24,9 +24,10 @@ action needed; `[additive]` only adds capability.
   the install webhook's `apiUrl` — the constructor throws if `"v2"` is selected
   without one (there is no silent default base URL). `"v1"` is the legacy gateway
   and is now **`@deprecated`** and will be removed. If you don't yet have a webhook
-  `apiUrl`, you may pass the documented fallback
-  `https://apps.peek.com/installations-api/<appId>` as the `apiUrl` yourself (a
-  transitional bridge; the old `app-registry.peeklabs.com` sandbox host is gone).
+  `apiUrl`, build one by appending your app slug to the registry prefix and pass
+  that as the `apiUrl` yourself —
+  `https://apps.peek.com/installations-api/<app-slug>` (the trailing app-slug
+  segment is required; the old `app-registry.peeklabs.com` sandbox host is gone).
 - **Why:** v2 (the per-install `apiUrl` from the install webhook) is the
   forward-looking connection, and we want every consumer to move to it. Making
   `mode` mandatory turns a silent default into a deliberate, visible choice at

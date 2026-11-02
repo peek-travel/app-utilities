@@ -56,9 +56,12 @@ the old behaviour.)
   install webhook (`api.url`); the constructor throws without it. Persist that URL
   per install (see [Webhooks](#webhooks)) and pass it as `apiUrl`; no `gatewayKey`
   is needed. If you don't yet have a webhook `apiUrl` (e.g. an older install you
-  don't want to uninstall/reinstall just to get one), you can pass the fallback
-  `https://apps.peek.com/installations-api/<appId>` as the `apiUrl` yourself —
-  treat it as a transitional bridge and move to the webhook URL.
+  don't want to uninstall/reinstall just to get one), build one by appending your
+  **app slug** to the registry prefix and pass that as the `apiUrl` yourself —
+  `https://apps.peek.com/installations-api/<app-slug>` (same shape as the
+  webhook's `api.url`; the trailing app-slug segment is required — the prefix
+  alone is not a valid URL). Treat it as a transitional bridge and move to the
+  webhook URL.
 - **`mode: 'v1'`** — **deprecated; will be removed.** The legacy gateway; needs
   `appId` + `gatewayKey`. If your install relied on the previous default, the
   fastest no-behaviour-change update is to pass `mode: 'v1'` — then plan the

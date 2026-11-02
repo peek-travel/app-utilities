@@ -33,9 +33,10 @@ const peek = new PeekAccessService({
 `mode` is **required** — choose the connection explicitly. `"v2"` is the
 app-registry connection and **requires** the install webhook's `apiUrl` (persisted
 per install); the constructor throws without it. If you don't have a webhook
-`apiUrl` yet, you may pass the fallback
-`https://apps.peek.com/installations-api/<appId>` as the `apiUrl` yourself (a
-transitional bridge — prefer the webhook URL). `"v1"` is the legacy gateway
+`apiUrl` yet, build one by appending your **app slug** to the registry prefix and
+pass that: `https://apps.peek.com/installations-api/<app-slug>` (same shape as the
+webhook's `api.url`; the trailing app-slug segment is required — the prefix alone
+is not a valid URL). Transitional bridge — prefer the webhook URL. `"v1"` is the legacy gateway
 (needs `appId` + `gatewayKey`) and is **`@deprecated`** — passing `mode: "v1"` is
 the fastest update for an install that relied on the old implicit default, but
 migrate to `"v2"`. Omitting `mode` throws from the constructor.

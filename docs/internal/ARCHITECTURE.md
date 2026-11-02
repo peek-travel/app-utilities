@@ -115,9 +115,11 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
   endpoint through the `peek_backoffice_api-v1` slug, so the GraphQL POST hits
   `<base>/peek_backoffice_api-v1` (no trailing `sales` segment); it **requires**
   the install's `apiUrl` (the constructor throws without it — there is no silent
-  default). `V2_FALLBACK_BASE_URL` (`https://apps.peek.com/installations-api`) is
-  not applied automatically; it is only the documented value a developer can pass
-  as `apiUrl` (`<base>/<appId>`) when they lack a webhook URL. `"v1"` (**deprecated, will
+  default). `V2_FALLBACK_URL_PREFIX` (`https://apps.peek.com/installations-api`) is
+  not applied automatically and is **not a complete URL** — it is only the
+  documented prefix a developer appends their **app slug** to
+  (`<prefix>/<app-slug>`, the same shape as the webhook's `api.url`) and passes as
+  `apiUrl` when they lack a webhook URL. `"v1"` (**deprecated, will
   be removed**) is the legacy backoffice-GraphQL gateway: no extendable slug, so
   `sales` sits directly under the base (`<baseUrl>/<appId>/sales`), the default
   `baseUrl` is the backoffice-GraphQL gateway, and `gatewayKey` is required. An

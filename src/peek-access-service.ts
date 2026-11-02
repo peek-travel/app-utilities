@@ -69,13 +69,14 @@ import type { AddAddonInput } from "./internal/peek/bookings/booking-service.js"
 /** Default backoffice GraphQL gateway base URL (v1). */
 const DEFAULT_BASE_URL = "https://apps.peekapis.com/backoffice-gql";
 /**
- * Fallback registry base URL a developer can pass **as `apiUrl`** in `"v2"` mode
- * when they do not yet have the per-install URL from the install webhook (the app
- * id/slug is appended: `<base>/<appId>`). It is a transitional bridge — prefer the
- * webhook `apiUrl`. It is not applied automatically: v2 requires an explicit
- * `apiUrl`, so a developer who needs it passes this value themselves.
+ * Registry **URL prefix** for `"v2"` — the host plus `installations-api` path,
+ * **without** the app slug. It is NOT a complete `apiUrl`: a v2 `apiUrl` is this
+ * prefix followed by the install's app slug, i.e.
+ * `https://apps.peek.com/installations-api/<app-slug>` (the same shape the
+ * install webhook's `api.url` has). A developer who lacks a webhook `apiUrl` can
+ * build one from this prefix themselves; v2 never applies it automatically.
  */
-const V2_FALLBACK_BASE_URL = "https://apps.peek.com/installations-api";
+const V2_FALLBACK_URL_PREFIX = "https://apps.peek.com/installations-api";
 /**
  * Thrown from the constructor when `mode` is missing or not one of the valid
  * connection generations. Doubles as the migration note for installs that
@@ -88,12 +89,14 @@ const ERROR_MODE_REQUIRED =
   "pass the install webhook's apiUrl.";
 /**
  * Thrown when `"v2"` mode is selected without an `apiUrl`. The registry
- * connection always needs the install's base URL — there is no silent default.
+ * connection always needs the install's full URL — there is no silent default.
  */
 const ERROR_V2_API_URL_REQUIRED =
-  'PeekAccessService: mode "v2" requires an "apiUrl" — the per-install base URL ' +
+  'PeekAccessService: mode "v2" requires an "apiUrl" — the per-install URL ' +
   "delivered on the install webhook (api.url) and persisted per install. If you " +
-  `do not have one yet, pass the fallback "${V2_FALLBACK_BASE_URL}/<appId>".`;
+  "do not have one yet, append your app slug to the registry prefix and pass " +
+  `that, e.g. "${V2_FALLBACK_URL_PREFIX}/<app-slug>" (the trailing app-slug ` +
+  "segment is required — the prefix alone is not a valid apiUrl).";
 interface RawPeekTokenPayload {
   sub: string;
   display_version: string;
@@ -124,11 +127,13 @@ export interface PeekAccessServiceConfig extends BaseAccessServiceConfig {
    *   installations API. It **requires** the install's **`apiUrl`**: the
    *   per-install base URL delivered on the install webhook (`api.url`), which you
    *   persist and pass as `apiUrl`. The constructor throws if it is missing —
-   *   there is no silent default. If you do not have a webhook `apiUrl` yet, you
-   *   may pass the fallback `https://apps.peek.com/installations-api/<appId>` as
-   *   the `apiUrl` yourself; treat that as a transitional bridge and prefer the
-   *   webhook URL. No `gatewayKey` is needed (the registry authenticates on the
-   *   JWT alone).
+   *   there is no silent default. If you do not have a webhook `apiUrl` yet, build
+   *   one by appending your **app slug** to the registry prefix and pass that
+   *   yourself — `https://apps.peek.com/installations-api/<app-slug>` (same shape
+   *   as the webhook's `api.url`; the trailing app-slug segment is required, the
+   *   prefix alone is not a valid URL). Treat it as a transitional bridge and
+   *   prefer the webhook URL. No `gatewayKey` is needed (the registry
+   *   authenticates on the JWT alone).
    * - `"v1"` — **deprecated; will be removed.** The legacy backoffice GraphQL
    *   gateway; requires `gatewayKey`. Retained only so existing installs can
    *   update with no immediate behaviour change. Migrate to `"v2"`.

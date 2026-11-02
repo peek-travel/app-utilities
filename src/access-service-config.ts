@@ -35,9 +35,11 @@ export interface BaseAccessServiceConfig {
    * For Peek `mode: "v2"` this field is **required** (the constructor throws
    * without it). If you do not yet have a webhook `apiUrl` — e.g. an install that
    * predates webhook `apiUrl` delivery, which you don't want to uninstall /
-   * reinstall just to obtain one — you may pass the fallback
-   * `https://apps.peek.com/installations-api/<appId>` here yourself. Treat that as
-   * a transitional bridge and prefer the `apiUrl` the install webhook delivers.
+   * reinstall just to obtain one — build one by appending your **app slug** to
+   * the registry prefix and pass that here:
+   * `https://apps.peek.com/installations-api/<app-slug>` (the trailing app-slug
+   * segment is required — the prefix alone is not a valid URL). Treat that as a
+   * transitional bridge and prefer the `apiUrl` the install webhook delivers.
    */
   apiUrl?: string;
   /**
