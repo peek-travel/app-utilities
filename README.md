@@ -34,8 +34,8 @@ const peek = new PeekAccessService({
   installId: 'install-123', // JWT subject
   jwtSecret: process.env.PEEK_INTERNAL_SECRET!, // signs the JWT
   issuer: process.env.APP_NAME!, // JWT issuer
-  appId: process.env.PEEK_APP_ID!, // gateway path segment
-  gatewayKey: process.env.PEEK_GATEWAY_KEY!, // pk-api-key header
+  mode: 'v2', // connection generation — required (see below)
+  apiUrl: install.apiUrl, // per-install base URL from the install webhook (persisted)
 });
 
 const products: Product[] = await peek.getProductService().getAllProducts();
@@ -43,6 +43,41 @@ const products: Product[] = await peek.getProductService().getAllProducts();
 
 The access service is the authenticated root; each `get<Resource>Service()`
 returns a (memoized) service that owns that resource's calls.
+
+### Connection mode (`v1` / `v2`) — **required**
+
+`mode` is a **mandatory** config field — you must choose a connection generation
+explicitly. (It used to be optional, defaulting to `v1`; it is now required so
+that updating the package forces a deliberate choice instead of silently keeping
+the old behaviour.)
+
+- **`mode: 'v2'`** — **use this going forward.** The app-registry connection. It
+  **requires** the install's `apiUrl` — the per-install base URL delivered on the
+  install webhook (`api.url`); the constructor throws without it. Persist that URL
+  per install (see [Webhooks](#webhooks)) and pass it as `apiUrl`; no `gatewayKey`
+  is needed. If you don't yet have a webhook `apiUrl` (e.g. an older install you
+  don't want to uninstall/reinstall just to get one), build one by appending your
+  **app slug** to the registry prefix and pass that as the `apiUrl` yourself —
+  `https://apps.peek.com/installations-api/<app-slug>` (same shape as the
+  webhook's `api.url`; the trailing app-slug segment is required — the prefix
+  alone is not a valid URL). Treat it as a transitional bridge and move to the
+  webhook URL.
+- **`mode: 'v1'`** — **deprecated; will be removed.** The legacy gateway; needs
+  `appId` + `gatewayKey`. If your install relied on the previous default, the
+  fastest no-behaviour-change update is to pass `mode: 'v1'` — then plan the
+  migration to `v2`.
+
+```ts
+// Legacy v1 (deprecated) — fastest update for an install that used the old default:
+const peek = new PeekAccessService({
+  installId: 'install-123',
+  jwtSecret: process.env.PEEK_INTERNAL_SECRET!,
+  issuer: process.env.APP_NAME!,
+  appId: process.env.PEEK_APP_ID!, // gateway path segment
+  gatewayKey: process.env.PEEK_GATEWAY_KEY!, // pk-api-key header
+  mode: 'v1',
+});
+```
 
 `getAllProducts()` returns a single flat list of activities **and** add-ons
 (add-ons tagged with `ADD_ON_PRODUCT_TYPE`), gathering all cursor-paginated
@@ -102,7 +137,7 @@ With `fullCustomerAccess` **off** (the default):
 
 ```ts
 const peek = new PeekAccessService({
-  installId, jwtSecret, issuer, appId, gatewayKey,
+  installId, jwtSecret, issuer, mode: 'v2', apiUrl,
   accessOptions: { fullCustomerAccess: true }, // opt into PII + payment operations
 });
 ```

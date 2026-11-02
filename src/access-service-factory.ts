@@ -67,7 +67,15 @@ export function createAccessServiceForInstall(
   install: InstallAccessTarget,
   config: InstallAccessConfig,
 ): InstallAccessService {
-  const shared = { ...config, installId: install.installId, apiUrl: install.apiUrl };
+  // A persisted install with an `apiUrl` is always the v2 (registry) connection,
+  // so inject `mode: "v2"` — it is required by `PeekAccessService` and inert for
+  // CNG/ACME (which have no mode).
+  const shared = {
+    ...config,
+    installId: install.installId,
+    apiUrl: install.apiUrl,
+    mode: "v2" as const,
+  };
   switch (install.platform) {
     case "peek":
       return new PeekAccessService(shared);

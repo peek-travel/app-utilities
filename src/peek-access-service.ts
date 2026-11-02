@@ -68,9 +68,35 @@ import type { AddAddonInput } from "./internal/peek/bookings/booking-service.js"
 
 /** Default backoffice GraphQL gateway base URL (v1). */
 const DEFAULT_BASE_URL = "https://apps.peekapis.com/backoffice-gql";
-/** Default gateway base URL when operating in v2 mode. */
-const DEFAULT_V2_BASE_URL =
-  "https://app-registry.peeklabs.com/installations-api";
+/**
+ * Registry **URL prefix** for `"v2"` — the host plus `installations-api` path,
+ * **without** the app slug. It is NOT a complete `apiUrl`: a v2 `apiUrl` is this
+ * prefix followed by the install's app slug, i.e.
+ * `https://apps.peek.com/installations-api/<app-slug>` (the same shape the
+ * install webhook's `api.url` has). A developer who lacks a webhook `apiUrl` can
+ * build one from this prefix themselves; v2 never applies it automatically.
+ */
+const V2_FALLBACK_URL_PREFIX = "https://apps.peek.com/installations-api";
+/**
+ * Thrown from the constructor when `mode` is missing or not one of the valid
+ * connection generations. Doubles as the migration note for installs that
+ * relied on the previous (removed) optional default of `"v1"`.
+ */
+const ERROR_MODE_REQUIRED =
+  'PeekAccessService: "mode" is required and must be "v1" or "v2". Existing ' +
+  'installs used the previous default of "v1" — pass mode: "v1" for the fastest ' +
+  'update. Note: "v1" is deprecated and will be removed; migrate to "v2" and ' +
+  "pass the install webhook's apiUrl.";
+/**
+ * Thrown when `"v2"` mode is selected without an `apiUrl`. The registry
+ * connection always needs the install's full URL — there is no silent default.
+ */
+const ERROR_V2_API_URL_REQUIRED =
+  'PeekAccessService: mode "v2" requires an "apiUrl" — the per-install URL ' +
+  "delivered on the install webhook (api.url) and persisted per install. If you " +
+  "do not have one yet, append your app slug to the registry prefix and pass " +
+  `that, e.g. "${V2_FALLBACK_URL_PREFIX}/<app-slug>" (the trailing app-slug ` +
+  "segment is required — the prefix alone is not a valid apiUrl).";
 interface RawPeekTokenPayload {
   sub: string;
   display_version: string;
@@ -83,16 +109,36 @@ interface RawPeekTokenPayload {
  * Peek-specific extras below.
  */
 export interface PeekAccessServiceConfig extends BaseAccessServiceConfig {
-  /** API gateway key, sent as the `pk-api-key` header. Required in v1 mode; not used in v2. */
+  /**
+   * API gateway key, sent as the `pk-api-key` header. Required in `"v1"` mode
+   * (unless an `apiUrl` is supplied); not used in `"v2"`.
+   */
   gatewayKey?: string;
 
   /**
-   * Gateway mode. `"v2"` routes through the app-registry installations API
-   * (`baseUrl/appId/peek_backoffice_api-v1/endpointName`) and defaults to the
-   * app-registry sandbox base URL. `"v1"` (default) uses the standard backoffice
-   * GraphQL gateway.
+   * Which connection generation to use. **Required — choose explicitly.**
+   *
+   * This field used to be optional, and omitting it meant `"v1"`. It is now
+   * mandatory so that updating the package forces a deliberate choice instead of
+   * silently keeping the old behaviour. If your install used the previous
+   * default, the fastest no-behaviour-change update is to pass `mode: "v1"`.
+   *
+   * - `"v2"` — **use this going forward.** Routes through the app-registry
+   *   installations API. It **requires** the install's **`apiUrl`**: the
+   *   per-install base URL delivered on the install webhook (`api.url`), which you
+   *   persist and pass as `apiUrl`. The constructor throws if it is missing —
+   *   there is no silent default. If you do not have a webhook `apiUrl` yet, build
+   *   one by appending your **app slug** to the registry prefix and pass that
+   *   yourself — `https://apps.peek.com/installations-api/<app-slug>` (same shape
+   *   as the webhook's `api.url`; the trailing app-slug segment is required, the
+   *   prefix alone is not a valid URL). Treat it as a transitional bridge and
+   *   prefer the webhook URL. No `gatewayKey` is needed (the registry
+   *   authenticates on the JWT alone).
+   * - `"v1"` — **deprecated; will be removed.** The legacy backoffice GraphQL
+   *   gateway; requires `gatewayKey`. Retained only so existing installs can
+   *   update with no immediate behaviour change. Migrate to `"v2"`.
    */
-  mode?: "v2";
+  mode: "v1" | "v2";
   /** Page size for cursor-paginated item options. Default: 50. */
   itemOptionsPageSize?: number;
 }
@@ -109,20 +155,28 @@ export interface PeekAccessServiceConfig extends BaseAccessServiceConfig {
  * ```ts
  * import { PeekAccessService, type Product } from "@peektravel/app-utilities";
  *
+ * // "v2" (recommended) — registry connection, targeted by the install
+ * // webhook's apiUrl; no gatewayKey needed:
  * const peek = new PeekAccessService({
  *   installId: "install-123",            // JWT subject
  *   jwtSecret: process.env.PEEK_INTERNAL_SECRET!, // signs the JWT
  *   issuer: process.env.APP_NAME!,        // JWT issuer
- *   appId: process.env.PEEK_APP_ID!,      // gateway path segment
- *   gatewayKey: process.env.PEEK_GATEWAY_KEY!, // pk-api-key header
+ *   mode: "v2",                           // connection generation (required)
+ *   apiUrl: install.apiUrl,               // persisted from the install webhook
  * });
+ *
+ * // "v1" (deprecated) — legacy gateway; the fastest update for installs that
+ * // relied on the old default:
+ * //   new PeekAccessService({ installId, jwtSecret, issuer, appId, gatewayKey, mode: "v1" })
  *
  * const products: Product[] = await peek.getProductService().getAllProducts();
  * const booking = await peek.getBookingService().getById("b_abc123");
  * ```
  *
- * @throws {Error} from the constructor when any required config field
- * (`installId`, `jwtSecret`, `issuer`, `appId`, `gatewayKey`) is empty.
+ * @throws {Error} from the constructor when `mode` is missing or not `"v1"`/
+ * `"v2"`; when `"v2"` is selected without an `apiUrl`; or when any required
+ * config field is empty (`installId`, `jwtSecret`, `issuer`, and — in `"v1"`
+ * mode without an `apiUrl` — `appId` and `gatewayKey`).
  */
 export class PeekAccessService {
   private readonly client: GraphQLClient;
@@ -146,16 +200,26 @@ export class PeekAccessService {
 
   constructor(config: PeekAccessServiceConfig) {
     const hasApiUrl = !!config.apiUrl;
+    // `mode` is mandatory and must be chosen explicitly — a JS caller that omits
+    // it (the TS type already forbids that) gets a loud, actionable error rather
+    // than silently falling back to the old `"v1"` behaviour.
+    if (config.mode !== "v1" && config.mode !== "v2") {
+      throw new Error(ERROR_MODE_REQUIRED);
+    }
     const isV2 = config.mode === "v2";
     requireNonEmpty(config.installId, "installId", "PeekAccessService");
     requireNonEmpty(config.jwtSecret, "jwtSecret", "PeekAccessService");
     requireNonEmpty(config.issuer, "issuer", "PeekAccessService");
-    // `appId` is only a URL path segment for the legacy `baseUrl` mode; the
-    // registry's `apiUrl` already includes whatever the registry routes on.
-    if (!hasApiUrl) requireNonEmpty(config.appId ?? "", "appId", "PeekAccessService");
-    // The registry app endpoint authenticates on the JWT alone (like v2), so the
-    // `pk-api-key` gateway key is only required in the legacy v1 `baseUrl` mode.
-    if (!hasApiUrl && !isV2) requireNonEmpty(config.gatewayKey ?? "", "gatewayKey", "PeekAccessService");
+    // v2 (the registry connection) always needs the install's `apiUrl` — there is
+    // no silent default base URL.
+    if (isV2 && !hasApiUrl) throw new Error(ERROR_V2_API_URL_REQUIRED);
+    // Legacy v1 without an `apiUrl` builds `<baseUrl>/<appId>/sales`, so it needs
+    // both the app-id path segment and the `pk-api-key` gateway key. With an
+    // `apiUrl` it authenticates on the JWT alone, like v2.
+    if (!isV2 && !hasApiUrl) {
+      requireNonEmpty(config.appId ?? "", "appId", "PeekAccessService");
+      requireNonEmpty(config.gatewayKey ?? "", "gatewayKey", "PeekAccessService");
+    }
 
     this.jwtSecret = config.jwtSecret;
     this.issuer = config.issuer;
@@ -167,11 +231,12 @@ export class PeekAccessService {
     // endpoint through the `peek_backoffice_api-v1` slug; the legacy v1 gateway
     // has no slug. `apiUrl` is the base directly (its own slug stripped back off);
     // otherwise the base is `baseUrl/appId`.
-    const useRegistrySlug = hasApiUrl || isV2;
-    const defaultBaseUrl = isV2 ? DEFAULT_V2_BASE_URL : DEFAULT_BASE_URL;
+    // v2 always carries an `apiUrl` (asserted above); v1 may also carry a
+    // registry `apiUrl`. Either way an `apiUrl` means registry-slug routing.
+    const useRegistrySlug = hasApiUrl;
     const baseApiUrl = hasApiUrl
       ? resolveBaseApiUrl(config.apiUrl!, V2_EXTENDABLE_SLUG, "PeekAccessService")
-      : `${config.baseUrl ?? defaultBaseUrl}/${config.appId}`;
+      : `${config.baseUrl ?? DEFAULT_BASE_URL}/${config.appId}`;
     this.client = new GraphQLClient({
       baseApiUrl,
       endpoints: peekApiEndpoints(useRegistrySlug),

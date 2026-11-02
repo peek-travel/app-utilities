@@ -22,12 +22,24 @@ const peek = new PeekAccessService({
   installId,   // JWT subject
   jwtSecret,   // HMAC secret signing the JWT
   issuer,      // app name (JWT issuer)
+  mode: "v2",  // REQUIRED connection generation: "v2" (registry, use going forward) | "v1" (legacy, deprecated)
   apiUrl,      // the install webhook's apiUrl — the base API URL; each service appends its own backoffice slug
-  // optional: gatewayKey, tokenTtlSeconds, tokenRefreshLeewaySeconds,
+  // optional: gatewayKey (v1 only), tokenTtlSeconds, tokenRefreshLeewaySeconds,
   // retryDelaysMs, logger, fetch, itemOptionsPageSize,
   // accessOptions: { fullCustomerAccess: false }  // default — see "Access options / PII"
 });
 ```
+
+`mode` is **required** — choose the connection explicitly. `"v2"` is the
+app-registry connection and **requires** the install webhook's `apiUrl` (persisted
+per install); the constructor throws without it. If you don't have a webhook
+`apiUrl` yet, build one by appending your **app slug** to the registry prefix and
+pass that: `https://apps.peek.com/installations-api/<app-slug>` (same shape as the
+webhook's `api.url`; the trailing app-slug segment is required — the prefix alone
+is not a valid URL). Transitional bridge — prefer the webhook URL. `"v1"` is the legacy gateway
+(needs `appId` + `gatewayKey`) and is **`@deprecated`** — passing `mode: "v1"` is
+the fastest update for an install that relied on the old implicit default, but
+migrate to `"v2"`. Omitting `mode` throws from the constructor.
 
 Targeting an install by URL: pass the install webhook's `apiUrl` as the config
 `apiUrl`. It is the install's **base API URL**; each service class appends its own
@@ -56,7 +68,7 @@ per call, and applies to every service that access service hands out.
 
 ```ts
 const peek = new PeekAccessService({
-  installId, jwtSecret, issuer, appId, gatewayKey,
+  installId, jwtSecret, issuer, mode: "v2", apiUrl,
   accessOptions: { fullCustomerAccess: true },  // opt in to PII + payment ops
 });
 ```
