@@ -196,8 +196,25 @@ Each resource follows the same **three-file triad**:
 
 Resources: `products`, `custom-questions`, `account-users`, `resource-pools`,
 `timeslots`, `resellers`, `promo-codes`, `pricing`, `daily-notes`,
-`availability`, `memberships`, `bookings`, `reviews`. Clean data shapes are split
-by brand: Peek models in `src/models/peek/`, CNG models in `src/models/cng/`.
+`availability`, `memberships`, `bookings`, `reviews`, `seatmaps`. Clean data
+shapes are split by brand: Peek models in `src/models/peek/`, CNG models in
+`src/models/cng/`.
+
+Seating maps are their own resource triad under `src/internal/peek/seatmaps/` —
+`seatmap-queries.ts` (query string and raw nodes, internal), the pure
+`seatmap-converter.ts`, and `SeatmapService`. `getSeatmapForProduct(productId)`
+returns every `Seatmap` configured on an activity (`Seatmap[]`, empty when the
+activity is missing or has none); it is unaffected by `fullCustomerAccess`
+(seating maps are structural layout, not customer data). A map carries `zones`
+(pricing tiers, each mapping to `SeatmapTicket[]`) and a tree of
+`SeatmapSection` → `SeatmapGroup` (tables) → `SeatmapBlock` (seats). All three
+rendered levels share one `SeatmapDisplay` geometry type: only `x`/`y` are
+always present, and every other field (`width`/`height`/`label`/`type` on
+sections; `table`/`tableWidth`/`tableHeight` on groups) collapses to `null`
+where the gateway does not select it. `SeatmapDisplay.type` is narrowed to
+`SeatmapDisplayType` (`"SHAPE" | "SECTION" | "LABEL"`); a non-null value outside
+that set makes the converter throw the exported `UnknownSeatmapDisplayTypeError`
+rather than silently widen the model.
 
 `ProductService` exposes three top-level product filters in addition to the combined `getAllProducts()`:
 - `getAllActivities()` — fetches only the `activities` connection (one request, no add-on pagination).
@@ -590,7 +607,8 @@ options/result types callers need), all data-model **types** (including
 `InstallWebhookClaims`/`InstallWebhookAccount`), the `Logger` interface +
 `noopLogger`, and the typed error classes (`AdminAccountRequiredError`,
 `RateLimitError`, `PeekGraphQLError`, `PeekHttpError`, `PiiAccessDisabledError`,
-`CngApiError`, `CngPermissionError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
+`UnknownSeatmapDisplayTypeError`, `CngApiError`, `CngPermissionError`,
+`AcmeApiError`). Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and

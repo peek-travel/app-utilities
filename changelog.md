@@ -12,6 +12,27 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## Unreleased
+
+### New `SeatmapService` for reading product seating maps `[additive]`
+
+- **What:** `PeekAccessService.getSeatmapService()` returns a new `SeatmapService`
+  with `getSeatmapForProduct(productId): Promise<Seatmap[]>` — every seating map
+  configured on an activity (empty when the activity is missing or has none). The
+  clean models `Seatmap`, `SeatmapZone`, `SeatmapTicket`, `SeatmapSection`,
+  `SeatmapGroup`, `SeatmapBlock`, and the shared `SeatmapDisplay` geometry are now
+  exported, along with the `SeatmapDisplayType` union, the `SEATMAP_DISPLAY_TYPES`
+  constant, and a new typed error `UnknownSeatmapDisplayTypeError`.
+- **Why:** callers need the physical seat layout (zones/pricing tiers, sections,
+  tables, and seats) a product sells against, exposed as clean models instead of
+  raw GraphQL.
+- **Caller action:** none — purely additive. Note two behaviors when adopting it:
+  a product can have multiple maps, so the result is an array; and a gateway
+  `display.type` outside `SEATMAP_DISPLAY_TYPES` (`"SHAPE" | "SECTION" | "LABEL"`)
+  throws `UnknownSeatmapDisplayTypeError` (`.type` holds the offending value) —
+  catch it if you need to tolerate a newly-added kind. Seating maps are structural
+  layout, not customer data, so the call is unaffected by `fullCustomerAccess`.
+
 ## 1.0.1
 
 ### Shared `Money` model; `BookingAddonMoney` deprecated `[additive]`

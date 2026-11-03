@@ -115,6 +115,28 @@ export class PiiAccessDisabledError extends Error {
 }
 
 /**
+ * Thrown when the Peek gateway returns a seatmap `display.type` the package does
+ * not recognize. The known set is small and gateway-owned
+ * ({@link SEATMAP_DISPLAY_TYPES}); rather than silently widening the clean
+ * model's `type` to an arbitrary string, the seatmap converter throws this so a
+ * caller learns the gateway grew a new kind. The offending value is preserved on
+ * {@link UnknownSeatmapDisplayTypeError.type}.
+ */
+export class UnknownSeatmapDisplayTypeError extends Error {
+  /** The unrecognized `display.type` value the gateway returned. */
+  public readonly type: string;
+
+  constructor(type: string, knownTypes: readonly string[]) {
+    super(
+      `Unknown seatmap display type "${type}" returned by the gateway; ` +
+        `expected one of: ${knownTypes.join(", ")}.`,
+    );
+    this.name = "UnknownSeatmapDisplayTypeError";
+    this.type = type;
+  }
+}
+
+/**
  * Thrown when the CNG REST gateway returns a non-2xx response that is not one
  * of the specifically-handled statuses (418/429). The offending status is
  * preserved on {@link CngApiError.statusCode}, and the raw response body (parsed

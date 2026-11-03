@@ -40,6 +40,7 @@ import {
   ResellerService,
   ResourcePoolService,
   ReviewService,
+  SeatmapService,
   TimeslotService,
   noopLogger,
   type Logger,
@@ -188,6 +189,7 @@ interface Ctx {
   bookings: BookingService;
   reviews: ReviewService;
   customQuestions: CustomQuestionService;
+  seatmaps: SeatmapService;
 }
 
 /** Builds the internal client with the pasted token, then wires every service. */
@@ -257,6 +259,7 @@ function buildContext(authToken: string): Ctx {
     bookings: new BookingService(client, { productService: products }, { accessOptions, integrator }),
     reviews: new ReviewService(client, accessOptions),
     customQuestions: new CustomQuestionService(client),
+    seatmaps: new SeatmapService(client),
   };
 }
 
@@ -367,6 +370,9 @@ const REGISTRY: FnSpec[] = [
 
   // ── custom questions ──
   { name: "getAllCustomQuestions", group: "custom-questions", desc: "All custom questions on the account.", params: [], run: (c) => c.customQuestions.getAll() },
+
+  // ── seatmaps ──
+  { name: "getSeatmapForProduct", group: "seatmaps", desc: "Seating maps configured on an activity.", params: [p("productId", "string", "Activity id")], run: (c, [id]) => c.seatmaps.getSeatmapForProduct(id as string) },
 ];
 
 const BY_NAME = new Map(REGISTRY.map((f) => [f.name, f]));

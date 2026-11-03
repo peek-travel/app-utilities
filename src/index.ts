@@ -74,9 +74,22 @@ export { ReviewService } from "./internal/peek/reviews/review-service.js";
 
 export { CustomQuestionService } from "./internal/peek/custom-questions/custom-question-service.js";
 
+export { SeatmapService } from "./internal/peek/seatmaps/seatmap-service.js";
+
 export { ACTIVITY_PRODUCT_TYPE, ADD_ON_PRODUCT_TYPE, RENTAL_PRODUCT_TYPE } from "./models/peek/product.js";
 export type { Product, ProductMeetingLocation, ProductTicket } from "./models/peek/product.js";
 export type { CustomQuestion, CustomQuestionOption } from "./models/peek/custom-question.js";
+export { SEATMAP_DISPLAY_TYPES } from "./models/peek/seatmap.js";
+export type {
+  Seatmap,
+  SeatmapBlock,
+  SeatmapDisplay,
+  SeatmapDisplayType,
+  SeatmapGroup,
+  SeatmapSection,
+  SeatmapTicket,
+  SeatmapZone,
+} from "./models/peek/seatmap.js";
 export type { AccountUser, AssignedActivity } from "./models/peek/account-user.js";
 export type {
   ResourcePool,
@@ -205,4 +218,5 @@ export {
   PeekHttpError,
   PiiAccessDisabledError,
   RateLimitError,
+  UnknownSeatmapDisplayTypeError,
 } from "./errors.js";

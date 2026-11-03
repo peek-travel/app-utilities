@@ -40,6 +40,7 @@ import {
 } from "./internal/peek/products/product-service.js";
 import { PromoCodeService } from "./internal/peek/promo-codes/promo-code-service.js";
 import { PricingService } from "./internal/peek/pricing/pricing-service.js";
+import { SeatmapService } from "./internal/peek/seatmaps/seatmap-service.js";
 import {
   V2_EXTENDABLE_SLUG,
   peekApiEndpoints,
@@ -197,6 +198,7 @@ export class PeekAccessService {
   private readonly bookingServices = new Map<string, BookingService>();
   private reviewService?: ReviewService;
   private customQuestionService?: CustomQuestionService;
+  private seatmapService?: SeatmapService;
 
   constructor(config: PeekAccessServiceConfig) {
     const hasApiUrl = !!config.apiUrl;
@@ -446,6 +448,17 @@ export class PeekAccessService {
       this.customQuestionService = new CustomQuestionService(this.client);
     }
     return this.customQuestionService;
+  }
+
+  /**
+   * Returns the {@link SeatmapService} for this install, bound to the shared
+   * authenticated transport. The instance is created lazily and reused.
+   */
+  getSeatmapService(): SeatmapService {
+    if (!this.seatmapService) {
+      this.seatmapService = new SeatmapService(this.client);
+    }
+    return this.seatmapService;
   }
 
   // ─── Product short-forms ─────────────────────────────────────────────────
