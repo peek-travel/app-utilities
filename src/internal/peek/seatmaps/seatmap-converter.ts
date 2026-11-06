@@ -15,6 +15,7 @@ import {
   type AssignmentResponse,
   type AssignmentStatus,
   type AssignedSeatmap,
+  type DeletedSeatAssignment,
   type AssignedSeatmapBlock,
   type AssignedSeatmapGroup,
   type AssignedSeatmapSection,
@@ -29,6 +30,7 @@ import {
   type SeatmapGroup,
   type SeatmapSection,
   type SeatmapZone,
+  type SuccessfulAssignment,
 } from "../../../models/peek/seatmap.js";
 import {
   UnknownSeatmapAssignmentParentError,
@@ -41,6 +43,7 @@ import {
   assignBlocksAlias,
   type AssignBlocksData,
   type RawAssignableBooking,
+  type RawDeletedAssignment,
   type RawAssignableSeatingAssignment,
   type RawAssignableTicket,
   type RawAssignedSeatmapBlock,
@@ -351,12 +354,18 @@ export function toAssignmentResponse(
   data: AssignBlocksData,
   assignments: SeatmapBlockAssignment[],
 ): AssignmentResponse {
-  const successfulAssignments: string[] = [];
+  const successfulAssignments: SuccessfulAssignment[] = [];
   const failedAssignments: string[] = [];
   assignments.forEach((assignment, i) => {
     const result = data[assignBlocksAlias(i)];
     if (result?.__typename === ASSIGNMENT_SUCCESS_TYPENAME) {
-      successfulAssignments.push(assignment.assignableId);
+      // One assignBlocks call binds one ticket to one block → one assignment;
+      // the ticket handle comes back on the parent's hashid.
+      const created = (result.assignments ?? [])[0];
+      successfulAssignments.push({
+        assignableId: created?.parent?.hashid ?? assignment.assignableId,
+        assignmentId: created?.id ?? "",
+      });
     } else {
       failedAssignments.push(assignment.assignableId);
     }
@@ -368,4 +377,16 @@ export function toAssignmentResponse(
         ? "FAILED"
         : "PARTIAL";
   return { status, successfulAssignments, failedAssignments };
+}
+
+/** Converts the now-deleted assignment nodes into {@link DeletedSeatAssignment}s. */
+export function fromDeletedAssignments(
+  nodes: RawDeletedAssignment[],
+): DeletedSeatAssignment[] {
+  return nodes.map((node) => ({
+    assignmentId: node.id,
+    blockId: node.block?.id ?? null,
+    blockName: node.block?.fullBlockName ?? null,
+    ticketHashId: node.parent?.hashid ?? null,
+  }));
 }

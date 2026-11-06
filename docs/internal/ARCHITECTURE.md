@@ -266,9 +266,20 @@ validates up front — non-empty list, each `assignableId` prefixed `t_`, each
 (`toAssignmentResponse`) classifies each aliased result: a `__typename` of
 `AssignmentResponse` is a success, every other union member (the
 `AssignBlocksError*` types, or a missing result) is a per-assignment failure,
-yielding `SUCCESS`/`FAILED`/`PARTIAL`. Per-assignment errors are reported in the
-`AssignmentResponse`, not thrown — only transport/GraphQL-level failures throw
-(via the shared client).
+yielding `SUCCESS`/`FAILED`/`PARTIAL`. Successes are returned as
+`SuccessfulAssignment` pairs — the requested `assignableId` (read back from the
+result's `parent.Ticket.hashid`, falling back to the input) and the created
+`assignmentId` (the `asa_…` from `assignments[].id`); failures list the
+`assignableId`. Per-assignment errors are reported in the `AssignmentResponse`,
+not thrown — only transport/GraphQL-level failures throw (via the shared client).
+
+`deleteSeatAssignments(assignmentIds)` is the companion write: a single
+`deleteAssignments(assignmentIds: [ID!]!)` mutation. The service validates up
+front — non-empty list, each id prefixed `asa_` — then inspects the union result:
+a `DeleteAssignmentsSuccess` maps (via `fromDeletedAssignments`) to the returned
+`DeletedSeatAssignment[]` (the now-deleted assignments, for reloading state),
+while any other member (e.g. `AssignBlocksErrorInvalidBlockCount`) throws the
+exported `SeatmapDeleteError` carrying the gateway `message`.
 
 `ProductService` exposes three top-level product filters in addition to the combined `getAllProducts()`:
 - `getAllActivities()` — fetches only the `activities` connection (one request, no add-on pagination).
@@ -662,8 +673,9 @@ options/result types callers need), all data-model **types** (including
 `noopLogger`, and the typed error classes (`AdminAccountRequiredError`,
 `RateLimitError`, `PeekGraphQLError`, `PeekHttpError`, `PiiAccessDisabledError`,
 `UnknownSeatmapDisplayTypeError`, `UnknownSeatmapBlockStatusError`,
-`UnknownSeatmapAssignmentParentError`, `CngApiError`, `CngPermissionError`,
-`AcmeApiError`). Query strings and raw response interfaces are deliberately kept
+`UnknownSeatmapAssignmentParentError`, `SeatmapDeleteError`, `CngApiError`,
+`CngPermissionError`, `AcmeApiError`). Query strings and raw response interfaces
+are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   fromAssignableBookings,
   fromAssignedSeatmap,
+  fromDeletedAssignments,
   fromSeatmapNodes,
   toAssignmentResponse,
 } from "../../../src/internal/peek/seatmaps/seatmap-converter.js";
@@ -680,26 +681,28 @@ describe("toAssignmentResponse", () => {
     { assignableId: "t_B1", blockId: "csb_B1" },
   ];
 
-  it("returns SUCCESS when every assignment succeeded", () => {
-    const data = {
-      a0: { __typename: "AssignmentResponse" },
-      a1: { __typename: "AssignmentResponse" },
-    };
+  const ok = (asaId: string, hashid: string) => ({
+    __typename: "AssignmentResponse",
+    assignments: [{ id: asaId, parent: { __typename: "Ticket", hashid } }],
+  });
+
+  it("returns SUCCESS with assignableId+assignmentId pairs when all succeed", () => {
+    const data = { a0: ok("asa_1", "t_A1"), a1: ok("asa_2", "t_B1") };
     expect(toAssignmentResponse(data, ASSIGNMENTS)).toEqual({
       status: "SUCCESS",
-      successfulAssignments: ["t_A1", "t_B1"],
+      successfulAssignments: [
+        { assignableId: "t_A1", assignmentId: "asa_1" },
+        { assignableId: "t_B1", assignmentId: "asa_2" },
+      ],
       failedAssignments: [],
     });
   });
 
   it("returns PARTIAL when some succeed and some fail", () => {
-    const data = {
-      a0: { __typename: "AssignmentResponse" },
-      a1: { __typename: "AssignBlocksErrorOverbooking" },
-    };
+    const data = { a0: ok("asa_1", "t_A1"), a1: { __typename: "AssignBlocksErrorOverbooking" } };
     expect(toAssignmentResponse(data, ASSIGNMENTS)).toEqual({
       status: "PARTIAL",
-      successfulAssignments: ["t_A1"],
+      successfulAssignments: [{ assignableId: "t_A1", assignmentId: "asa_1" }],
       failedAssignments: ["t_B1"],
     });
   });
@@ -717,10 +720,49 @@ describe("toAssignmentResponse", () => {
   });
 
   it("treats a missing/null aliased result as a failure", () => {
-    expect(toAssignmentResponse({ a0: { __typename: "AssignmentResponse" } }, ASSIGNMENTS)).toEqual({
+    expect(toAssignmentResponse({ a0: ok("asa_1", "t_A1") }, ASSIGNMENTS)).toEqual({
       status: "PARTIAL",
-      successfulAssignments: ["t_A1"],
+      successfulAssignments: [{ assignableId: "t_A1", assignmentId: "asa_1" }],
       failedAssignments: ["t_B1"],
     });
+  });
+
+  it("falls back to the input assignableId when the parent hashid is absent", () => {
+    const data = { a0: { __typename: "AssignmentResponse", assignments: [{ id: "asa_9" }] } };
+    expect(toAssignmentResponse(data, [ASSIGNMENTS[0]])).toEqual({
+      status: "SUCCESS",
+      successfulAssignments: [{ assignableId: "t_A1", assignmentId: "asa_9" }],
+      failedAssignments: [],
+    });
+  });
+});
+
+describe("fromDeletedAssignments", () => {
+  it("maps a deleted assignment to the clean model", () => {
+    const nodes = [
+      {
+        id: "asa_1",
+        block: { id: "csb_A1", fullBlockName: "Zone A · Row 1 · Seat 1" },
+        parent: { __typename: "Ticket", hashid: "t_pmwj9xbb" },
+      },
+    ];
+    expect(fromDeletedAssignments(nodes)).toEqual([
+      {
+        assignmentId: "asa_1",
+        blockId: "csb_A1",
+        blockName: "Zone A · Row 1 · Seat 1",
+        ticketHashId: "t_pmwj9xbb",
+      },
+    ]);
+  });
+
+  it("nulls block and ticket fields when absent", () => {
+    expect(fromDeletedAssignments([{ id: "asa_2" }])).toEqual([
+      { assignmentId: "asa_2", blockId: null, blockName: null, ticketHashId: null },
+    ]);
+  });
+
+  it("returns an empty list for no nodes", () => {
+    expect(fromDeletedAssignments([])).toEqual([]);
   });
 });

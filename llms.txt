@@ -228,10 +228,18 @@ final authority and may still reject the request.
     Each `SeatmapBlockAssignment` is `{ assignableId (starts `t_`), blockId
     (starts `csb_`) }`; both prefixes and a non-empty list are validated before
     any request (throws `Error` otherwise). `AssignmentResponse` is `{ status:
-    "SUCCESS" | "PARTIAL" | "FAILED", successfulAssignments: string[],
-    failedAssignments: string[] }` (the `assignableId`s). Per-assignment failures
-    (overbooking, invalid type, …) land in `failedAssignments` and are **not**
-    thrown; only transport/GraphQL errors throw.
+    "SUCCESS" | "PARTIAL" | "FAILED", successfulAssignments: SuccessfulAssignment[],
+    failedAssignments: string[] }` — each `SuccessfulAssignment` is `{ assignableId
+    (t_…), assignmentId (asa_…, the new record) }`; `failedAssignments` is the
+    failed `assignableId`s. Per-assignment failures (overbooking, invalid type, …)
+    land in `failedAssignments` and are **not** thrown; only transport/GraphQL
+    errors throw.
+  - `deleteSeatAssignments(assignmentIds: string[])` → `DeletedSeatAssignment[]`:
+    deletes seat assignments by id (each must start with `asa_`; non-empty list;
+    validated before any request) and returns the now-deleted assignments
+    (`{ assignmentId, blockId, blockName, ticketHashId }`) for reloading state. A
+    batch-level failure union member throws `SeatmapDeleteError` (`.message`);
+    transport/GraphQL errors throw as usual.
 
 ## Sibling accessors (CNG, ACME — REST, not GraphQL)
 
@@ -304,8 +312,9 @@ stay internal.
   holds the offending value), `UnknownSeatmapBlockStatusError` (an
   `availability.status` outside the known set; `.status`), and
   `UnknownSeatmapAssignmentParentError` (an assignment-parent `__typename` outside
-  the known set; `.typename`) — all importable; branch with `instanceof`. Token
-  claim
+  the known set; `.typename`), and `SeatmapDeleteError` (a batch-level
+  `deleteSeatAssignments` failure; the gateway reason is on `.message`) — all
+  importable; branch with `instanceof`. Token claim
   extraction never throws once the signature verifies: a missing `user` block
   gives `user: null`, and each user field (including `id`, the person's own id —
   not an account/partner id) is nullable, with `""`/`"null"` normalized to `null`.

@@ -9,20 +9,25 @@
 import { SALES_ENDPOINT } from "../gateway-endpoints.js";
 import type { GraphQLBody, GraphQLClient } from "../graphql-client.js";
 import type { ResolvedAccessOptions } from "../../../access-options.js";
+import { SeatmapDeleteError } from "../../../errors.js";
 import type {
   AssignableBooking,
   AssignedSeatmap,
   AssignmentResponse,
+  DeletedSeatAssignment,
   Seatmap,
   SeatmapBlockAssignment,
 } from "../../../models/peek/seatmap.js";
 import {
   fromAssignableBookings,
   fromAssignedSeatmapNodes,
+  fromDeletedAssignments,
   fromSeatmapNodes,
   toAssignmentResponse,
 } from "./seatmap-converter.js";
 import {
+  DELETE_ASSIGNMENTS_MUTATION,
+  DELETE_ASSIGNMENTS_SUCCESS_TYPENAME,
   SEATMAPS_QUERY,
   assignBlocksVariables,
   buildAssignBlocksMutation,
@@ -30,6 +35,7 @@ import {
   buildSeatmapAssignmentsQuery,
   type AssignBlocksData,
   type AssignableBookingsResponse,
+  type DeleteAssignmentsResponse,
   type SeatmapAssignmentsResponse,
   type SeatmapsResponse,
 } from "./seatmap-queries.js";
@@ -51,6 +57,15 @@ const ERROR_ASSIGNABLE_ID_PREFIX = `Each assignableId must start with "${ASSIGNA
 
 /** Thrown-error message when a blockId has the wrong prefix. */
 const ERROR_BLOCK_ID_PREFIX = `Each blockId must start with "${BLOCK_ID_PREFIX}".`;
+
+/** Required id prefix for a seating-assignment record id. */
+const ASSIGNMENT_ID_PREFIX = "asa_";
+
+/** Thrown-error message when no assignment ids are supplied. */
+const ERROR_NO_ASSIGNMENT_IDS = "At least one assignment id is required.";
+
+/** Thrown-error message when an assignment id has the wrong prefix. */
+const ERROR_ASSIGNMENT_ID_PREFIX = `Each assignment id must start with "${ASSIGNMENT_ID_PREFIX}".`;
 
 /** Thrown-error message when the range bounds fall on different dates. */
 const ERROR_RANGE_SAME_DATE =
@@ -322,5 +337,50 @@ export class SeatmapService {
       );
 
     return toAssignmentResponse(body.data ?? {}, assignments);
+  }
+
+  /**
+   * Deletes seat assignments by id, returning the now-deleted assignments so a
+   * caller can reload state without a refetch.
+   *
+   * @param assignmentIds The seating-assignment record ids to delete (each must
+   *   start with `"asa_"`); at least one.
+   * @returns The deleted assignments (seat id/name and freed ticket handle).
+   * @throws {Error} when `assignmentIds` is empty or any id does not start with
+   *   `"asa_"` — checked before any network call.
+   * @throws {SeatmapDeleteError} when the gateway reports a batch-level failure
+   *   (a non-success union member); transport/GraphQL errors throw as usual.
+   *
+   * @example
+   * ```ts
+   * const deleted = await peek
+   *   .getSeatmapService()
+   *   .deleteSeatAssignments(["asa_9kQ2mNv", "asa_7hL4pXw"]);
+   * ```
+   */
+  async deleteSeatAssignments(
+    assignmentIds: string[],
+  ): Promise<DeletedSeatAssignment[]> {
+    if (!assignmentIds?.length) {
+      throw new Error(ERROR_NO_ASSIGNMENT_IDS);
+    }
+    for (const id of assignmentIds) {
+      if (!id?.startsWith(ASSIGNMENT_ID_PREFIX)) {
+        throw new Error(`${ERROR_ASSIGNMENT_ID_PREFIX} Got "${id}".`);
+      }
+    }
+
+    const body: GraphQLBody<DeleteAssignmentsResponse> =
+      await this.client.request<DeleteAssignmentsResponse>(
+        SALES_ENDPOINT,
+        DELETE_ASSIGNMENTS_MUTATION,
+        { assignmentIds },
+      );
+
+    const result = body.data?.deleteAssignments;
+    if (result?.__typename !== DELETE_ASSIGNMENTS_SUCCESS_TYPENAME) {
+      throw new SeatmapDeleteError(result?.message ?? null);
+    }
+    return fromDeletedAssignments(result.assignments ?? []);
   }
 }

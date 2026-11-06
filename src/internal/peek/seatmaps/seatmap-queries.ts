@@ -442,7 +442,7 @@ export function buildAssignBlocksMutation(count: number): string {
         }
         parent {
           ... on Ticket {
-            id
+            hashid
           }
         }
       }
@@ -475,10 +475,71 @@ export function assignBlocksVariables(
   return variables;
 }
 
-/** A single aliased `assignBlocks` result; only `__typename` is needed to classify it. */
+/** A created seating assignment within a successful `assignBlocks` result. */
+export interface RawAssignBlocksAssignment {
+  id: string;
+  parent?: { __typename?: string | null; hashid?: string | null } | null;
+}
+
+/**
+ * A single aliased `assignBlocks` result: `__typename` classifies it, and on
+ * success `assignments` carries the created records (id + the ticket `hashid`).
+ */
 export interface RawAssignBlocksResult {
   __typename?: string | null;
+  assignments?: RawAssignBlocksAssignment[] | null;
 }
 
 /** The `data` payload of the bulk assign mutation — keyed by per-assignment alias. */
 export type AssignBlocksData = Record<string, RawAssignBlocksResult | null>;
+
+/** The union member `__typename` the gateway returns for a successful delete. */
+export const DELETE_ASSIGNMENTS_SUCCESS_TYPENAME = "DeleteAssignmentsSuccess";
+
+/** Deletes seat assignments by id, returning the now-deleted assignments on success. */
+export const DELETE_ASSIGNMENTS_MUTATION = `
+  mutation ClearSeats($assignmentIds: [ID!]!) {
+    deleteAssignments(assignmentIds: $assignmentIds) {
+      __typename
+      ... on DeleteAssignmentsSuccess {
+        assignments {
+          id
+          block {
+            id
+            fullBlockName
+          }
+          parent {
+            __typename
+            ... on Ticket {
+              hashid
+            }
+          }
+        }
+      }
+      ... on AssignBlocksErrorInvalidBlockCount {
+        message
+        numNeeded
+        numProvided
+      }
+    }
+  }
+`;
+
+/** A single now-deleted assignment node, as selected by the delete mutation. */
+export interface RawDeletedAssignment {
+  id: string;
+  block?: { id: string; fullBlockName: string } | null;
+  parent?: { __typename?: string | null; hashid?: string | null } | null;
+}
+
+/** The `deleteAssignments` union result; carries `assignments` on success, `message` on error. */
+export interface RawDeleteAssignmentsResult {
+  __typename?: string | null;
+  assignments?: RawDeletedAssignment[] | null;
+  message?: string | null;
+}
+
+/** The `data` payload of the delete-assignments mutation. */
+export interface DeleteAssignmentsResponse {
+  deleteAssignments?: RawDeleteAssignmentsResult | null;
+}

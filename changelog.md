@@ -14,21 +14,36 @@ action needed; `[additive]` only adds capability.
 
 ## Unreleased
 
+### `SeatmapService.deleteSeatAssignments` — delete seat assignments `[additive]`
+
+- **What:** `SeatmapService` gains `deleteSeatAssignments(assignmentIds:
+  string[]): Promise<DeletedSeatAssignment[]>` — deletes seat assignments by id
+  and returns the now-deleted assignments (for reloading state). New exported
+  model `DeletedSeatAssignment` and typed error `SeatmapDeleteError`.
+- **Why:** the write that clears seats, pairing with the assignment reads/writes.
+- **Caller action:** none — purely additive. Notes for adopters: every id must
+  start with `asa_` and at least one must be supplied (validated before any
+  network call — throws `Error`); on success you get back the deleted
+  assignments (`{ assignmentId, blockId, blockName, ticketHashId }`); a
+  batch-level failure from the gateway throws `SeatmapDeleteError` (reason on
+  `.message`), while transport/GraphQL errors throw as usual.
+
 ### `SeatmapService.assignTicketsToSeats` — bulk seat assignment `[additive]`
 
 - **What:** `SeatmapService` gains `assignTicketsToSeats(assignments:
   SeatmapBlockAssignment[]): Promise<AssignmentResponse>` — assigns bookable
   tickets to seats in bulk (one batched mutation). New exported types
-  `SeatmapBlockAssignment`, `AssignmentResponse`, the `AssignmentStatus` union,
-  and the `ASSIGNMENT_STATUSES` constant.
+  `SeatmapBlockAssignment`, `AssignmentResponse`, `SuccessfulAssignment`, the
+  `AssignmentStatus` union, and the `ASSIGNMENT_STATUSES` constant.
 - **Why:** callers need to commit seat assignments (the write that pairs with the
   `assignableBookings` / `getSeatMapAssignments` reads), in one round trip.
 - **Caller action:** none — purely additive. Notes for adopters: each
   `SeatmapBlockAssignment` must carry an `assignableId` starting with `t_` and a
   `blockId` starting with `csb_`, and at least one must be supplied — all
   validated before any network call (throws `Error`). The result's `status` is
-  `SUCCESS` (all assigned), `FAILED` (none), or `PARTIAL` (some), with
-  `successfulAssignments` / `failedAssignments` listing the `assignableId`s.
+  `SUCCESS` (all assigned), `FAILED` (none), or `PARTIAL` (some).
+  `successfulAssignments` are `{ assignableId, assignmentId }` pairs (the created
+  `asa_…` record); `failedAssignments` lists the failed `assignableId`s.
   **Per-assignment** failures (overbooking, invalid type, …) are reported in
   `failedAssignments`, not thrown; only transport/GraphQL-level errors throw.
 

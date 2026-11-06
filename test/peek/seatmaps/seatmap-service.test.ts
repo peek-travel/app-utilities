@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  SeatmapDeleteError,
   UnknownSeatmapBlockStatusError,
   UnknownSeatmapDisplayTypeError,
 } from "../../../src/errors.js";
@@ -438,7 +439,10 @@ describe("SeatmapService.assignTicketsToSeats", () => {
     const { fetchFn, calls } = makeFetch(() =>
       jsonResponse({
         data: {
-          a0: { __typename: "AssignmentResponse", assignments: [] },
+          a0: {
+            __typename: "AssignmentResponse",
+            assignments: [{ id: "asa_1", parent: { __typename: "Ticket", hashid: "t_A1" } }],
+          },
           a1: { __typename: "AssignBlocksErrorOverbooking", message: "booked" },
         },
       }),
@@ -448,7 +452,7 @@ describe("SeatmapService.assignTicketsToSeats", () => {
     const result = await service.assignTicketsToSeats(ASSIGNMENTS);
     expect(result).toEqual({
       status: "PARTIAL",
-      successfulAssignments: ["t_A1"],
+      successfulAssignments: [{ assignableId: "t_A1", assignmentId: "asa_1" }],
       failedAssignments: ["t_B1"],
     });
 
@@ -509,5 +513,84 @@ describe("SeatmapService.assignTicketsToSeats", () => {
     );
     const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
     await expect(service.assignTicketsToSeats(ASSIGNMENTS)).rejects.toThrow();
+  });
+});
+
+describe("SeatmapService.deleteSeatAssignments", () => {
+  function deleteSuccess() {
+    return {
+      data: {
+        deleteAssignments: {
+          __typename: "DeleteAssignmentsSuccess",
+          assignments: [
+            {
+              id: "asa_9kQ2mNv",
+              block: { id: "csb_A1", fullBlockName: "Zone A · Row 1 · Seat 1" },
+              parent: { __typename: "Ticket", hashid: "t_pmwj9xbb" },
+            },
+          ],
+        },
+      },
+    };
+  }
+
+  it("deletes by id and returns the now-deleted assignments", async () => {
+    const { fetchFn, calls } = makeFetch(() => jsonResponse(deleteSuccess()));
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+
+    const deleted = await service.deleteSeatAssignments(["asa_9kQ2mNv", "asa_7hL4pXw"]);
+    expect(deleted).toEqual([
+      {
+        assignmentId: "asa_9kQ2mNv",
+        blockId: "csb_A1",
+        blockName: "Zone A · Row 1 · Seat 1",
+        ticketHashId: "t_pmwj9xbb",
+      },
+    ]);
+
+    const sent = JSON.parse(calls[0].init.body as string);
+    expect(calls[0].url).toContain("/sales");
+    expect(sent.query).toContain("deleteAssignments(assignmentIds: $assignmentIds)");
+    expect(sent.variables).toEqual({ assignmentIds: ["asa_9kQ2mNv", "asa_7hL4pXw"] });
+  });
+
+  it("throws SeatmapDeleteError on a non-success union member", async () => {
+    const { fetchFn } = makeFetch(() =>
+      jsonResponse({
+        data: {
+          deleteAssignments: {
+            __typename: "AssignBlocksErrorInvalidBlockCount",
+            message: "wrong count",
+            numNeeded: 2,
+            numProvided: 1,
+          },
+        },
+      }),
+    );
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+    const error = await service.deleteSeatAssignments(["asa_1"]).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(SeatmapDeleteError);
+    expect((error as SeatmapDeleteError).message).toBe("wrong count");
+  });
+
+  it("throws SeatmapDeleteError (default message) on a missing result", async () => {
+    const { fetchFn } = makeFetch(() => jsonResponse({ data: { deleteAssignments: null } }));
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+    await expect(service.deleteSeatAssignments(["asa_1"])).rejects.toThrow(
+      "Deleting seat assignments failed.",
+    );
+  });
+
+  it("throws on empty input or a bad id prefix without hitting the network", async () => {
+    const { fetchFn, calls } = makeFetch(() => jsonResponse({ data: {} }));
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+
+    await expect(service.deleteSeatAssignments([])).rejects.toThrow(
+      "At least one assignment id is required.",
+    );
+    await expect(service.deleteSeatAssignments(["csb_nope"])).rejects.toThrow(
+      'Each assignment id must start with "asa_".',
+    );
+    expect(calls).toHaveLength(0);
   });
 });

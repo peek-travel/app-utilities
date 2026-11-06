@@ -95,6 +95,7 @@ export type {
   AssignmentResponse,
   AssignmentStatus,
   CurrentSeatAssignment,
+  DeletedSeatAssignment,
   Seatmap,
   SeatmapBlockAssignment,
   SeatmapAssignment,
@@ -107,6 +108,7 @@ export type {
   SeatmapSection,
   SeatmapTicket,
   SeatmapZone,
+  SuccessfulAssignment,
 } from "./models/peek/seatmap.js";
 export type { AccountUser, AssignedActivity } from "./models/peek/account-user.js";
 export type {
@@ -236,6 +238,7 @@ export {
   PeekHttpError,
   PiiAccessDisabledError,
   RateLimitError,
+  SeatmapDeleteError,
   UnknownSeatmapAssignmentParentError,
   UnknownSeatmapBlockStatusError,
   UnknownSeatmapDisplayTypeError,

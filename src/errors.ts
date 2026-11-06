@@ -179,6 +179,19 @@ export class UnknownSeatmapAssignmentParentError extends Error {
 }
 
 /**
+ * Thrown when `SeatmapService.deleteSeatAssignments` gets a non-success union
+ * member back (e.g. `AssignBlocksErrorInvalidBlockCount`) — a batch-level
+ * failure the gateway reports inside an otherwise-successful response, not a
+ * transport error. The gateway's explanation is on the standard `.message`.
+ */
+export class SeatmapDeleteError extends Error {
+  constructor(message?: string | null) {
+    super(message || "Deleting seat assignments failed.");
+    this.name = "SeatmapDeleteError";
+  }
+}
+
+/**
  * Thrown when the CNG REST gateway returns a non-2xx response that is not one
  * of the specifically-handled statuses (418/429). The offending status is
  * preserved on {@link CngApiError.statusCode}, and the raw response body (parsed

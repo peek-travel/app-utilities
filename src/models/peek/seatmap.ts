@@ -257,7 +257,7 @@ export interface AssignedSeatmap extends Seatmap {
  * on an {@link AssignableTicket} by `SeatmapService.assignableBookings`.
  */
 export interface CurrentSeatAssignment {
-  /** The seating-assignment record id. */
+  /** The seating-assignment record id — starts with `asa_`. */
   assignmentId: string;
   /** The assigned seat (block) id, or `null` when the gateway omits the block. */
   blockId: string | null;
@@ -271,7 +271,7 @@ export interface CurrentSeatAssignment {
  * seat yet (the assignable case).
  */
 export interface AssignableTicket {
-  /** The ticket's stable assignment handle (its `hashid`). */
+  /** The ticket's stable assignment handle (its `hashid`) — starts with `t_`. */
   assignableId: string;
   /** The ticket's resource-option id (from the snapshot), or `null`. */
   ticketId: string | null;
@@ -328,12 +328,39 @@ export const ASSIGNMENT_STATUSES = ["SUCCESS", "PARTIAL", "FAILED"] as const;
 /** A bulk-assignment outcome status. See {@link ASSIGNMENT_STATUSES}. */
 export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
 
+/**
+ * A ticket that was successfully assigned to a seat, pairing the requested
+ * ticket handle with the created seating-assignment record.
+ */
+export interface SuccessfulAssignment {
+  /** The requested ticket handle (a `t_…`, from the ticket's `hashid`). */
+  assignableId: string;
+  /** The created seating-assignment record id (an `asa_…`). */
+  assignmentId: string;
+}
+
 /** The result of `SeatmapService.assignTicketsToSeats`. */
 export interface AssignmentResponse {
   /** Overall outcome across all requested assignments. */
   status: AssignmentStatus;
-  /** The `assignableId`s that were assigned successfully. */
-  successfulAssignments: string[];
+  /** The tickets that were assigned successfully, with their new assignment ids. */
+  successfulAssignments: SuccessfulAssignment[];
   /** The `assignableId`s that failed to assign (per-assignment errors). */
   failedAssignments: string[];
+}
+
+/**
+ * A seat assignment that was just deleted by
+ * `SeatmapService.deleteSeatAssignments` — returned so callers can reload state
+ * without a refetch.
+ */
+export interface DeletedSeatAssignment {
+  /** The (now-deleted) seating-assignment record id — starts with `asa_`. */
+  assignmentId: string;
+  /** The seat (block) id it occupied, or `null` when the gateway omits the block. */
+  blockId: string | null;
+  /** The seat's full name (e.g. `"Table 12, Seat 1"`), or `null`. */
+  blockName: string | null;
+  /** The freed ticket's `hashid` (starts with `t_`) when the parent is a ticket, else `null`. */
+  ticketHashId: string | null;
 }

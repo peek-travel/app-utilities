@@ -355,7 +355,8 @@ render({
      {name:"getSeatmapForProduct",sig:"(productId: string): Promise&lt;Seatmap[]&gt;",desc:"Every seating map configured on an activity (a product may have more than one).",notes:"Throws <code>Error</code> (\"A non-empty product id is required.\") on blank id before any network call; returns <code>[]</code> when the activity is missing or has no maps. A gateway <code>display.type</code> outside <code>SEATMAP_DISPLAY_TYPES</code> throws <code>UnknownSeatmapDisplayTypeError</code>. Structural layout, not customer data — no PII, unaffected by <code>fullCustomerAccess</code>."},
      {name:"getSeatMapAssignments",sig:"(productId: string, rangeStart: string, rangeEnd: string): Promise&lt;AssignedSeatmap[]&gt;",desc:"Every seating map on an activity with each seat enriched by its occupancy (<code>status</code> + <code>assignedTo</code>) over a datetime range; <code>[]</code> when the activity is missing or has no maps.",notes:"<code>rangeStart</code>/<code>rangeEnd</code> are flexible — seconds optional, timezone/fractional stripped — normalized to naive <code>YYYY-MM-DDTHH:MM:SS</code> and queried half-open (inclusive start, exclusive end); both bounds must fall on the <b>same date</b>. Throws <code>Error</code> (\"A non-empty product id is required.\") on a blank id or a blank/unparseable/out-of-range bound or when the bounds span different dates, before any network call; <code>UnknownSeatmapBlockStatusError</code> / <code>UnknownSeatmapAssignmentParentError</code> on unrecognized gateway values. <b>PII:</b> a GUEST occupant's <code>guestName</code> is customer PII — gated behind <code>fullCustomerAccess</code> (null when off); staff (ACCOUNT_USER) names are not gated."},
      {name:"assignableBookings",sig:"(productId: string, rangeStart: string, rangeEnd: string): Promise&lt;AssignableBooking[]&gt;",desc:"Confirmed bookings on an activity overlapping a datetime range, each with the tickets that can be assigned to seats (and the seat a ticket currently holds); <code>[]</code> when none match.",notes:"<code>rangeStart</code>/<code>rangeEnd</code> use the same parsing/validation as <code>getSeatMapAssignments</code> — seconds optional, timezone/fractional stripped, normalized to naive <code>YYYY-MM-DDTHH:MM:SS</code>, both bounds on the <b>same date</b> — and queried half-open (inclusive start, exclusive end). Throws <code>Error</code> (\"A non-empty product id is required.\") on a blank id or a blank/unparseable/out-of-range bound or when the bounds span different dates, before any network call. Booking <code>startsAt</code>/<code>endsAt</code> have fractional seconds stripped. <b>PII:</b> <code>guestName</code> is customer PII — gated behind <code>fullCustomerAccess</code> (null when off)."},
-     {name:"assignTicketsToSeats",sig:"(assignments: SeatmapBlockAssignment[]): Promise&lt;AssignmentResponse&gt;",desc:"Bulk-assigns bookable tickets to seats (one batched mutation). Reports per-assignment outcomes: <code>status</code> <code>SUCCESS</code>/<code>PARTIAL</code>/<code>FAILED</code> with the successful/failed <code>assignableId</code>s.",notes:"Validates every <code>assignableId</code> starts with <code>t_</code> and every <code>blockId</code> with <code>csb_</code>, and that at least one assignment is supplied — all before any network call (throws <code>Error</code> otherwise). Per-assignment failures (overbooking, invalid type, …) are reported in <code>failedAssignments</code>, <b>not</b> thrown; only transport/GraphQL-level errors throw."}
+     {name:"assignTicketsToSeats",sig:"(assignments: SeatmapBlockAssignment[]): Promise&lt;AssignmentResponse&gt;",desc:"Bulk-assigns bookable tickets to seats (one batched mutation). Reports per-assignment outcomes: <code>status</code> <code>SUCCESS</code>/<code>PARTIAL</code>/<code>FAILED</code>, the successes as <code>{ assignableId, assignmentId }</code> pairs (the new <code>asa_…</code> record), and the failed <code>assignableId</code>s.",notes:"Validates every <code>assignableId</code> starts with <code>t_</code> and every <code>blockId</code> with <code>csb_</code>, and that at least one assignment is supplied — all before any network call (throws <code>Error</code> otherwise). Per-assignment failures (overbooking, invalid type, …) are reported in <code>failedAssignments</code>, <b>not</b> thrown; only transport/GraphQL-level errors throw."},
+     {name:"deleteSeatAssignments",sig:"(assignmentIds: string[]): Promise&lt;DeletedSeatAssignment[]&gt;",desc:"Deletes seat assignments by id and returns the now-deleted assignments (seat id/name + freed ticket handle) so callers can reload state without a refetch.",notes:"Validates at least one id and that every id starts with <code>asa_</code> — before any network call (throws <code>Error</code> otherwise). A batch-level failure union member throws <code>SeatmapDeleteError</code> (<code>.message</code>); transport/GraphQL errors throw as usual."}
    ]
   },
   {
@@ -698,14 +699,14 @@ render({
    ]},
   {name:"AssignableTicket",kind:"interface",file:"src/models/peek/seatmap.ts",desc:"A bookable ticket on an AssignableBooking — the unit assigned to a seat.",
    fields:[
-    {name:"assignableId",type:"string",n:false,desc:"The ticket's stable assignment handle (its <code>hashid</code>)."},
+    {name:"assignableId",type:"string",n:false,desc:"The ticket's stable assignment handle (its <code>hashid</code>) — starts with <code>t_</code>."},
     {name:"ticketId",type:"string | null",n:true,desc:"Resource-option id from the snapshot, or <code>null</code>."},
     {name:"ticketName",type:"string | null",n:true,desc:"Resource-option name from the snapshot, or <code>null</code>."},
     {name:"currentlyAssignedTo",type:"CurrentSeatAssignment | null",n:true,desc:"The seat this ticket currently holds, or <code>null</code> when unassigned (the assignable case)."}
    ]},
   {name:"CurrentSeatAssignment",kind:"interface",file:"src/models/peek/seatmap.ts",desc:"The seat a ticket is currently assigned to, when it has one.",
    fields:[
-    {name:"assignmentId",type:"string",n:false,desc:"The seating-assignment record id."},
+    {name:"assignmentId",type:"string",n:false,desc:"The seating-assignment record id — starts with <code>asa_</code>."},
     {name:"blockId",type:"string | null",n:true,desc:"The assigned seat (block) id, or <code>null</code> when the gateway omits the block."},
     {name:"blockName",type:"string | null",n:true,desc:"The assigned seat's full name (e.g. <code>Table 12, Seat 1</code>), or <code>null</code>."}
    ]},
@@ -717,11 +718,23 @@ render({
   {name:"AssignmentResponse",kind:"interface",file:"src/models/peek/seatmap.ts",desc:"The result of <code>SeatmapService.assignTicketsToSeats</code>. Only per-assignment failures are reflected; transport/GraphQL errors throw.",
    fields:[
     {name:"status",type:"AssignmentStatus",n:false,desc:"Overall outcome across all requested assignments."},
-    {name:"successfulAssignments",type:"string[]",n:false,desc:"The <code>assignableId</code>s that were assigned successfully."},
+    {name:"successfulAssignments",type:"SuccessfulAssignment[]",n:false,desc:"The tickets assigned successfully, each with its new <code>assignmentId</code>."},
     {name:"failedAssignments",type:"string[]",n:false,desc:"The <code>assignableId</code>s that failed to assign."}
+   ]},
+  {name:"SuccessfulAssignment",kind:"interface",file:"src/models/peek/seatmap.ts",desc:"A ticket that was successfully assigned to a seat, pairing the requested handle with the created record.",
+   fields:[
+    {name:"assignableId",type:"string",n:false,desc:"The requested ticket handle (a <code>t_…</code>, from the ticket's <code>hashid</code>)."},
+    {name:"assignmentId",type:"string",n:false,desc:"The created seating-assignment record id (an <code>asa_…</code>)."}
    ]},
   {name:"AssignmentStatus",kind:"type",file:"src/models/peek/seatmap.ts",
    desc:"Overall outcome of a bulk assignment. Backed by the <code>ASSIGNMENT_STATUSES</code> const: <code>SUCCESS</code> when all succeed, <code>FAILED</code> when all fail, <code>PARTIAL</code> when some of each.",def:'"SUCCESS" | "PARTIAL" | "FAILED"'},
+  {name:"DeletedSeatAssignment",kind:"interface",file:"src/models/peek/seatmap.ts",desc:"A seat assignment just deleted by <code>SeatmapService.deleteSeatAssignments</code> — returned for reloading state.",
+   fields:[
+    {name:"assignmentId",type:"string",n:false,desc:"The (now-deleted) seating-assignment record id — starts with <code>asa_</code>."},
+    {name:"blockId",type:"string | null",n:true,desc:"The seat (block) id it occupied, or <code>null</code> when the gateway omits the block."},
+    {name:"blockName",type:"string | null",n:true,desc:"The seat's full name (e.g. <code>Table 12, Seat 1</code>), or <code>null</code>."},
+    {name:"ticketHashId",type:"string | null",n:true,desc:"The freed ticket's <code>hashid</code> (starts with <code>t_</code>) when the parent is a ticket, else <code>null</code>."}
+   ]},
   {name:"CustomQuestion",kind:"interface",file:"src/models/peek/custom-question.ts",desc:"A custom question definition (no PII), whether configured on one activity or read from the account-wide catalog.",
    fields:[
     {name:"id",type:"string",n:false,desc:"Question id (e.g. <code>cq_anq67</code>)."},
