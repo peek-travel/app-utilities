@@ -217,8 +217,8 @@ function render(DATA){
   const MBN={}; DATA.models.forEach(m=>{MBN[m.name]=m;});
   function resolveFields(m){
     const rows=(m.fields||[]).map(f=>({f,from:null}));
-    const seen=new Set([m.name]); let pn=m.extends;
-    while(pn && !seen.has(pn)){seen.add(pn);const p=MBN[pn];if(!p)break;(p.fields||[]).forEach(f=>rows.push({f,from:p.name}));pn=p.extends;}
+    const seen=new Set([m.name]); const fieldNames=new Set((m.fields||[]).map(f=>f.name)); let pn=m.extends;
+    while(pn && !seen.has(pn)){seen.add(pn);const p=MBN[pn];if(!p)break;(p.fields||[]).forEach(f=>{if(!fieldNames.has(f.name)){fieldNames.add(f.name);rows.push({f,from:p.name});}});pn=p.extends;}
     return rows;
   }
   DATA.models.forEach(m=>{
@@ -349,10 +349,11 @@ render({
   {
    name:"SeatmapService",
    file:"src/internal/peek/seatmaps/seatmap-service.ts",
-   desc:"Seating-map reads for a product.",
+   desc:"Seating-map reads for a product, and seat occupancy for a map over a datetime range.",
    obtain:"PeekAccessService.getSeatmapService()",
    methods:[
-     {name:"getSeatmapForProduct",sig:"(productId: string): Promise&lt;Seatmap[]&gt;",desc:"Every seating map configured on an activity (a product may have more than one).",notes:"Throws <code>Error</code> (\"A non-empty product id is required.\") on blank id before any network call; returns <code>[]</code> when the activity is missing or has no maps. A gateway <code>display.type</code> outside <code>SEATMAP_DISPLAY_TYPES</code> throws <code>UnknownSeatmapDisplayTypeError</code>. Structural layout, not customer data — no PII, unaffected by <code>fullCustomerAccess</code>."}
+     {name:"getSeatmapForProduct",sig:"(productId: string): Promise&lt;Seatmap[]&gt;",desc:"Every seating map configured on an activity (a product may have more than one).",notes:"Throws <code>Error</code> (\"A non-empty product id is required.\") on blank id before any network call; returns <code>[]</code> when the activity is missing or has no maps. A gateway <code>display.type</code> outside <code>SEATMAP_DISPLAY_TYPES</code> throws <code>UnknownSeatmapDisplayTypeError</code>. Structural layout, not customer data — no PII, unaffected by <code>fullCustomerAccess</code>."},
+     {name:"getSeatMapAssignments",sig:"(productId: string, rangeStart: string, rangeEnd: string): Promise&lt;AssignedSeatmap[]&gt;",desc:"Every seating map on an activity with each seat enriched by its occupancy (<code>status</code> + <code>assignedTo</code>) over a datetime range; <code>[]</code> when the activity is missing or has no maps.",notes:"<code>rangeStart</code>/<code>rangeEnd</code> are flexible — seconds optional, timezone/fractional stripped — normalized to naive <code>YYYY-MM-DDTHH:MM:SS</code> and queried half-open (inclusive start, exclusive end); both bounds must fall on the <b>same date</b>. Throws <code>Error</code> (\"A non-empty product id is required.\") on a blank id or a blank/unparseable/out-of-range bound or when the bounds span different dates, before any network call; <code>UnknownSeatmapBlockStatusError</code> / <code>UnknownSeatmapAssignmentParentError</code> on unrecognized gateway values. <b>PII:</b> a GUEST occupant's <code>guestName</code> is customer PII — gated behind <code>fullCustomerAccess</code> (null when off); staff (ACCOUNT_USER) names are not gated."}
    ]
   },
   {
@@ -650,6 +651,40 @@ render({
    ]},
   {name:"SeatmapDisplayType",kind:"type",file:"src/models/peek/seatmap.ts",
    desc:"Section kind on <code>SeatmapDisplay.type</code>. Backed by the <code>SEATMAP_DISPLAY_TYPES</code> const; a non-null value outside this set throws <code>UnknownSeatmapDisplayTypeError</code>.",def:'"SHAPE" | "SECTION" | "LABEL"'},
+  {name:"AssignedSeatmap",kind:"interface",file:"src/models/peek/seatmap.ts",extends:"Seatmap",desc:"A seating map whose seats carry occupancy for a queried datetime range. Returned by <code>SeatmapService.getSeatMapAssignments</code>.",
+   fields:[
+    {name:"sections",type:"AssignedSeatmapSection[]",n:false,desc:"Sections of the map, enriched with occupancy."}
+   ]},
+  {name:"AssignedSeatmapSection",kind:"interface",file:"src/models/peek/seatmap.ts",extends:"SeatmapSection",desc:"A section whose groups carry assignment data.",
+   fields:[
+    {name:"groups",type:"AssignedSeatmapGroup[]",n:false,desc:"Groups (tables), enriched with occupancy."}
+   ]},
+  {name:"AssignedSeatmapGroup",kind:"interface",file:"src/models/peek/seatmap.ts",extends:"SeatmapGroup",desc:"A group whose blocks carry assignment data.",
+   fields:[
+    {name:"blocks",type:"AssignedSeatmapBlock[]",n:false,desc:"Seats in this group, enriched with occupancy."}
+   ]},
+  {name:"AssignedSeatmapBlock",kind:"interface",file:"src/models/peek/seatmap.ts",extends:"SeatmapBlock",desc:"A seat enriched with its occupancy over a queried range. The plain <code>getSeatmapForProduct</code> read returns the base <code>SeatmapBlock</code> without these two fields.",
+   fields:[
+    {name:"status",type:"SeatmapBlockStatus",n:false,desc:"Occupancy status for the queried range."},
+    {name:"assignedTo",type:"SeatmapAssignment[]",n:false,desc:"Occupants across the range; empty unless <code>status</code> is <code>OCCUPIED</code>."}
+   ]},
+  {name:"SeatmapAssignment",kind:"interface",file:"src/models/peek/seatmap.ts",desc:"A single occupant of a seat for the queried range. A seat can carry more than one across a range spanning multiple slots.",
+   fields:[
+    {name:"occupiedBy",type:"SeatmapOccupantType",n:false,desc:"Kind of occupant, derived from the assignment's parent type."},
+    {name:"bookingId",type:"string | null",n:true,desc:"Booking id (GUEST only), else <code>null</code>."},
+    {name:"bookingDisplayId",type:"string | null",n:true,desc:"Human-facing booking display id (GUEST only), else <code>null</code>."},
+    {name:"productId",type:"string | null",n:true,desc:"Activity id from the booking snapshot (GUEST only), else <code>null</code>."},
+    {name:"productName",type:"string | null",n:true,desc:"Activity name from the booking snapshot (GUEST only), else <code>null</code>."},
+    {name:"ticketId",type:"string | null",n:true,desc:"Resource-option id from the snapshot (GUEST only), else <code>null</code>."},
+    {name:"ticketName",type:"string | null",n:true,desc:"Resource-option name from the snapshot (GUEST only), else <code>null</code>."},
+    {name:"guestName",type:"string | null",n:true,desc:"Primary guest (GUEST) or staff member (ACCOUNT_USER) name; <code>null</code> for FIELD_LOCATION, and <code>null</code> for a GUEST when <code>fullCustomerAccess</code> is off (customer PII)."},
+    {name:"startsAt",type:"string | null",n:true,desc:"Booking start, naive datetime (GUEST only), else <code>null</code>."},
+    {name:"endsAt",type:"string | null",n:true,desc:"Booking end, naive datetime (GUEST only), else <code>null</code>."}
+   ]},
+  {name:"SeatmapBlockStatus",kind:"type",file:"src/models/peek/seatmap.ts",
+   desc:"Seat occupancy status. Backed by the <code>SEATMAP_BLOCK_STATUSES</code> const; an unrecognized value throws <code>UnknownSeatmapBlockStatusError</code>.",def:'"AVAILABLE" | "OCCUPIED" | "BLOCKED"'},
+  {name:"SeatmapOccupantType",kind:"type",file:"src/models/peek/seatmap.ts",
+   desc:"Seat occupant kind, derived from the assignment parent's <code>__typename</code> (Ticket&rarr;GUEST, AccountUser&rarr;ACCOUNT_USER, FieldLocation&rarr;FIELD_LOCATION). Backed by the <code>SEATMAP_OCCUPANT_TYPES</code> const; an unrecognized parent throws <code>UnknownSeatmapAssignmentParentError</code>.",def:'"GUEST" | "ACCOUNT_USER" | "FIELD_LOCATION"'},
   {name:"CustomQuestion",kind:"interface",file:"src/models/peek/custom-question.ts",desc:"A custom question definition (no PII), whether configured on one activity or read from the account-wide catalog.",
    fields:[
     {name:"id",type:"string",n:false,desc:"Question id (e.g. <code>cq_anq67</code>)."},

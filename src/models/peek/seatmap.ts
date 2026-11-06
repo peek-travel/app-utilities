@@ -151,3 +151,103 @@ export interface Seatmap {
   /** The top-level sections, shapes, and labels on the map. */
   sections: SeatmapSection[];
 }
+
+/**
+ * Occupancy status of a seat over a queried datetime range. See
+ * {@link SEATMAP_BLOCK_STATUSES}. The gateway owns this set; a value outside it
+ * makes `SeatmapService.getSeatMapAssignments` throw
+ * `UnknownSeatmapBlockStatusError`.
+ */
+export const SEATMAP_BLOCK_STATUSES = ["AVAILABLE", "OCCUPIED", "BLOCKED"] as const;
+
+/** A known seat occupancy status. See {@link SEATMAP_BLOCK_STATUSES}. */
+export type SeatmapBlockStatus = (typeof SEATMAP_BLOCK_STATUSES)[number];
+
+/**
+ * What kind of occupant holds a seat, derived from the assignment's parent type.
+ * See {@link SEATMAP_OCCUPANT_TYPES}. An unrecognized parent makes
+ * `SeatmapService.getSeatMapAssignments` throw
+ * `UnknownSeatmapAssignmentParentError`.
+ */
+export const SEATMAP_OCCUPANT_TYPES = ["GUEST", "ACCOUNT_USER", "FIELD_LOCATION"] as const;
+
+/** A known seat occupant kind. See {@link SEATMAP_OCCUPANT_TYPES}. */
+export type SeatmapOccupantType = (typeof SEATMAP_OCCUPANT_TYPES)[number];
+
+/**
+ * A single occupant of a seat for the queried datetime range. A seat can carry
+ * more than one assignment across a range that spans multiple slots.
+ *
+ * The booking-derived fields (`bookingId`, `bookingDisplayId`, `productId`,
+ * `productName`, `ticketId`, `ticketName`, `startsAt`, `endsAt`) are populated
+ * only when `occupiedBy` is `"GUEST"`; they are `null` for every other occupant.
+ * `guestName` is populated for a `"GUEST"` (the booking's primary guest) and for
+ * an `"ACCOUNT_USER"` (the staff member's name), and is `null` for a
+ * `"FIELD_LOCATION"`. A guest name is **customer PII**: when the owning access
+ * service was created without `fullCustomerAccess`, a `"GUEST"` occupant's
+ * `guestName` is always `null` (it is never requested).
+ */
+export interface SeatmapAssignment {
+  /** The kind of occupant holding the seat. */
+  occupiedBy: SeatmapOccupantType;
+  /** Booking id (GUEST only), else `null`. */
+  bookingId: string | null;
+  /** Human-facing booking display id (GUEST only), else `null`. */
+  bookingDisplayId: string | null;
+  /** Product (activity) id from the booking snapshot (GUEST only), else `null`. */
+  productId: string | null;
+  /** Product (activity) name from the booking snapshot (GUEST only), else `null`. */
+  productName: string | null;
+  /** Ticket (resource-option) id from the snapshot (GUEST only), else `null`. */
+  ticketId: string | null;
+  /** Ticket (resource-option) name from the snapshot (GUEST only), else `null`. */
+  ticketName: string | null;
+  /**
+   * Occupant name: the booking's primary guest (GUEST) or the staff member
+   * (ACCOUNT_USER); `null` for a FIELD_LOCATION, and `null` for a GUEST when
+   * `fullCustomerAccess` is off.
+   */
+  guestName: string | null;
+  /** Booking start, naive datetime (GUEST only), else `null`. */
+  startsAt: string | null;
+  /** Booking end, naive datetime (GUEST only), else `null`. */
+  endsAt: string | null;
+}
+
+/**
+ * A seat enriched with its occupancy over a queried datetime range. Returned
+ * (nested under {@link AssignedSeatmap}) by
+ * `SeatmapService.getSeatMapAssignments`. Extends {@link SeatmapBlock} with the
+ * two assignment fields; the plain `getSeatmapForProduct` read returns the base
+ * {@link SeatmapBlock} without them.
+ */
+export interface AssignedSeatmapBlock extends SeatmapBlock {
+  /** Occupancy status of the seat for the queried range. */
+  status: SeatmapBlockStatus;
+  /**
+   * The occupants of the seat across the range. Empty unless `status` is
+   * `"OCCUPIED"`.
+   */
+  assignedTo: SeatmapAssignment[];
+}
+
+/** A {@link SeatmapGroup} whose blocks carry assignment data. */
+export interface AssignedSeatmapGroup extends SeatmapGroup {
+  /** The seats in this group, enriched with occupancy. */
+  blocks: AssignedSeatmapBlock[];
+}
+
+/** A {@link SeatmapSection} whose groups carry assignment data. */
+export interface AssignedSeatmapSection extends SeatmapSection {
+  /** The groups (tables) in this section, enriched with occupancy. */
+  groups: AssignedSeatmapGroup[];
+}
+
+/**
+ * A {@link Seatmap} whose seats carry occupancy for a queried datetime range.
+ * Returned by `SeatmapService.getSeatMapAssignments`.
+ */
+export interface AssignedSeatmap extends Seatmap {
+  /** The sections of the map, enriched with occupancy. */
+  sections: AssignedSeatmapSection[];
+}

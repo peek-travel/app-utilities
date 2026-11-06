@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { fromSeatmapNodes } from "../../../src/internal/peek/seatmaps/seatmap-converter.js";
-import type { RawSeatmapNode } from "../../../src/internal/peek/seatmaps/seatmap-queries.js";
-import { UnknownSeatmapDisplayTypeError } from "../../../src/errors.js";
+import {
+  fromAssignedSeatmap,
+  fromSeatmapNodes,
+} from "../../../src/internal/peek/seatmaps/seatmap-converter.js";
+import type {
+  RawAssignedSeatmapNode,
+  RawSeatmapNode,
+} from "../../../src/internal/peek/seatmaps/seatmap-queries.js";
+import {
+  UnknownSeatmapAssignmentParentError,
+  UnknownSeatmapBlockStatusError,
+  UnknownSeatmapDisplayTypeError,
+} from "../../../src/errors.js";
 
 /** A representative map node mirroring the shapes the gateway returns. */
 function fullNode(): RawSeatmapNode {
@@ -282,5 +292,306 @@ describe("fromSeatmapNodes", () => {
 
   it("returns an empty list for no nodes", () => {
     expect(fromSeatmapNodes([])).toEqual([]);
+  });
+});
+
+/** Wraps one seat with the given availability inside a full assigned-map node. */
+function assignedNode(
+  availability: NonNullable<
+    NonNullable<
+      NonNullable<RawAssignedSeatmapNode["sections"]>[number]["groups"]
+    >[number]["blocks"]
+  >[number]["availability"],
+): RawAssignedSeatmapNode {
+  return {
+    id: "csm_8j734",
+    name: "Dinner Theater",
+    zones: [
+      { id: "csz_z77an", name: "Premium", resourceOptions: [{ id: "ro-1", name: "Adult - Premium" }] },
+    ],
+    sections: [
+      {
+        id: "css_km8d5",
+        display: { x: 800, y: 432, type: "SECTION", width: null, height: null, label: null },
+        groups: [
+          {
+            assignableTo: ["GUEST"],
+            name: "Table 12",
+            id: "csg_yj9ge",
+            display: { x: 176, y: 256, table: true, tableWidth: 120, tableHeight: 80 },
+            blocks: [
+              {
+                fullBlockName: "Table 12, Seat 1",
+                name: "1",
+                id: "csb_a7bk8",
+                order: 0,
+                zone: { id: "csz_zy3de" },
+                display: { x: 0, y: 0 },
+                availability,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+const TICKET_PARENT = {
+  __typename: "Ticket",
+  id: "t_1",
+  resourceOptionSnapshot: { id: "ro-1", name: "Adult - Premium" },
+  booking: {
+    id: "bk_1",
+    displayId: "ABC123",
+    activityId: "act-1",
+    activitySnapshot: { id: "act-1", name: "Dinner Theater" },
+    startsAt: "2026-11-06T14:00:00",
+    endsAt: "2026-11-06T16:00:00",
+    primaryGuest: { firstName: "Ada", lastName: "Lovelace" },
+  },
+};
+
+/** Reaches the single seat's assignment data in an assigned-map result. */
+function firstBlock(node: RawAssignedSeatmapNode) {
+  return fromAssignedSeatmap(node).sections[0].groups[0].blocks[0];
+}
+
+describe("fromAssignedSeatmap", () => {
+  it("carries the same structural data as the base map", () => {
+    const map = fromAssignedSeatmap(assignedNode({ status: "AVAILABLE", assignments: [] }));
+    expect(map).toMatchObject({ id: "csm_8j734", name: "Dinner Theater" });
+    expect(map.zones[0].tickets[0]).toEqual({ id: "ro-1", name: "Adult - Premium" });
+    const block = map.sections[0].groups[0].blocks[0];
+    expect(block).toMatchObject({
+      id: "csb_a7bk8",
+      fullBlockName: "Table 12, Seat 1",
+      order: 0,
+      zoneId: "csz_zy3de",
+    });
+    expect(block.display).toMatchObject({ x: 0, y: 0 });
+  });
+
+  it("maps a GUEST assignment with full booking detail", () => {
+    const block = firstBlock(
+      assignedNode({ status: "OCCUPIED", assignments: [{ id: "asa_1", parent: TICKET_PARENT }] }),
+    );
+    expect(block.status).toBe("OCCUPIED");
+    expect(block.assignedTo).toEqual([
+      {
+        occupiedBy: "GUEST",
+        bookingId: "bk_1",
+        bookingDisplayId: "ABC123",
+        productId: "act-1",
+        productName: "Dinner Theater",
+        ticketId: "ro-1",
+        ticketName: "Adult - Premium",
+        guestName: "Ada Lovelace",
+        startsAt: "2026-11-06T14:00:00",
+        endsAt: "2026-11-06T16:00:00",
+      },
+    ]);
+  });
+
+  it("strips fractional seconds from booking startsAt/endsAt", () => {
+    const parent = {
+      ...TICKET_PARENT,
+      booking: {
+        ...TICKET_PARENT.booking,
+        startsAt: "2026-11-02T19:00:00.000000",
+        endsAt: "2026-11-02T21:30:00.500",
+      },
+    };
+    const block = firstBlock(
+      assignedNode({ status: "OCCUPIED", assignments: [{ id: "asa_1", parent }] }),
+    );
+    expect(block.assignedTo[0].startsAt).toBe("2026-11-02T19:00:00");
+    expect(block.assignedTo[0].endsAt).toBe("2026-11-02T21:30:00");
+  });
+
+  it("nulls a GUEST guestName when primaryGuest is absent (PII off)", () => {
+    const parent = { ...TICKET_PARENT, booking: { ...TICKET_PARENT.booking, primaryGuest: null } };
+    const block = firstBlock(
+      assignedNode({ status: "OCCUPIED", assignments: [{ id: "asa_1", parent }] }),
+    );
+    expect(block.assignedTo[0].guestName).toBeNull();
+    // Non-PII booking detail still present.
+    expect(block.assignedTo[0].bookingId).toBe("bk_1");
+    expect(block.assignedTo[0].startsAt).toBe("2026-11-06T14:00:00");
+  });
+
+  it("maps an ACCOUNT_USER assignment with the staff name as guestName", () => {
+    const block = firstBlock(
+      assignedNode({
+        status: "OCCUPIED",
+        assignments: [{ id: "asa_2", parent: { __typename: "AccountUser", id: "au_1", name: "Grace Hopper" } }],
+      }),
+    );
+    expect(block.assignedTo[0]).toMatchObject({
+      occupiedBy: "ACCOUNT_USER",
+      guestName: "Grace Hopper",
+      bookingId: null,
+      ticketId: null,
+      startsAt: null,
+    });
+  });
+
+  it("maps a FIELD_LOCATION assignment with all detail null", () => {
+    const block = firstBlock(
+      assignedNode({
+        status: "OCCUPIED",
+        assignments: [{ id: "asa_3", parent: { __typename: "FieldLocation", id: "fl_1" } }],
+      }),
+    );
+    expect(block.assignedTo[0]).toEqual({
+      occupiedBy: "FIELD_LOCATION",
+      bookingId: null,
+      bookingDisplayId: null,
+      productId: null,
+      productName: null,
+      ticketId: null,
+      ticketName: null,
+      guestName: null,
+      startsAt: null,
+      endsAt: null,
+    });
+  });
+
+  it("keeps every assignment when a seat has more than one", () => {
+    const block = firstBlock(
+      assignedNode({
+        status: "OCCUPIED",
+        assignments: [
+          { id: "asa_1", parent: TICKET_PARENT },
+          { id: "asa_2", parent: { __typename: "AccountUser", id: "au_1", name: "Grace Hopper" } },
+        ],
+      }),
+    );
+    expect(block.assignedTo).toHaveLength(2);
+    expect(block.assignedTo.map((a) => a.occupiedBy)).toEqual(["GUEST", "ACCOUNT_USER"]);
+  });
+
+  it("drops a BlockedSeat parent and never populates assignedTo off OCCUPIED", () => {
+    const blocked = firstBlock(
+      assignedNode({
+        status: "BLOCKED",
+        assignments: [{ id: "asa_4", parent: { __typename: "BlockedSeat", id: "bs_1" } }],
+      }),
+    );
+    expect(blocked.status).toBe("BLOCKED");
+    expect(blocked.assignedTo).toEqual([]);
+
+    // Even if a BlockedSeat somehow rides along an OCCUPIED status, it drops out.
+    const occupied = firstBlock(
+      assignedNode({
+        status: "OCCUPIED",
+        assignments: [
+          { id: "asa_4", parent: { __typename: "BlockedSeat", id: "bs_1" } },
+          { id: "asa_1", parent: TICKET_PARENT },
+        ],
+      }),
+    );
+    expect(occupied.assignedTo).toHaveLength(1);
+    expect(occupied.assignedTo[0].occupiedBy).toBe("GUEST");
+  });
+
+  it("leaves assignedTo empty for an AVAILABLE seat", () => {
+    const block = firstBlock(
+      assignedNode({ status: "AVAILABLE", assignments: [{ id: "asa_1", parent: TICKET_PARENT }] }),
+    );
+    expect(block.assignedTo).toEqual([]);
+  });
+
+  it("throws on an unknown seat status", () => {
+    expect(() => fromAssignedSeatmap(assignedNode({ status: "HELD", assignments: [] }))).toThrow(
+      UnknownSeatmapBlockStatusError,
+    );
+  });
+
+  it("throws on a missing seat status", () => {
+    let caught: unknown;
+    try {
+      fromAssignedSeatmap(assignedNode({ assignments: [] }));
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(UnknownSeatmapBlockStatusError);
+    expect((caught as UnknownSeatmapBlockStatusError).status).toBe("undefined");
+  });
+
+  it("throws on an unknown assignment parent typename", () => {
+    let caught: unknown;
+    try {
+      fromAssignedSeatmap(
+        assignedNode({
+          status: "OCCUPIED",
+          assignments: [{ id: "asa_x", parent: { __typename: "Robot", id: "r_1" } }],
+        }),
+      );
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(UnknownSeatmapAssignmentParentError);
+    expect((caught as UnknownSeatmapAssignmentParentError).typename).toBe("Robot");
+  });
+
+  it("defaults missing optional collections to empty", () => {
+    const map = fromAssignedSeatmap({ id: "m", name: "m" });
+    expect(map.zones).toEqual([]);
+    expect(map.sections).toEqual([]);
+  });
+
+  it("defaults missing groups/blocks collections to empty", () => {
+    const map = fromAssignedSeatmap({
+      id: "m",
+      name: "m",
+      sections: [
+        { id: "s1", display: { x: 0, y: 0, type: "SECTION" } },
+        {
+          id: "s2",
+          display: { x: 0, y: 0, type: "SECTION" },
+          groups: [{ id: "g1", name: "g1", display: { x: 0, y: 0 } }],
+        },
+      ],
+    });
+    expect(map.sections[0].groups).toEqual([]);
+    expect(map.sections[1].groups[0].blocks).toEqual([]);
+  });
+
+  it("nulls every booking-derived field when a Ticket carries no booking/snapshots", () => {
+    const block = firstBlock(
+      assignedNode({
+        status: "OCCUPIED",
+        assignments: [{ id: "asa_1", parent: { __typename: "Ticket", id: "t_1" } }],
+      }),
+    );
+    expect(block.assignedTo[0]).toEqual({
+      occupiedBy: "GUEST",
+      bookingId: null,
+      bookingDisplayId: null,
+      productId: null,
+      productName: null,
+      ticketId: null,
+      ticketName: null,
+      guestName: null,
+      startsAt: null,
+      endsAt: null,
+    });
+  });
+
+  it("nulls guestName when both name parts are blank", () => {
+    const parent = {
+      ...TICKET_PARENT,
+      booking: { ...TICKET_PARENT.booking, primaryGuest: { firstName: "  ", lastName: null } },
+    };
+    const block = firstBlock(
+      assignedNode({ status: "OCCUPIED", assignments: [{ id: "asa_1", parent }] }),
+    );
+    expect(block.assignedTo[0].guestName).toBeNull();
+  });
+
+  it("treats a null assignments list under OCCUPIED as empty", () => {
+    const block = firstBlock(assignedNode({ status: "OCCUPIED", assignments: null }));
+    expect(block.assignedTo).toEqual([]);
   });
 });

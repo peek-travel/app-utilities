@@ -14,6 +14,34 @@ action needed; `[additive]` only adds capability.
 
 ## Unreleased
 
+### `SeatmapService.getSeatMapAssignments` — seat occupancy over a range `[additive]`
+
+- **What:** `SeatmapService` gains `getSeatMapAssignments(productId, rangeStart,
+  rangeEnd): Promise<AssignedSeatmap[]>` — every seating map on an activity with
+  each seat enriched by its occupancy over a datetime range. New exported types:
+  `AssignedSeatmap`, `AssignedSeatmapSection`, `AssignedSeatmapGroup`, and
+  `AssignedSeatmapBlock` (each extends its base `Seatmap*` type;
+  `AssignedSeatmapBlock` adds `status: SeatmapBlockStatus` and `assignedTo:
+  SeatmapAssignment[]`), plus `SeatmapAssignment`, the `SeatmapBlockStatus` /
+  `SeatmapOccupantType` unions, the `SEATMAP_BLOCK_STATUSES` /
+  `SEATMAP_OCCUPANT_TYPES` constants, and two typed errors
+  `UnknownSeatmapBlockStatusError` and `UnknownSeatmapAssignmentParentError`.
+- **Why:** callers need who/what occupies each seat (bookings/guests, staff,
+  field locations, blocked seats) for a given map and time window — not just the
+  static layout `getSeatmapForProduct` returns.
+- **Caller action:** none — purely additive; `getSeatmapForProduct` is unchanged
+  and still returns the base `Seatmap[]` without `status`/`assignedTo`. When
+  adopting the new call, note: it takes the **product id** and returns every map
+  on that activity (like `getSeatmapForProduct`), empty when there are none;
+  `rangeStart`/`rangeEnd` accept flexible datetimes (seconds optional, any
+  timezone/fractional seconds stripped) normalized to naive
+  `YYYY-MM-DDTHH:MM:SS` and queried half-open `[start,end)` — and the two bounds
+  must fall on the same date (it throws otherwise); an occupant's
+  `guestName` is **customer PII**, so for a GUEST it is `null` unless the access
+  service was created with `fullCustomerAccess` (staff/ACCOUNT_USER names are not
+  gated); and an unrecognized seat status or assignment parent throws the
+  matching new error (`.status` / `.typename` carry the offending value).
+
 ### New `SeatmapService` for reading product seating maps `[additive]`
 
 - **What:** `PeekAccessService.getSeatmapService()` returns a new `SeatmapService`

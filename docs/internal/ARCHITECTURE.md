@@ -216,6 +216,32 @@ where the gateway does not select it. `SeatmapDisplay.type` is narrowed to
 that set makes the converter throw the exported `UnknownSeatmapDisplayTypeError`
 rather than silently widen the model.
 
+`getSeatMapAssignments(productId, rangeStart, rangeEnd)` reads a product's maps
+through the same `activity(id).seatingMaps` entry as the plain read (the gateway
+has no top-level `seatingMap(id)`), with every seat enriched by its occupancy
+over a datetime range, returning `AssignedSeatmap[]` (empty when the activity is
+missing or has no maps). The query selects the same structural fields as the
+plain read plus each seat's `availability(datetimeRange)`; the
+assignment-enriched tree is
+modeled by interface inheritance — `AssignedSeatmap`/`AssignedSeatmapSection`/
+`AssignedSeatmapGroup`/`AssignedSeatmapBlock` each `extends` its base and narrows
+the child collection, and `AssignedSeatmapBlock` adds `status`
+(`SeatmapBlockStatus`) and `assignedTo` (`SeatmapAssignment[]`). An occupant's
+kind (`SeatmapOccupantType`) is derived from the assignment parent's
+`__typename` (`Ticket`→GUEST, `AccountUser`→ACCOUNT_USER,
+`FieldLocation`→FIELD_LOCATION; `BlockedSeat` is not an occupant and drops out);
+an unknown status or parent throws `UnknownSeatmapBlockStatusError` /
+`UnknownSeatmapAssignmentParentError`. `rangeStart`/`rangeEnd` are normalized in
+the service to the gateway's naive `YYYY-MM-DDTHH:MM:SS` form (seconds added when
+omitted, timezone and fractional seconds stripped, components range-checked) and
+sent as a half-open `[start,end)` range; the two bounds must fall on the same
+date (the service throws otherwise). A guest's name is **customer PII**:
+`SeatmapService` resolves `fullCustomerAccess` (threaded from `PeekAccessService`
+like `BookingService`/`ReviewService`) and the query omits `primaryGuest` when it
+is off, so a GUEST occupant's `guestName` is `null`; staff (`AccountUser`) names
+are not gated. The plain `getSeatmapForProduct` read is unaffected — it returns
+the base `SeatmapBlock` without `status`/`assignedTo`.
+
 `ProductService` exposes three top-level product filters in addition to the combined `getAllProducts()`:
 - `getAllActivities()` — fetches only the `activities` connection (one request, no add-on pagination).
 - `getAllAddons()` — fetches only the `itemOptions` connection, paginated.
@@ -607,7 +633,8 @@ options/result types callers need), all data-model **types** (including
 `InstallWebhookClaims`/`InstallWebhookAccount`), the `Logger` interface +
 `noopLogger`, and the typed error classes (`AdminAccountRequiredError`,
 `RateLimitError`, `PeekGraphQLError`, `PeekHttpError`, `PiiAccessDisabledError`,
-`UnknownSeatmapDisplayTypeError`, `CngApiError`, `CngPermissionError`,
+`UnknownSeatmapDisplayTypeError`, `UnknownSeatmapBlockStatusError`,
+`UnknownSeatmapAssignmentParentError`, `CngApiError`, `CngPermissionError`,
 `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).

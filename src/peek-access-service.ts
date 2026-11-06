@@ -456,7 +456,7 @@ export class PeekAccessService {
    */
   getSeatmapService(): SeatmapService {
     if (!this.seatmapService) {
-      this.seatmapService = new SeatmapService(this.client);
+      this.seatmapService = new SeatmapService(this.client, this.accessOptions);
     }
     return this.seatmapService;
   }

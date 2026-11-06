@@ -131,3 +131,191 @@ export interface SeatmapsResponse {
     seatingMaps?: RawSeatmapNode[] | null;
   } | null;
 }
+
+/**
+ * Builds the seat-assignments query for a product's seating maps over a datetime
+ * range. It reads the same `activity(id).seatingMaps` entry as
+ * {@link SEATMAPS_QUERY} and selects the same structural fields (zones, section/
+ * group/block geometry) plus each seat's `availability` for the range.
+ *
+ * The booking's `primaryGuest` is **customer PII**, so it is selected only when
+ * `fullCustomerAccess` is on — otherwise the gateway never returns it and a
+ * guest occupant's name maps to `null`. Staff (`AccountUser`) names are not PII
+ * and are always selected.
+ */
+export function buildSeatmapAssignmentsQuery(fullCustomerAccess: boolean): string {
+  const primaryGuest = fullCustomerAccess
+    ? "primaryGuest { firstName lastName }"
+    : "";
+  return `
+  query SeatMapAssignments($id: ID!, $range: NaiveDatetimeRange!) {
+    activity(id: $id) {
+      seatingMaps {
+      id
+      name
+      zones {
+        id
+        name
+        resourceOptions {
+          id
+          name
+        }
+      }
+      sections(datetimeRange: $range) {
+        id
+        display {
+          label
+          x
+          y
+          width
+          height
+          type
+        }
+        groups {
+          assignableTo
+          name
+          id
+          display {
+            x
+            y
+            tableWidth
+            tableHeight
+            table
+          }
+          blocks {
+            fullBlockName
+            name
+            id
+            order
+            zone {
+              id
+            }
+            display {
+              x
+              y
+            }
+            availability(datetimeRange: $range) {
+              status
+              assignments {
+                id
+                parent {
+                  __typename
+                  ... on Ticket {
+                    id
+                    resourceOptionSnapshot {
+                      id
+                      name
+                    }
+                    booking {
+                      id
+                      displayId
+                      activityId
+                      activitySnapshot {
+                        id
+                        name
+                      }
+                      startsAt
+                      endsAt
+                      ${primaryGuest}
+                    }
+                  }
+                  ... on AccountUser {
+                    id
+                    name
+                  }
+                  ... on FieldLocation {
+                    id
+                  }
+                  ... on BlockedSeat {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    }
+  }
+`;
+}
+
+/** The assignment-parent typenames the converter recognizes. */
+export const SEATMAP_ASSIGNMENT_PARENTS = [
+  "Ticket",
+  "AccountUser",
+  "FieldLocation",
+  "BlockedSeat",
+] as const;
+
+/** A booking's primary guest, as selected under a `Ticket` parent (PII-gated). */
+export interface RawSeatmapPrimaryGuest {
+  firstName?: string | null;
+  lastName?: string | null;
+}
+
+/** A booking node, as selected under a `Ticket` parent. */
+export interface RawSeatmapBooking {
+  id?: string | null;
+  displayId?: string | null;
+  activityId?: string | null;
+  activitySnapshot?: { id: string; name: string } | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  primaryGuest?: RawSeatmapPrimaryGuest | null;
+}
+
+/** A single assignment's `parent`, a union discriminated by `__typename`. */
+export interface RawSeatmapAssignmentParent {
+  __typename?: string | null;
+  id?: string | null;
+  /** `Ticket` only. */
+  resourceOptionSnapshot?: { id: string; name: string } | null;
+  /** `Ticket` only. */
+  booking?: RawSeatmapBooking | null;
+  /** `AccountUser` only. */
+  name?: string | null;
+}
+
+/** A single seat assignment node. */
+export interface RawSeatmapAssignment {
+  id?: string | null;
+  parent?: RawSeatmapAssignmentParent | null;
+}
+
+/** A seat's availability for the queried range. */
+export interface RawSeatmapAvailability {
+  status?: string | null;
+  assignments?: RawSeatmapAssignment[] | null;
+}
+
+/** A block node under the assignments query — a {@link RawSeatmapBlock} plus availability. */
+export interface RawAssignedSeatmapBlock extends RawSeatmapBlock {
+  availability?: RawSeatmapAvailability | null;
+}
+
+/** A group node under the assignments query. */
+export interface RawAssignedSeatmapGroup
+  extends Omit<RawSeatmapGroup, "blocks"> {
+  blocks?: RawAssignedSeatmapBlock[] | null;
+}
+
+/** A section node under the assignments query. */
+export interface RawAssignedSeatmapSection
+  extends Omit<RawSeatmapSection, "groups"> {
+  groups?: RawAssignedSeatmapGroup[] | null;
+}
+
+/** A seating-map node under the assignments query. */
+export interface RawAssignedSeatmapNode
+  extends Omit<RawSeatmapNode, "sections"> {
+  sections?: RawAssignedSeatmapSection[] | null;
+}
+
+/** The `data` payload of the seat-assignments query. */
+export interface SeatmapAssignmentsResponse {
+  activity?: {
+    seatingMaps?: RawAssignedSeatmapNode[] | null;
+  } | null;
+}

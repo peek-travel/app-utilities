@@ -184,16 +184,35 @@ final authority and may still reject the request.
   carries no per-activity config, so `order` is `0` and `isRequired` is `false` on
   every entry. Question definitions, not answers — no PII; unaffected by
   `fullCustomerAccess`.
-- `getSeatmapService()` — `getSeatmapForProduct(productId)` → `Seatmap[]`, every
-  seating map configured on an activity (empty when the activity is missing or has
-  none). A `Seatmap` has `zones` (pricing tiers, each with `tickets:
-  SeatmapTicket[]`) and `sections` (a tree of `SeatmapSection` → `SeatmapGroup`
-  tables → `SeatmapBlock` seats). All three rendered levels share one
-  `SeatmapDisplay` geometry: only `x`/`y` are always set, every other field is
-  `null` where absent; `display.type` is `SeatmapDisplayType` (`"SHAPE" |
-  "SECTION" | "LABEL"`) and an unrecognized value throws
-  `UnknownSeatmapDisplayTypeError`. Structural layout, not customer data — no PII;
-  unaffected by `fullCustomerAccess`.
+- `getSeatmapService()` — two reads:
+  - `getSeatmapForProduct(productId)` → `Seatmap[]`, every seating map configured
+    on an activity (empty when the activity is missing or has none). A `Seatmap`
+    has `zones` (pricing tiers, each with `tickets: SeatmapTicket[]`) and
+    `sections` (a tree of `SeatmapSection` → `SeatmapGroup` tables →
+    `SeatmapBlock` seats). All three rendered levels share one `SeatmapDisplay`
+    geometry: only `x`/`y` are always set, every other field is `null` where
+    absent; `display.type` is `SeatmapDisplayType` (`"SHAPE" | "SECTION" |
+    "LABEL"`) and an unrecognized value throws `UnknownSeatmapDisplayTypeError`.
+    Structural layout, not customer data — no PII; unaffected by
+    `fullCustomerAccess`.
+  - `getSeatMapAssignments(productId, rangeStart, rangeEnd)` → `AssignedSeatmap[]`
+    (empty when the activity is missing or has no maps): every map on an activity
+    with each seat enriched by its occupancy over a datetime range.
+    `AssignedSeatmap`/`…Section`/`…Group`/
+    `…Block` extend their base types; `AssignedSeatmapBlock` adds `status`
+    (`SeatmapBlockStatus = "AVAILABLE" | "OCCUPIED" | "BLOCKED"`) and `assignedTo`
+    (`SeatmapAssignment[]`, empty unless OCCUPIED). Each `SeatmapAssignment` has
+    `occupiedBy` (`SeatmapOccupantType = "GUEST" | "ACCOUNT_USER" |
+    "FIELD_LOCATION"`), booking detail (`bookingId`, `bookingDisplayId`,
+    `productId/Name`, `ticketId/Name`, `startsAt`, `endsAt` — GUEST only, else
+    null), and `guestName`. `rangeStart`/`rangeEnd` are flexible — seconds
+    optional, timezone/fractional stripped — normalized to naive
+    `YYYY-MM-DDTHH:MM:SS` and sent half-open `[start,end)`, and both bounds must
+    fall on the same date (throws otherwise). **`guestName` is
+    customer PII**: for a GUEST it is the primary guest's name and is gated behind
+    `fullCustomerAccess` (null when off); for an ACCOUNT_USER it is the staff
+    member's name (not gated). Unknown gateway values throw
+    `UnknownSeatmapBlockStatusError` / `UnknownSeatmapAssignmentParentError`.
 
 ## Sibling accessors (CNG, ACME — REST, not GraphQL)
 
@@ -261,9 +280,13 @@ stay internal.
   keep their status), `PiiAccessDisabledError` (a payment/booking-modification op
   was called without `fullCustomerAccess`), the REST-sibling `CngApiError` /
   `AcmeApiError`, and `CngPermissionError` (CNG HTTP 403; `.permissions`,
-  `.statusCode`, raw `.body`), and `UnknownSeatmapDisplayTypeError` (a seatmap
-  `display.type` outside the known set; `.type` holds the offending value) — all
-  importable; branch with `instanceof`. Token claim
+  `.statusCode`, raw `.body`), and the seatmap errors
+  `UnknownSeatmapDisplayTypeError` (a `display.type` outside the known set; `.type`
+  holds the offending value), `UnknownSeatmapBlockStatusError` (an
+  `availability.status` outside the known set; `.status`), and
+  `UnknownSeatmapAssignmentParentError` (an assignment-parent `__typename` outside
+  the known set; `.typename`) — all importable; branch with `instanceof`. Token
+  claim
   extraction never throws once the signature verifies: a missing `user` block
   gives `user: null`, and each user field (including `id`, the person's own id —
   not an account/partner id) is nullable, with `""`/`"null"` normalized to `null`.
