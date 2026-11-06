@@ -196,8 +196,90 @@ Each resource follows the same **three-file triad**:
 
 Resources: `products`, `custom-questions`, `account-users`, `resource-pools`,
 `timeslots`, `resellers`, `promo-codes`, `pricing`, `daily-notes`,
-`availability`, `memberships`, `bookings`, `reviews`. Clean data shapes are split
-by brand: Peek models in `src/models/peek/`, CNG models in `src/models/cng/`.
+`availability`, `memberships`, `bookings`, `reviews`, `seatmaps`. Clean data
+shapes are split by brand: Peek models in `src/models/peek/`, CNG models in
+`src/models/cng/`.
+
+Seating maps are their own resource triad under `src/internal/peek/seatmaps/` —
+`seatmap-queries.ts` (query string and raw nodes, internal), the pure
+`seatmap-converter.ts`, and `SeatmapService`. `getSeatmapForProduct(productId)`
+returns every `Seatmap` configured on an activity (`Seatmap[]`, empty when the
+activity is missing or has none); it is unaffected by `fullCustomerAccess`
+(seating maps are structural layout, not customer data). A map carries `zones`
+(pricing tiers, each mapping to `SeatmapTicket[]`) and a tree of
+`SeatmapSection` → `SeatmapGroup` (tables) → `SeatmapBlock` (seats). All three
+rendered levels share one `SeatmapDisplay` geometry type: only `x`/`y` are
+always present, and every other field (`width`/`height`/`label`/`type` on
+sections; `table`/`tableWidth`/`tableHeight` on groups) collapses to `null`
+where the gateway does not select it. `SeatmapDisplay.type` is narrowed to
+`SeatmapDisplayType` (`"SHAPE" | "SECTION" | "LABEL"`); a non-null value outside
+that set makes the converter throw the exported `UnknownSeatmapDisplayTypeError`
+rather than silently widen the model.
+
+`getSeatMapAssignments(productId, rangeStart, rangeEnd)` reads a product's maps
+through the same `activity(id).seatingMaps` entry as the plain read (the gateway
+has no top-level `seatingMap(id)`), with every seat enriched by its occupancy
+over a datetime range, returning `AssignedSeatmap[]` (empty when the activity is
+missing or has no maps). The query selects the same structural fields as the
+plain read plus each seat's `availability(datetimeRange)`; the
+assignment-enriched tree is
+modeled by interface inheritance — `AssignedSeatmap`/`AssignedSeatmapSection`/
+`AssignedSeatmapGroup`/`AssignedSeatmapBlock` each `extends` its base and narrows
+the child collection, and `AssignedSeatmapBlock` adds `status`
+(`SeatmapBlockStatus`) and `assignedTo` (`SeatmapAssignment[]`). An occupant's
+kind (`SeatmapOccupantType`) is derived from the assignment parent's
+`__typename` (`Ticket`→GUEST, `AccountUser`→ACCOUNT_USER,
+`FieldLocation`→FIELD_LOCATION; `BlockedSeat` is not an occupant and drops out);
+an unknown status or parent throws `UnknownSeatmapBlockStatusError` /
+`UnknownSeatmapAssignmentParentError`. `rangeStart`/`rangeEnd` are normalized in
+the service to the gateway's naive `YYYY-MM-DDTHH:MM:SS` form (seconds added when
+omitted, timezone and fractional seconds stripped, components range-checked) and
+sent as a half-open `[start,end)` range; the two bounds must fall on the same
+date (the service throws otherwise). A guest's name is **customer PII**:
+`SeatmapService` resolves `fullCustomerAccess` (threaded from `PeekAccessService`
+like `BookingService`/`ReviewService`) and the query omits `primaryGuest` when it
+is off, so a GUEST occupant's `guestName` is `null`; staff (`AccountUser`) names
+are not gated. The plain `getSeatmapForProduct` read is unaffected — it returns
+the base `SeatmapBlock` without `status`/`assignedTo`.
+
+`assignableBookings(productId, rangeStart, rangeEnd)` reads the confirmed
+bookings on a product that overlap a range (via `bookings(filter: { activityIds,
+overlapsRange, reservationStatuses: [CONFIRMED] })`), returning
+`AssignableBooking[]` — each with `assignableTickets` (`AssignableTicket`, keyed
+by the ticket `hashid` as `assignableId`) and, per ticket, the seat it currently
+holds (`CurrentSeatAssignment`, `null` when unassigned — the assignable case).
+Range bounds are parsed and validated by the same shared `buildNaiveRange`
+helper as `getSeatMapAssignments` (normalize both bounds, enforce same date,
+emit the half-open `[start,end)` literal) and booking `startsAt`/`endsAt` have
+fractional seconds stripped. `guestName` is the same PII-gated primary-guest
+name. The query and converter live in the seatmaps triad alongside the
+seatmap-read code and reuse its `stripFractionalSeconds`/`joinGuestName` helpers;
+the models (`AssignableBooking`, `AssignableTicket`, `CurrentSeatAssignment`) are
+named to avoid colliding with the existing `Booking`/`Ticket` models.
+
+`assignTicketsToSeats(assignments)` is the one seatmap **write**: it batches one
+aliased `assignBlocks` call per {@link SeatmapBlockAssignment} into a single
+mutation (the query module builds the aliases, variable declarations, and
+variables; `assignBlocksAlias` keeps the service/converter in sync). The service
+validates up front — non-empty list, each `assignableId` prefixed `t_`, each
+`blockId` prefixed `csb_` — throwing before any network call. The converter
+(`toAssignmentResponse`) classifies each aliased result: a `__typename` of
+`AssignmentResponse` is a success, every other union member (the
+`AssignBlocksError*` types, or a missing result) is a per-assignment failure,
+yielding `SUCCESS`/`FAILED`/`PARTIAL`. Successes are returned as
+`SuccessfulAssignment` pairs — the requested `assignableId` (read back from the
+result's `parent.Ticket.hashid`, falling back to the input) and the created
+`assignmentId` (the `asa_…` from `assignments[].id`); failures list the
+`assignableId`. Per-assignment errors are reported in the `AssignmentResponse`,
+not thrown — only transport/GraphQL-level failures throw (via the shared client).
+
+`deleteSeatAssignments(assignmentIds)` is the companion write: a single
+`deleteAssignments(assignmentIds: [ID!]!)` mutation. The service validates up
+front — non-empty list, each id prefixed `asa_` — then inspects the union result:
+a `DeleteAssignmentsSuccess` maps (via `fromDeletedAssignments`) to the returned
+`DeletedSeatAssignment[]` (the now-deleted assignments, for reloading state),
+while any other member (e.g. `AssignBlocksErrorInvalidBlockCount`) throws the
+exported `SeatmapDeleteError` carrying the gateway `message`.
 
 `ProductService` exposes three top-level product filters in addition to the combined `getAllProducts()`:
 - `getAllActivities()` — fetches only the `activities` connection (one request, no add-on pagination).
@@ -590,7 +672,10 @@ options/result types callers need), all data-model **types** (including
 `InstallWebhookClaims`/`InstallWebhookAccount`), the `Logger` interface +
 `noopLogger`, and the typed error classes (`AdminAccountRequiredError`,
 `RateLimitError`, `PeekGraphQLError`, `PeekHttpError`, `PiiAccessDisabledError`,
-`CngApiError`, `CngPermissionError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
+`UnknownSeatmapDisplayTypeError`, `UnknownSeatmapBlockStatusError`,
+`UnknownSeatmapAssignmentParentError`, `SeatmapDeleteError`, `CngApiError`,
+`CngPermissionError`, `AcmeApiError`). Query strings and raw response interfaces
+are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and

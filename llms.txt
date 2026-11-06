@@ -184,6 +184,62 @@ final authority and may still reject the request.
   carries no per-activity config, so `order` is `0` and `isRequired` is `false` on
   every entry. Question definitions, not answers — no PII; unaffected by
   `fullCustomerAccess`.
+- `getSeatmapService()` — two reads:
+  - `getSeatmapForProduct(productId)` → `Seatmap[]`, every seating map configured
+    on an activity (empty when the activity is missing or has none). A `Seatmap`
+    has `zones` (pricing tiers, each with `tickets: SeatmapTicket[]`) and
+    `sections` (a tree of `SeatmapSection` → `SeatmapGroup` tables →
+    `SeatmapBlock` seats). All three rendered levels share one `SeatmapDisplay`
+    geometry: only `x`/`y` are always set, every other field is `null` where
+    absent; `display.type` is `SeatmapDisplayType` (`"SHAPE" | "SECTION" |
+    "LABEL"`) and an unrecognized value throws `UnknownSeatmapDisplayTypeError`.
+    Structural layout, not customer data — no PII; unaffected by
+    `fullCustomerAccess`.
+  - `getSeatMapAssignments(productId, rangeStart, rangeEnd)` → `AssignedSeatmap[]`
+    (empty when the activity is missing or has no maps): every map on an activity
+    with each seat enriched by its occupancy over a datetime range.
+    `AssignedSeatmap`/`…Section`/`…Group`/
+    `…Block` extend their base types; `AssignedSeatmapBlock` adds `status`
+    (`SeatmapBlockStatus = "AVAILABLE" | "OCCUPIED" | "BLOCKED"`) and `assignedTo`
+    (`SeatmapAssignment[]`, empty unless OCCUPIED). Each `SeatmapAssignment` has
+    `occupiedBy` (`SeatmapOccupantType = "GUEST" | "ACCOUNT_USER" |
+    "FIELD_LOCATION"`), booking detail (`bookingId`, `bookingDisplayId`,
+    `productId/Name`, `ticketId/Name`, `startsAt`, `endsAt` — GUEST only, else
+    null), and `guestName`. `rangeStart`/`rangeEnd` are flexible — seconds
+    optional, timezone/fractional stripped — normalized to naive
+    `YYYY-MM-DDTHH:MM:SS` and sent half-open `[start,end)`, and both bounds must
+    fall on the same date (throws otherwise). **`guestName` is
+    customer PII**: for a GUEST it is the primary guest's name and is gated behind
+    `fullCustomerAccess` (null when off); for an ACCOUNT_USER it is the staff
+    member's name (not gated). Unknown gateway values throw
+    `UnknownSeatmapBlockStatusError` / `UnknownSeatmapAssignmentParentError`.
+  - `assignableBookings(productId, rangeStart, rangeEnd)` → `AssignableBooking[]`
+    (empty when none match): the confirmed bookings on a product overlapping the
+    range, each with `assignableTickets` (`AssignableTicket`: `assignableId` =
+    ticket hashid, `ticketId`/`ticketName` from the snapshot, `currentlyAssignedTo:
+    CurrentSeatAssignment | null` = the seat it currently holds, null when
+    unassigned). `startsAt`/`endsAt` have fractional seconds stripped; range
+    bounds use the same parsing/validation as `getSeatMapAssignments` (flexible,
+    tz/fractional stripped, both on the same date, sent half-open `[start,end)`).
+    `guestName` is the same PII-gated primary-guest name (null without
+    `fullCustomerAccess`).
+  - `assignTicketsToSeats(assignments: SeatmapBlockAssignment[])` →
+    `AssignmentResponse`: bulk-assigns tickets to seats (one batched mutation).
+    Each `SeatmapBlockAssignment` is `{ assignableId (starts `t_`), blockId
+    (starts `csb_`) }`; both prefixes and a non-empty list are validated before
+    any request (throws `Error` otherwise). `AssignmentResponse` is `{ status:
+    "SUCCESS" | "PARTIAL" | "FAILED", successfulAssignments: SuccessfulAssignment[],
+    failedAssignments: string[] }` — each `SuccessfulAssignment` is `{ assignableId
+    (t_…), assignmentId (asa_…, the new record) }`; `failedAssignments` is the
+    failed `assignableId`s. Per-assignment failures (overbooking, invalid type, …)
+    land in `failedAssignments` and are **not** thrown; only transport/GraphQL
+    errors throw.
+  - `deleteSeatAssignments(assignmentIds: string[])` → `DeletedSeatAssignment[]`:
+    deletes seat assignments by id (each must start with `asa_`; non-empty list;
+    validated before any request) and returns the now-deleted assignments
+    (`{ assignmentId, blockId, blockName, ticketHashId }`) for reloading state. A
+    batch-level failure union member throws `SeatmapDeleteError` (`.message`);
+    transport/GraphQL errors throw as usual.
 
 ## Sibling accessors (CNG, ACME — REST, not GraphQL)
 
@@ -251,7 +307,14 @@ stay internal.
   keep their status), `PiiAccessDisabledError` (a payment/booking-modification op
   was called without `fullCustomerAccess`), the REST-sibling `CngApiError` /
   `AcmeApiError`, and `CngPermissionError` (CNG HTTP 403; `.permissions`,
-  `.statusCode`, raw `.body`) — all importable; branch with `instanceof`. Token claim
+  `.statusCode`, raw `.body`), and the seatmap errors
+  `UnknownSeatmapDisplayTypeError` (a `display.type` outside the known set; `.type`
+  holds the offending value), `UnknownSeatmapBlockStatusError` (an
+  `availability.status` outside the known set; `.status`), and
+  `UnknownSeatmapAssignmentParentError` (an assignment-parent `__typename` outside
+  the known set; `.typename`), and `SeatmapDeleteError` (a batch-level
+  `deleteSeatAssignments` failure; the gateway reason is on `.message`) — all
+  importable; branch with `instanceof`. Token claim
   extraction never throws once the signature verifies: a missing `user` block
   gives `user: null`, and each user field (including `id`, the person's own id —
   not an account/partner id) is nullable, with `""`/`"null"` normalized to `null`.

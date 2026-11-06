@@ -217,8 +217,8 @@ function render(DATA){
   const MBN={}; DATA.models.forEach(m=>{MBN[m.name]=m;});
   function resolveFields(m){
     const rows=(m.fields||[]).map(f=>({f,from:null}));
-    const seen=new Set([m.name]); let pn=m.extends;
-    while(pn && !seen.has(pn)){seen.add(pn);const p=MBN[pn];if(!p)break;(p.fields||[]).forEach(f=>rows.push({f,from:p.name}));pn=p.extends;}
+    const seen=new Set([m.name]); const fieldNames=new Set((m.fields||[]).map(f=>f.name)); let pn=m.extends;
+    while(pn && !seen.has(pn)){seen.add(pn);const p=MBN[pn];if(!p)break;(p.fields||[]).forEach(f=>{if(!fieldNames.has(f.name)){fieldNames.add(f.name);rows.push({f,from:p.name});}});pn=p.extends;}
     return rows;
   }
   DATA.models.forEach(m=>{
