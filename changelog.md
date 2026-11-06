@@ -12,6 +12,27 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## Unreleased
+
+### Requests to an `apiUrl` go only to allowed API hosts `[breaking]`
+
+- **What:** An access service built with an `apiUrl` (Peek, CNG, or ACME, and
+  `createAccessServiceForInstall`) now sends a request only when the URL uses
+  `https` and its host is `apps.peek.com`, `stage.apps.peek.com`, or a host in
+  the new `PEEK_REGISTRY_EXTRA_HOSTS` environment variable (comma-separated,
+  empty by default). The host must match exactly (case-insensitive); a subdomain
+  of a listed host does not match. For any other URL each call logs the host and
+  throws the new exported `ApiHostNotAllowedError` (`.host`, `.protocol`) without
+  sending a request. Access services built without an `apiUrl` are unchanged.
+- **Caller action:**
+  - **Breaking:** an app whose `apiUrl` uses `http` or a host that is not on the
+    list now gets `ApiHostNotAllowedError` on every call. Check the hosts of the
+    `apiUrl` values you persist before you update.
+  - To use another host (for example a local or test gateway), add it to
+    `PEEK_REGISTRY_EXTRA_HOSTS`, with its port when it uses a non-default one.
+    The URL must still use `https`.
+  - To roll back, pin the previous version.
+
 ## 1.0.1
 
 ### Shared `Money` model; `BookingAddonMoney` deprecated `[additive]`

@@ -108,6 +108,21 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
   `appId` is unused with `apiUrl` (and `gatewayKey` isn't required — the registry
   endpoint authenticates on the JWT, like v2). `createAccessServiceForInstall`
   (§ below) is the front door for the `apiUrl` path.
+- **Allowed API hosts — `internal/api-host.ts`.** When the config carries an
+  `apiUrl`, each access service builds its transport's `fetchFn` through
+  `resolveFetch(config, logger)` (`access-service-config.ts`), which wraps the
+  configured (or global) `fetch` in `withApiHostCheck`. The wrapper parses every
+  outgoing URL and calls the inner `fetch` only when the scheme is `https:` and
+  the URL `host` exactly equals (case-insensitive) one of `REGISTRY_HOSTS`
+  (`apps.peek.com`, `stage.apps.peek.com`) or an entry of the comma-separated
+  `PEEK_REGISTRY_EXTRA_HOSTS` env var (read per call, via `globalThis.process`
+  so a runtime without `process` sees no extra hosts). Anything else logs the
+  host at `error` and rejects with `ApiHostNotAllowedError` before `fetch` runs,
+  so neither the JWT nor `pk-api-key` is sent. Because the check sits on the
+  `fetch` seam, it covers all three transports (and every retry) without
+  changing them. Configs without an `apiUrl` (the deprecated `baseUrl`/`appId`
+  path) get the unwrapped `fetch`. The `scripts/gql-cli` harness applies the
+  same wrapper when `PEEK_API_URL` is set.
 - **Peek registry (`"v2"`) vs. legacy (`"v1"`).** `mode` is a **required**
   `"v1" | "v2"` field on `PeekAccessServiceConfig` (it used to be optional and
   default to v1; it is now mandatory, with a constructor guard that throws so even
@@ -589,8 +604,8 @@ options/result types callers need), all data-model **types** (including
 `PeekAuthTokenClaims`, `PeekAuthTokenUser`, and the install-webhook
 `InstallWebhookClaims`/`InstallWebhookAccount`), the `Logger` interface +
 `noopLogger`, and the typed error classes (`AdminAccountRequiredError`,
-`RateLimitError`, `PeekGraphQLError`, `PeekHttpError`, `PiiAccessDisabledError`,
-`CngApiError`, `CngPermissionError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
+`RateLimitError`, `ApiHostNotAllowedError`, `PeekGraphQLError`, `PeekHttpError`,
+`PiiAccessDisabledError`, `CngApiError`, `CngPermissionError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and

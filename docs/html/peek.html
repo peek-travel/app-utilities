@@ -549,7 +549,7 @@ render({
     {name:"installId",type:"string",n:false,desc:"Install ID. Becomes the JWT subject. Required."},
     {name:"jwtSecret",type:"string",n:false,desc:"HMAC secret used to sign the JWT. Required."},
     {name:"issuer",type:"string",n:false,desc:"JWT issuer — the app name / app ID. Required."},
-    {name:"apiUrl",type:"string",n:"opt",desc:"The install's <b>base API URL</b> (persist the install webhook's <code>apiUrl</code>). Each service class appends its own backoffice slug (e.g. <code>peek_backoffice_api-v1</code>, from that platform's endpoint lookup) when it calls, so different services can route through different slugs. If the URL you pass already carries this platform's slug (dashes or underscores) it is stripped back to the base; a URL carrying a different platform's slug makes the constructor throw. No app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
+    {name:"apiUrl",type:"string",n:"opt",desc:"The install's <b>base API URL</b> (persist the install webhook's <code>apiUrl</code>). Each service class appends its own backoffice slug (e.g. <code>peek_backoffice_api-v1</code>, from that platform's endpoint lookup) when it calls, so different services can route through different slugs. If the URL you pass already carries this platform's slug (dashes or underscores) it is stripped back to the base; a URL carrying a different platform's slug makes the constructor throw. No app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>. Calls are sent only when the URL uses <code>https</code> on <code>apps.peek.com</code>, <code>stage.apps.peek.com</code>, or a host in <code>PEEK_REGISTRY_EXTRA_HOSTS</code>; otherwise each call throws <code>ApiHostNotAllowedError</code> without sending a request."},
     {name:"appId",type:"string",n:"opt",desc:"<b>@deprecated</b> App ID inserted into the gateway endpoint path. Required only in legacy <code>baseUrl</code> mode."},
     {name:"baseUrl",type:"string",n:"opt",desc:"<b>@deprecated</b> Override the gateway base URL (per-service default). Prefer <code>apiUrl</code>."},
     {name:"tokenTtlSeconds",type:"number",n:"opt",desc:"JWT lifetime in seconds. Default 3600."},
@@ -1206,7 +1206,13 @@ render({
   {name:"AccessOptions",kind:"input",file:"src/access-options.ts",desc:"Cross-cutting access options passed once at access-service construction. Governs PII exposure and payment/modification gating. Threaded into <code>BookingService</code> and <code>ReviewService</code>.",
    fields:[{name:"fullCustomerAccess",type:"boolean",n:"opt",desc:"Expose customer PII and enable payment/modification ops (default false)."}]},
   {name:"PiiAccessDisabledError",kind:"error class",file:"src/errors.ts",desc:"Thrown by PII-gated <code>BookingService</code> methods (<code>getPaymentsOnFile</code>, <code>makePayment</code>, <code>refund</code>, <code>createInvoiceLink</code>, <code>addAddon</code>, <code>removeAddon</code>) when <code>fullCustomerAccess</code> is off — before any network call.",
-   fields:[{name:"operation",type:"string",n:false,desc:"readonly — the gated operation name that was refused."}]}
+   fields:[{name:"operation",type:"string",n:false,desc:"readonly — the gated operation name that was refused."}]},
+  {name:"ApiHostNotAllowedError",kind:"error class",file:"src/errors.ts",desc:"Thrown by every call of an access service built with an <code>apiUrl</code> when that URL does not use <code>https</code> or its host is not allowed — before any request is sent. Allowed hosts: <code>apps.peek.com</code>, <code>stage.apps.peek.com</code>, and each host in the comma-separated <code>PEEK_REGISTRY_EXTRA_HOSTS</code> environment variable (exact match, case-insensitive; subdomains do not match). The host is logged at <code>error</code>.",
+   def:"class ApiHostNotAllowedError extends Error { name = \"ApiHostNotAllowedError\";  constructor(host: string | null, protocol: string | null, message?: string) }",
+   fields:[
+     {name:"host",type:"string | null",n:true,desc:"readonly — host of the rejected URL; <code>null</code> when the URL could not be parsed."},
+     {name:"protocol",type:"string | null",n:true,desc:"readonly — scheme of the rejected URL (e.g. <code>\"http:\"</code>); <code>null</code> when the URL could not be parsed."}
+   ]}
  ]
 });
 </script>

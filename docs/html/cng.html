@@ -343,7 +343,7 @@ render({
     {name:"installId",type:"string",n:false,desc:"Install ID. Becomes the JWT subject. Required."},
     {name:"jwtSecret",type:"string",n:false,desc:"HMAC secret used to sign the JWT. Required."},
     {name:"issuer",type:"string",n:false,desc:"JWT issuer — the app name / app ID. Required."},
-    {name:"apiUrl",type:"string",n:"opt",desc:"The install's <b>base API URL</b> (persist the install webhook's <code>apiUrl</code>). The product service appends the <code>cng_backoffice_api-v1</code> slug and the request path (<code>&lt;base&gt;/&lt;slug&gt;/&lt;path&gt;</code>). A slug already on the URL (dashes or underscores) is stripped back to the base; a different platform's slug makes the constructor throw. No app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>."},
+    {name:"apiUrl",type:"string",n:"opt",desc:"The install's <b>base API URL</b> (persist the install webhook's <code>apiUrl</code>). The product service appends the <code>cng_backoffice_api-v1</code> slug and the request path (<code>&lt;base&gt;/&lt;slug&gt;/&lt;path&gt;</code>). A slug already on the URL (dashes or underscores) is stripped back to the base; a different platform's slug makes the constructor throw. No app-id/gateway segment inserted (so <code>appId</code> not required). Preferred over <code>baseUrl</code>/<code>appId</code>. Calls are sent only when the URL uses <code>https</code> on <code>apps.peek.com</code>, <code>stage.apps.peek.com</code>, or a host in <code>PEEK_REGISTRY_EXTRA_HOSTS</code>; otherwise each call throws <code>ApiHostNotAllowedError</code> without sending a request."},
     {name:"appId",type:"string",n:"opt",desc:"<b>@deprecated</b> App ID inserted into the gateway endpoint path. Required only in legacy <code>baseUrl</code> mode."},
     {name:"baseUrl",type:"string",n:"opt",desc:"<b>@deprecated</b> Override the gateway base URL. Default the app-registry installations API. Prefer <code>apiUrl</code>."},
     {name:"tokenTtlSeconds",type:"number",n:"opt",desc:"JWT lifetime in seconds. Default 3600."},
@@ -390,7 +390,13 @@ render({
      {name:"permissions",type:"string[]",n:false,desc:"readonly — permission names the gateway reported missing. Empty when the body named none."},
      {name:"body",type:"unknown",n:false,desc:"readonly — raw response body."}
    ]
-  }
+  },
+  {name:"ApiHostNotAllowedError",kind:"error class",file:"src/errors.ts",desc:"Thrown by every call of an access service built with an <code>apiUrl</code> when that URL does not use <code>https</code> or its host is not allowed — before any request is sent. Allowed hosts: <code>apps.peek.com</code>, <code>stage.apps.peek.com</code>, and each host in the comma-separated <code>PEEK_REGISTRY_EXTRA_HOSTS</code> environment variable (exact match, case-insensitive; subdomains do not match). The host is logged at <code>error</code>.",
+   def:"class ApiHostNotAllowedError extends Error { name = \"ApiHostNotAllowedError\";  constructor(host: string | null, protocol: string | null, message?: string) }",
+   fields:[
+     {name:"host",type:"string | null",n:true,desc:"readonly — host of the rejected URL; <code>null</code> when the URL could not be parsed."},
+     {name:"protocol",type:"string | null",n:true,desc:"readonly — scheme of the rejected URL (e.g. <code>\"http:\"</code>); <code>null</code> when the URL could not be parsed."}
+   ]}
  ]
 });
 </script>
