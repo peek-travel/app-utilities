@@ -199,6 +199,7 @@ export type { Logger } from "./logger.js";
 export {
   AcmeApiError,
   AdminAccountRequiredError,
+  ApiHostNotAllowedError,
   CngApiError,
   CngPermissionError,
   InstallWebhookError,

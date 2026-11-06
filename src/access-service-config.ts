@@ -7,6 +7,7 @@
  * The shared defaults and the token-manager builder live here too, so that
  * plumbing is written once.
  */
+import { withApiHostCheck } from "./internal/api-host.js";
 import { TokenManager } from "./internal/token-manager.js";
 import type { AccessOptions } from "./access-options.js";
 import type { Logger } from "./logger.js";
@@ -40,6 +41,12 @@ export interface BaseAccessServiceConfig {
    * `https://apps.peek.com/installations-api/<app-slug>` (the trailing app-slug
    * segment is required — the prefix alone is not a valid URL). Treat that as a
    * transitional bridge and prefer the `apiUrl` the install webhook delivers.
+   *
+   * Requests to an `apiUrl` are sent only when the URL uses `https` and its host
+   * is `apps.peek.com`, `stage.apps.peek.com`, or a host listed in the
+   * comma-separated `PEEK_REGISTRY_EXTRA_HOSTS` environment variable (exact
+   * match, case-insensitive; subdomains do not match). Any other URL makes each
+   * call throw `ApiHostNotAllowedError` without sending a request.
    */
   apiUrl?: string;
   /**
@@ -157,4 +164,14 @@ export function createTokenManager(config: BaseAccessServiceConfig): TokenManage
     leewaySeconds:
       config.tokenRefreshLeewaySeconds ?? DEFAULT_TOKEN_REFRESH_LEEWAY_SECONDS,
   });
+}
+
+/**
+ * Resolves the `fetch` a transport uses: the configured one, else the global.
+ * When the config targets an install by `apiUrl`, the result is wrapped so it
+ * sends requests only to an allowed API host (see {@link withApiHostCheck}).
+ */
+export function resolveFetch(config: BaseAccessServiceConfig, logger: Logger): typeof fetch {
+  const fetchFn = config.fetch ?? globalThis.fetch;
+  return config.apiUrl ? withApiHostCheck(fetchFn, logger) : fetchFn;
 }

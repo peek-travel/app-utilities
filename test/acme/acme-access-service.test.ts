@@ -95,13 +95,13 @@ describe("AcmeAccessService", () => {
       installId: "install-123",
       jwtSecret: "secret",
       issuer: "app-name",
-      apiUrl: "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app",
+      apiUrl: "https://stage.apps.peek.com/installations-api/demo-app",
       fetch: fetchFn,
     });
     await acme.getAllActivities();
 
     expect(calls[0]).toBe(
-      "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app/acme_backoffice_api-v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
+      "https://stage.apps.peek.com/installations-api/demo-app/acme_backoffice_api-v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
     );
   });
 
@@ -116,13 +116,13 @@ describe("AcmeAccessService", () => {
       installId: "install-123",
       jwtSecret: "secret",
       issuer: "app-name",
-      apiUrl: "https://x.test/demo-app/acme-backoffice-api-v1",
+      apiUrl: "https://apps.peek.com/demo-app/acme-backoffice-api-v1",
       fetch: fetchFn,
     });
     await acme.getAllActivities();
 
     expect(calls[0]).toBe(
-      "https://x.test/demo-app/acme_backoffice_api-v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
+      "https://apps.peek.com/demo-app/acme_backoffice_api-v1/v2/b2b/event/templates/names?pageSize=-1&page=1",
     );
   });
 
@@ -133,7 +133,7 @@ describe("AcmeAccessService", () => {
           installId: "install-123",
           jwtSecret: "secret",
           issuer: "app-name",
-          apiUrl: "https://x.test/demo-app/cng_backoffice_api-v1",
+          apiUrl: "https://apps.peek.com/demo-app/cng_backoffice_api-v1",
         }),
     ).toThrow(/backoffice/i);
   });
@@ -145,7 +145,7 @@ describe("AcmeAccessService", () => {
           installId: "install-123",
           jwtSecret: "secret",
           issuer: "app-name",
-          apiUrl: "https://x.test/base",
+          apiUrl: "https://apps.peek.com/base",
         }),
     ).not.toThrow();
   });
