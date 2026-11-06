@@ -49,7 +49,10 @@ describe("readExtraHosts", () => {
   });
 
   it("drops entries that are not valid hosts", () => {
-    vi.stubEnv(EXTRA_HOSTS_ENV_VAR, "bad host,dev.example.com,[::1");
+    vi.stubEnv(
+      EXTRA_HOSTS_ENV_VAR,
+      "bad host,dev.example.com,[::1,http://a.example.com,b.example.com/api,c.example.com?x,d.example.com#x,u@e.example.com",
+    );
     expect(readExtraHosts()).toEqual(["dev.example.com"]);
   });
 

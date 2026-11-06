@@ -150,7 +150,8 @@ the URL uses `https` and its host is on the allowed list:
 - `apps.peek.com` and `stage.apps.peek.com` (built in);
 - each host in the `PEEK_REGISTRY_EXTRA_HOSTS` environment variable — a
   comma-separated list, empty by default (e.g.
-  `PEEK_REGISTRY_EXTRA_HOSTS=dev.example.com,localhost:8443`).
+  `PEEK_REGISTRY_EXTRA_HOSTS=dev.example.com,localhost:8443`). Each entry is a
+  bare host, with an optional port; an entry with a scheme or a path is ignored.
 
 The host must match a listed host exactly (case-insensitive); a subdomain of a
 listed host does not match, and an explicit non-default port must be listed with

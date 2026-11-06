@@ -42,8 +42,9 @@ function parseUrl(url: string): URL | null {
 /**
  * Reads the extra hosts from {@link EXTRA_HOSTS_ENV_VAR}: split on commas and
  * trimmed. Each entry is normalized the way a request URL's `host` is
- * (lowercased, IDN to punycode, the default `:443` port dropped). Empty and
- * unparsable entries are dropped. Returns `[]` when the variable is unset or
+ * (lowercased, IDN to punycode, the default `:443` port dropped). Empty
+ * entries, and entries that are not a bare host (a scheme, path, query, fragment or
+ * user part, e.g. `http://dev.example.com`), are dropped. Returns `[]` when the variable is unset or
  * there is no `process` global (a non-Node runtime).
  */
 export function readExtraHosts(): string[] {
@@ -52,8 +53,24 @@ export function readExtraHosts(): string[] {
     .split(HOST_SEPARATOR)
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0)
-    .map((entry) => parseUrl(HOST_PARSE_PREFIX + entry)?.host ?? "")
+    .map(entryHost)
     .filter((host) => host.length > 0);
+}
+
+/** Root path a bare host entry parses to. */
+const ROOT_PATH = "/";
+
+/** The normalized host of an env entry, or `""` when it is not a bare host. */
+function entryHost(entry: string): string {
+  const url = parseUrl(HOST_PARSE_PREFIX + entry);
+  const isBareHost =
+    url !== null &&
+    url.pathname === ROOT_PATH &&
+    !url.search &&
+    !url.hash &&
+    !url.username &&
+    !url.password;
+  return isBareHost ? url.host : "";
 }
 
 /**
