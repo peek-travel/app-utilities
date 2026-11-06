@@ -390,3 +390,95 @@ export interface RawAssignableBooking {
 export interface AssignableBookingsResponse {
   bookings?: RawAssignableBooking[] | null;
 }
+
+/** The union member `__typename` the gateway returns for a successful assignment. */
+export const ASSIGNMENT_SUCCESS_TYPENAME = "AssignmentResponse";
+
+/** The per-alias GraphQL names used for the i-th `assignBlocks` call. */
+function assignBlocksNames(index: number): {
+  alias: string;
+  assignableVar: string;
+  blocksVar: string;
+} {
+  return {
+    alias: `a${index}`,
+    assignableVar: `assignable${index}`,
+    blocksVar: `blocks${index}`,
+  };
+}
+
+/** The response alias for the i-th assignment (keeps the service and converter in sync). */
+export function assignBlocksAlias(index: number): string {
+  return assignBlocksNames(index).alias;
+}
+
+/**
+ * Builds the bulk `assignBlocks` mutation: one aliased call per assignment, each
+ * selecting `__typename` plus the shared `R` fragment so a per-assignment error
+ * union member comes back inline (rather than as a top-level GraphQL error).
+ */
+export function buildAssignBlocksMutation(count: number): string {
+  const decls: string[] = [];
+  const fields: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const { alias, assignableVar, blocksVar } = assignBlocksNames(i);
+    decls.push(`$${assignableVar}: ID!, $${blocksVar}: [ID!]!`);
+    fields.push(
+      `${alias}: assignBlocks(assignableId: $${assignableVar}, blockIds: $${blocksVar}, fieldResponses: []) { __typename ...R }`,
+    );
+  }
+  return `
+  mutation AssignBlocks(${decls.join(", ")}) {
+    ${fields.join("\n    ")}
+  }
+
+  fragment R on AssignBlocksResponse {
+    ... on AssignmentResponse {
+      assignments {
+        id
+        block {
+          id
+          fullBlockName
+        }
+        parent {
+          ... on Ticket {
+            id
+          }
+        }
+      }
+    }
+    ... on AssignBlocksErrorInvalidBlockCount {
+      message
+      numNeeded
+      numProvided
+    }
+    ... on AssignBlocksErrorInvalidType {
+      message
+    }
+    ... on AssignBlocksErrorOverbooking {
+      message
+    }
+  }
+`;
+}
+
+/** Builds the GraphQL variables for {@link buildAssignBlocksMutation}. */
+export function assignBlocksVariables(
+  assignments: { assignableId: string; blockId: string }[],
+): Record<string, unknown> {
+  const variables: Record<string, unknown> = {};
+  assignments.forEach((assignment, i) => {
+    const { assignableVar, blocksVar } = assignBlocksNames(i);
+    variables[assignableVar] = assignment.assignableId;
+    variables[blocksVar] = [assignment.blockId];
+  });
+  return variables;
+}
+
+/** A single aliased `assignBlocks` result; only `__typename` is needed to classify it. */
+export interface RawAssignBlocksResult {
+  __typename?: string | null;
+}
+
+/** The `data` payload of the bulk assign mutation — keyed by per-assignment alias. */
+export type AssignBlocksData = Record<string, RawAssignBlocksResult | null>;

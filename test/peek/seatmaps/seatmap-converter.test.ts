@@ -4,6 +4,7 @@ import {
   fromAssignableBookings,
   fromAssignedSeatmap,
   fromSeatmapNodes,
+  toAssignmentResponse,
 } from "../../../src/internal/peek/seatmaps/seatmap-converter.js";
 import type {
   RawAssignableBooking,
@@ -670,5 +671,56 @@ describe("fromAssignableBookings", () => {
 
   it("returns an empty list for no nodes", () => {
     expect(fromAssignableBookings([])).toEqual([]);
+  });
+});
+
+describe("toAssignmentResponse", () => {
+  const ASSIGNMENTS = [
+    { assignableId: "t_A1", blockId: "csb_A1" },
+    { assignableId: "t_B1", blockId: "csb_B1" },
+  ];
+
+  it("returns SUCCESS when every assignment succeeded", () => {
+    const data = {
+      a0: { __typename: "AssignmentResponse" },
+      a1: { __typename: "AssignmentResponse" },
+    };
+    expect(toAssignmentResponse(data, ASSIGNMENTS)).toEqual({
+      status: "SUCCESS",
+      successfulAssignments: ["t_A1", "t_B1"],
+      failedAssignments: [],
+    });
+  });
+
+  it("returns PARTIAL when some succeed and some fail", () => {
+    const data = {
+      a0: { __typename: "AssignmentResponse" },
+      a1: { __typename: "AssignBlocksErrorOverbooking" },
+    };
+    expect(toAssignmentResponse(data, ASSIGNMENTS)).toEqual({
+      status: "PARTIAL",
+      successfulAssignments: ["t_A1"],
+      failedAssignments: ["t_B1"],
+    });
+  });
+
+  it("returns FAILED when every assignment failed", () => {
+    const data = {
+      a0: { __typename: "AssignBlocksErrorInvalidType" },
+      a1: { __typename: "AssignBlocksErrorOverbooking" },
+    };
+    expect(toAssignmentResponse(data, ASSIGNMENTS)).toEqual({
+      status: "FAILED",
+      successfulAssignments: [],
+      failedAssignments: ["t_A1", "t_B1"],
+    });
+  });
+
+  it("treats a missing/null aliased result as a failure", () => {
+    expect(toAssignmentResponse({ a0: { __typename: "AssignmentResponse" } }, ASSIGNMENTS)).toEqual({
+      status: "PARTIAL",
+      successfulAssignments: ["t_A1"],
+      failedAssignments: ["t_B1"],
+    });
   });
 });

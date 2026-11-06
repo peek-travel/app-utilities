@@ -303,3 +303,37 @@ export interface AssignableBooking {
   /** The booking's tickets that can be assigned to seats. */
   assignableTickets: AssignableTicket[];
 }
+
+/**
+ * One seat assignment to request: bind a bookable ticket (`assignableId`, a
+ * `t_…` ticket handle) to a seat (`blockId`, a `csb_…` block). Input to
+ * `SeatmapService.assignTicketsToSeats`.
+ */
+export interface SeatmapBlockAssignment {
+  /** The ticket handle to assign (must start with `t_`). */
+  assignableId: string;
+  /** The seat (block) id to assign it to (must start with `csb_`). */
+  blockId: string;
+}
+
+/**
+ * The outcome of a bulk {@link SeatmapBlockAssignment} request. See
+ * {@link ASSIGNMENT_STATUSES}: `"SUCCESS"` when every assignment succeeded,
+ * `"FAILED"` when every one failed, `"PARTIAL"` when some of each. Only
+ * per-assignment failures are reflected here — transport/GraphQL errors still
+ * throw.
+ */
+export const ASSIGNMENT_STATUSES = ["SUCCESS", "PARTIAL", "FAILED"] as const;
+
+/** A bulk-assignment outcome status. See {@link ASSIGNMENT_STATUSES}. */
+export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
+
+/** The result of `SeatmapService.assignTicketsToSeats`. */
+export interface AssignmentResponse {
+  /** Overall outcome across all requested assignments. */
+  status: AssignmentStatus;
+  /** The `assignableId`s that were assigned successfully. */
+  successfulAssignments: string[];
+  /** The `assignableId`s that failed to assign (per-assignment errors). */
+  failedAssignments: string[];
+}

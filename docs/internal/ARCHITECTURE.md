@@ -257,6 +257,19 @@ seatmap-read code and reuse its `stripFractionalSeconds`/`joinGuestName` helpers
 the models (`AssignableBooking`, `AssignableTicket`, `CurrentSeatAssignment`) are
 named to avoid colliding with the existing `Booking`/`Ticket` models.
 
+`assignTicketsToSeats(assignments)` is the one seatmap **write**: it batches one
+aliased `assignBlocks` call per {@link SeatmapBlockAssignment} into a single
+mutation (the query module builds the aliases, variable declarations, and
+variables; `assignBlocksAlias` keeps the service/converter in sync). The service
+validates up front — non-empty list, each `assignableId` prefixed `t_`, each
+`blockId` prefixed `csb_` — throwing before any network call. The converter
+(`toAssignmentResponse`) classifies each aliased result: a `__typename` of
+`AssignmentResponse` is a success, every other union member (the
+`AssignBlocksError*` types, or a missing result) is a per-assignment failure,
+yielding `SUCCESS`/`FAILED`/`PARTIAL`. Per-assignment errors are reported in the
+`AssignmentResponse`, not thrown — only transport/GraphQL-level failures throw
+(via the shared client).
+
 `ProductService` exposes three top-level product filters in addition to the combined `getAllProducts()`:
 - `getAllActivities()` — fetches only the `activities` connection (one request, no add-on pagination).
 - `getAllAddons()` — fetches only the `itemOptions` connection, paginated.

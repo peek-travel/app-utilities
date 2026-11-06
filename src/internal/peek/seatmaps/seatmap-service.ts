@@ -12,17 +12,23 @@ import type { ResolvedAccessOptions } from "../../../access-options.js";
 import type {
   AssignableBooking,
   AssignedSeatmap,
+  AssignmentResponse,
   Seatmap,
+  SeatmapBlockAssignment,
 } from "../../../models/peek/seatmap.js";
 import {
   fromAssignableBookings,
   fromAssignedSeatmapNodes,
   fromSeatmapNodes,
+  toAssignmentResponse,
 } from "./seatmap-converter.js";
 import {
   SEATMAPS_QUERY,
+  assignBlocksVariables,
+  buildAssignBlocksMutation,
   buildAssignableBookingsQuery,
   buildSeatmapAssignmentsQuery,
+  type AssignBlocksData,
   type AssignableBookingsResponse,
   type SeatmapAssignmentsResponse,
   type SeatmapsResponse,
@@ -30,6 +36,21 @@ import {
 
 /** Thrown-error message when a product id is missing or blank. */
 const ERROR_PRODUCT_ID_REQUIRED = "A non-empty product id is required.";
+
+/** Required id prefix for a bookable ticket handle (`assignableId`). */
+const ASSIGNABLE_ID_PREFIX = "t_";
+
+/** Required id prefix for a seat (block) id. */
+const BLOCK_ID_PREFIX = "csb_";
+
+/** Thrown-error message when no assignments are supplied. */
+const ERROR_NO_ASSIGNMENTS = "At least one assignment is required.";
+
+/** Thrown-error message when an assignableId has the wrong prefix. */
+const ERROR_ASSIGNABLE_ID_PREFIX = `Each assignableId must start with "${ASSIGNABLE_ID_PREFIX}".`;
+
+/** Thrown-error message when a blockId has the wrong prefix. */
+const ERROR_BLOCK_ID_PREFIX = `Each blockId must start with "${BLOCK_ID_PREFIX}".`;
 
 /** Thrown-error message when the range bounds fall on different dates. */
 const ERROR_RANGE_SAME_DATE =
@@ -248,5 +269,58 @@ export class SeatmapService {
       );
 
     return fromAssignableBookings(body.data?.bookings ?? []);
+  }
+
+  /**
+   * Assigns bookable tickets to seats in bulk — one `assignBlocks` call per
+   * {@link SeatmapBlockAssignment}, batched into a single mutation.
+   *
+   * The result summarizes per-assignment outcomes: `status` is `"SUCCESS"` when
+   * every assignment succeeded, `"FAILED"` when every one failed, and
+   * `"PARTIAL"` when some of each, with `successfulAssignments` /
+   * `failedAssignments` listing the `assignableId`s. Per-assignment failures
+   * (overbooking, invalid type, …) are reported here, **not** thrown; only
+   * transport/GraphQL-level errors throw (as `PeekGraphQLError` / `PeekHttpError`
+   * / etc.).
+   *
+   * @param assignments The ticket→seat bindings to request (at least one).
+   * @returns The bulk outcome.
+   * @throws {Error} when `assignments` is empty, or any `assignableId` does not
+   *   start with `"t_"` or any `blockId` does not start with `"csb_"` — all
+   *   checked before any network call.
+   *
+   * @example
+   * ```ts
+   * const result = await peek.getSeatmapService().assignTicketsToSeats([
+   *   { assignableId: "t_A1", blockId: "csb_A1" },
+   *   { assignableId: "t_A2", blockId: "csb_A2" },
+   * ]);
+   * ```
+   */
+  async assignTicketsToSeats(
+    assignments: SeatmapBlockAssignment[],
+  ): Promise<AssignmentResponse> {
+    if (!assignments?.length) {
+      throw new Error(ERROR_NO_ASSIGNMENTS);
+    }
+    for (const assignment of assignments) {
+      if (!assignment.assignableId?.startsWith(ASSIGNABLE_ID_PREFIX)) {
+        throw new Error(
+          `${ERROR_ASSIGNABLE_ID_PREFIX} Got "${assignment.assignableId}".`,
+        );
+      }
+      if (!assignment.blockId?.startsWith(BLOCK_ID_PREFIX)) {
+        throw new Error(`${ERROR_BLOCK_ID_PREFIX} Got "${assignment.blockId}".`);
+      }
+    }
+
+    const body: GraphQLBody<AssignBlocksData> =
+      await this.client.request<AssignBlocksData>(
+        SALES_ENDPOINT,
+        buildAssignBlocksMutation(assignments.length),
+        assignBlocksVariables(assignments),
+      );
+
+    return toAssignmentResponse(body.data ?? {}, assignments);
   }
 }

@@ -223,6 +223,15 @@ final authority and may still reject the request.
     tz/fractional stripped, both on the same date, sent half-open `[start,end)`).
     `guestName` is the same PII-gated primary-guest name (null without
     `fullCustomerAccess`).
+  - `assignTicketsToSeats(assignments: SeatmapBlockAssignment[])` →
+    `AssignmentResponse`: bulk-assigns tickets to seats (one batched mutation).
+    Each `SeatmapBlockAssignment` is `{ assignableId (starts `t_`), blockId
+    (starts `csb_`) }`; both prefixes and a non-empty list are validated before
+    any request (throws `Error` otherwise). `AssignmentResponse` is `{ status:
+    "SUCCESS" | "PARTIAL" | "FAILED", successfulAssignments: string[],
+    failedAssignments: string[] }` (the `assignableId`s). Per-assignment failures
+    (overbooking, invalid type, …) land in `failedAssignments` and are **not**
+    thrown; only transport/GraphQL errors throw.
 
 ## Sibling accessors (CNG, ACME — REST, not GraphQL)
 

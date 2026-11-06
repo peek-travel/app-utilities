@@ -60,6 +60,7 @@ import type {
   NoteMode,
   RefundInput,
   ResourcePoolMode,
+  SeatmapBlockAssignment,
   SetMetaDataAttachmentInput,
   SetMetaDataGuestInput,
   TimeslotFilter,
@@ -375,6 +376,7 @@ const REGISTRY: FnSpec[] = [
   { name: "getSeatmapForProduct", group: "seatmaps", desc: "Seating maps configured on an activity.", params: [p("productId", "string", "Activity id")], run: (c, [id]) => c.seatmaps.getSeatmapForProduct(id as string) },
   { name: "getSeatMapAssignments", group: "seatmaps", desc: "A product's seating maps with seat occupancy over a datetime range (guest names need PEEK_FULL_CUSTOMER_ACCESS).", params: [p("productId", "string", "Activity id"), p("rangeStart", "string", "Naive start, e.g. 2026-11-06T14:00:00"), p("rangeEnd", "string", "Naive end, e.g. 2026-11-06T16:00:00")], run: (c, [id, s, e]) => c.seatmaps.getSeatMapAssignments(id as string, s as string, e as string) },
   { name: "assignableBookings", group: "seatmaps", desc: "Confirmed bookings overlapping a range with their assignable tickets (guest names need PEEK_FULL_CUSTOMER_ACCESS).", params: [p("productId", "string", "Activity id"), p("rangeStart", "string", "Naive start, e.g. 2026-11-06T14:00:00"), p("rangeEnd", "string", "Naive end, e.g. 2026-11-06T15:00:00")], run: (c, [id, s, e]) => c.seatmaps.assignableBookings(id as string, s as string, e as string) },
+  { name: "assignTicketsToSeats", group: "seatmaps", desc: "Bulk-assign tickets to seats. Returns SUCCESS/PARTIAL/FAILED.", params: [p("assignments", "json", 'SeatmapBlockAssignment[] JSON, e.g. [{"assignableId":"t_A1","blockId":"csb_A1"}]')], run: (c, [a]) => c.seatmaps.assignTicketsToSeats(a as SeatmapBlockAssignment[]) },
 ];
 
 const BY_NAME = new Map(REGISTRY.map((f) => [f.name, f]));

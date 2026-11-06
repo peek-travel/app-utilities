@@ -80,6 +80,7 @@ export { ACTIVITY_PRODUCT_TYPE, ADD_ON_PRODUCT_TYPE, RENTAL_PRODUCT_TYPE } from 
 export type { Product, ProductMeetingLocation, ProductTicket } from "./models/peek/product.js";
 export type { CustomQuestion, CustomQuestionOption } from "./models/peek/custom-question.js";
 export {
+  ASSIGNMENT_STATUSES,
   SEATMAP_BLOCK_STATUSES,
   SEATMAP_DISPLAY_TYPES,
   SEATMAP_OCCUPANT_TYPES,
@@ -91,8 +92,11 @@ export type {
   AssignedSeatmapBlock,
   AssignedSeatmapGroup,
   AssignedSeatmapSection,
+  AssignmentResponse,
+  AssignmentStatus,
   CurrentSeatAssignment,
   Seatmap,
+  SeatmapBlockAssignment,
   SeatmapAssignment,
   SeatmapBlock,
   SeatmapBlockStatus,

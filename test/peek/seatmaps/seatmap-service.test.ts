@@ -427,3 +427,87 @@ describe("SeatmapService.assignableBookings", () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe("SeatmapService.assignTicketsToSeats", () => {
+  const ASSIGNMENTS = [
+    { assignableId: "t_A1", blockId: "csb_A1" },
+    { assignableId: "t_B1", blockId: "csb_B1" },
+  ];
+
+  it("batches one aliased call per assignment and maps a partial result", async () => {
+    const { fetchFn, calls } = makeFetch(() =>
+      jsonResponse({
+        data: {
+          a0: { __typename: "AssignmentResponse", assignments: [] },
+          a1: { __typename: "AssignBlocksErrorOverbooking", message: "booked" },
+        },
+      }),
+    );
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+
+    const result = await service.assignTicketsToSeats(ASSIGNMENTS);
+    expect(result).toEqual({
+      status: "PARTIAL",
+      successfulAssignments: ["t_A1"],
+      failedAssignments: ["t_B1"],
+    });
+
+    const sent = JSON.parse(calls[0].init.body as string);
+    expect(calls[0].url).toContain("/sales");
+    expect(sent.query).toContain(
+      "a0: assignBlocks(assignableId: $assignable0, blockIds: $blocks0, fieldResponses: [])",
+    );
+    expect(sent.query).toContain(
+      "a1: assignBlocks(assignableId: $assignable1, blockIds: $blocks1, fieldResponses: [])",
+    );
+    expect(sent.variables).toEqual({
+      assignable0: "t_A1",
+      blocks0: ["csb_A1"],
+      assignable1: "t_B1",
+      blocks1: ["csb_B1"],
+    });
+  });
+
+  it("returns SUCCESS when all assignments succeed", async () => {
+    const { fetchFn } = makeFetch(() =>
+      jsonResponse({
+        data: {
+          a0: { __typename: "AssignmentResponse" },
+          a1: { __typename: "AssignmentResponse" },
+        },
+      }),
+    );
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+    expect((await service.assignTicketsToSeats(ASSIGNMENTS)).status).toBe("SUCCESS");
+  });
+
+  it("throws on empty input without hitting the network", async () => {
+    const { fetchFn, calls } = makeFetch(() => jsonResponse({ data: {} }));
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+    await expect(service.assignTicketsToSeats([])).rejects.toThrow(
+      "At least one assignment is required.",
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  it("throws on a bad assignableId or blockId prefix without hitting the network", async () => {
+    const { fetchFn, calls } = makeFetch(() => jsonResponse({ data: {} }));
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+
+    await expect(
+      service.assignTicketsToSeats([{ assignableId: "x_A1", blockId: "csb_A1" }]),
+    ).rejects.toThrow('Each assignableId must start with "t_".');
+    await expect(
+      service.assignTicketsToSeats([{ assignableId: "t_A1", blockId: "seat_A1" }]),
+    ).rejects.toThrow('Each blockId must start with "csb_".');
+    expect(calls).toHaveLength(0);
+  });
+
+  it("propagates a top-level GraphQL error as an exception", async () => {
+    const { fetchFn } = makeFetch(() =>
+      jsonResponse({ errors: [{ message: "boom" }], data: null }),
+    );
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+    await expect(service.assignTicketsToSeats(ASSIGNMENTS)).rejects.toThrow();
+  });
+});

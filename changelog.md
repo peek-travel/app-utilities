@@ -14,6 +14,24 @@ action needed; `[additive]` only adds capability.
 
 ## Unreleased
 
+### `SeatmapService.assignTicketsToSeats` — bulk seat assignment `[additive]`
+
+- **What:** `SeatmapService` gains `assignTicketsToSeats(assignments:
+  SeatmapBlockAssignment[]): Promise<AssignmentResponse>` — assigns bookable
+  tickets to seats in bulk (one batched mutation). New exported types
+  `SeatmapBlockAssignment`, `AssignmentResponse`, the `AssignmentStatus` union,
+  and the `ASSIGNMENT_STATUSES` constant.
+- **Why:** callers need to commit seat assignments (the write that pairs with the
+  `assignableBookings` / `getSeatMapAssignments` reads), in one round trip.
+- **Caller action:** none — purely additive. Notes for adopters: each
+  `SeatmapBlockAssignment` must carry an `assignableId` starting with `t_` and a
+  `blockId` starting with `csb_`, and at least one must be supplied — all
+  validated before any network call (throws `Error`). The result's `status` is
+  `SUCCESS` (all assigned), `FAILED` (none), or `PARTIAL` (some), with
+  `successfulAssignments` / `failedAssignments` listing the `assignableId`s.
+  **Per-assignment** failures (overbooking, invalid type, …) are reported in
+  `failedAssignments`, not thrown; only transport/GraphQL-level errors throw.
+
 ### `SeatmapService.assignableBookings` — bookings assignable to seats `[additive]`
 
 - **What:** `SeatmapService` gains `assignableBookings(productId, rangeStart,

@@ -12,6 +12,8 @@ import {
   SEATMAP_DISPLAY_TYPES,
   type AssignableBooking,
   type AssignableTicket,
+  type AssignmentResponse,
+  type AssignmentStatus,
   type AssignedSeatmap,
   type AssignedSeatmapBlock,
   type AssignedSeatmapGroup,
@@ -23,6 +25,7 @@ import {
   type SeatmapBlockStatus,
   type SeatmapDisplay,
   type SeatmapDisplayType,
+  type SeatmapBlockAssignment,
   type SeatmapGroup,
   type SeatmapSection,
   type SeatmapZone,
@@ -33,7 +36,10 @@ import {
   UnknownSeatmapDisplayTypeError,
 } from "../../../errors.js";
 import {
+  ASSIGNMENT_SUCCESS_TYPENAME,
   SEATMAP_ASSIGNMENT_PARENTS,
+  assignBlocksAlias,
+  type AssignBlocksData,
   type RawAssignableBooking,
   type RawAssignableSeatingAssignment,
   type RawAssignableTicket,
@@ -332,4 +338,34 @@ export function fromAssignableBookings(
   nodes: RawAssignableBooking[],
 ): AssignableBooking[] {
   return nodes.map(fromAssignableBooking);
+}
+
+/**
+ * Classifies each requested assignment by its aliased result into an
+ * {@link AssignmentResponse}: a result is successful only when its
+ * `__typename` is {@link ASSIGNMENT_SUCCESS_TYPENAME} — every other member
+ * (the error unions, or a missing result) counts as a failure. `status` is
+ * `SUCCESS`/`FAILED` when all succeed/fail, else `PARTIAL`.
+ */
+export function toAssignmentResponse(
+  data: AssignBlocksData,
+  assignments: SeatmapBlockAssignment[],
+): AssignmentResponse {
+  const successfulAssignments: string[] = [];
+  const failedAssignments: string[] = [];
+  assignments.forEach((assignment, i) => {
+    const result = data[assignBlocksAlias(i)];
+    if (result?.__typename === ASSIGNMENT_SUCCESS_TYPENAME) {
+      successfulAssignments.push(assignment.assignableId);
+    } else {
+      failedAssignments.push(assignment.assignableId);
+    }
+  });
+  const status: AssignmentStatus =
+    failedAssignments.length === 0
+      ? "SUCCESS"
+      : successfulAssignments.length === 0
+        ? "FAILED"
+        : "PARTIAL";
+  return { status, successfulAssignments, failedAssignments };
 }
