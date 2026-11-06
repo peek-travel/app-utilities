@@ -63,7 +63,8 @@ Allowed API hosts: with an `apiUrl`, each call is sent only when the URL uses
 every call). Exact host match, case-insensitive; subdomains do not match; a
 non-default port must be listed with the host. Otherwise the call logs the host
 and throws `ApiHostNotAllowedError` (`.host`, `.protocol`) without sending a
-request. Services built without an `apiUrl` are not checked.
+request. Allowed requests do not follow redirects (a 3xx surfaces as the usual
+HTTP error). Services built without an `apiUrl` are not checked.
 
 ## Access options / PII — `fullCustomerAccess`
 

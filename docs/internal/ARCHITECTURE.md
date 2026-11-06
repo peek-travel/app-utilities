@@ -118,11 +118,15 @@ GraphQL) and gateway routing (`cng_backoffice_api-v1` /
   `PEEK_REGISTRY_EXTRA_HOSTS` env var (read per call, via `globalThis.process`
   so a runtime without `process` sees no extra hosts). Anything else logs the
   host at `error` and rejects with `ApiHostNotAllowedError` before `fetch` runs,
-  so neither the JWT nor `pk-api-key` is sent. Because the check sits on the
+  so neither the JWT nor `pk-api-key` is sent. Allowed requests go out with
+  `redirect: "manual"`, so a 3xx is never followed to an unchecked host; it
+  reaches the transport as a non-2xx and maps to its HTTP error. Env entries
+  are normalized through `new URL("https://" + entry).host` so they compare
+  like a request's `host`. Because the check sits on the
   `fetch` seam, it covers all three transports (and every retry) without
   changing them. Configs without an `apiUrl` (the deprecated `baseUrl`/`appId`
-  path) get the unwrapped `fetch`. The `scripts/gql-cli` harness applies the
-  same wrapper when `PEEK_API_URL` is set.
+  path) get the unwrapped `fetch`. The `scripts/gql-cli` harness uses the same
+  `resolveFetch`, so the check applies when `PEEK_API_URL` is set.
 - **Peek registry (`"v2"`) vs. legacy (`"v1"`).** `mode` is a **required**
   `"v1" | "v2"` field on `PeekAccessServiceConfig` (it used to be optional and
   default to v1; it is now mandatory, with a constructor guard that throws so even

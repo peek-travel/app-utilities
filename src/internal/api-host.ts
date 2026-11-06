@@ -6,7 +6,8 @@
  * `fetch` so a request is sent only when its URL uses `https` and its host is
  * one of the {@link REGISTRY_HOSTS} or a host listed in the
  * {@link EXTRA_HOSTS_ENV_VAR} environment variable. Any other URL throws
- * {@link ApiHostNotAllowedError} before `fetch` is called.
+ * {@link ApiHostNotAllowedError} before `fetch` is called. Redirects are not
+ * followed, so a request never goes on to a host that was not checked.
  */
 import { ApiHostNotAllowedError } from "../errors.js";
 import type { Logger } from "../logger.js";
@@ -23,18 +24,11 @@ const ALLOWED_PROTOCOL = "https:";
 /** Separator between the hosts in {@link EXTRA_HOSTS_ENV_VAR}. */
 const HOST_SEPARATOR = ",";
 
-/**
- * Reads the extra hosts from {@link EXTRA_HOSTS_ENV_VAR}: split on commas,
- * trimmed, lowercased, empty entries dropped. Returns `[]` when the variable is
- * unset or there is no `process` global (a non-Node runtime).
- */
-export function readExtraHosts(): string[] {
-  const raw = globalThis.process?.env?.[EXTRA_HOSTS_ENV_VAR] ?? "";
-  return raw
-    .split(HOST_SEPARATOR)
-    .map((host) => host.trim().toLowerCase())
-    .filter((host) => host.length > 0);
-}
+/** Prefix used to normalize an env host entry the same way a request URL is. */
+const HOST_PARSE_PREFIX = `${ALLOWED_PROTOCOL}//`;
+
+/** Redirect mode for checked requests: a 3xx is returned, never followed. */
+const NO_FOLLOW_REDIRECT: RequestRedirect = "manual";
 
 /** Parses `url`, or returns `null` when it is not a valid absolute URL (Node 18 has no `URL.parse`). */
 function parseUrl(url: string): URL | null {
@@ -43,6 +37,23 @@ function parseUrl(url: string): URL | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Reads the extra hosts from {@link EXTRA_HOSTS_ENV_VAR}: split on commas and
+ * trimmed. Each entry is normalized the way a request URL's `host` is
+ * (lowercased, IDN to punycode, the default `:443` port dropped). Empty and
+ * unparsable entries are dropped. Returns `[]` when the variable is unset or
+ * there is no `process` global (a non-Node runtime).
+ */
+export function readExtraHosts(): string[] {
+  const raw = globalThis.process?.env?.[EXTRA_HOSTS_ENV_VAR] ?? "";
+  return raw
+    .split(HOST_SEPARATOR)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .map((entry) => parseUrl(HOST_PARSE_PREFIX + entry)?.host ?? "")
+    .filter((host) => host.length > 0);
 }
 
 /**
@@ -66,7 +77,8 @@ function inputUrl(input: Parameters<typeof fetch>[0]): string {
  * Wraps `fetchFn` so it sends a request only to an allowed API URL: `https`,
  * and a host that exactly matches a built-in or extra allowed host. For any
  * other URL it logs the host and rejects with {@link ApiHostNotAllowedError}
- * without calling `fetchFn`.
+ * without calling `fetchFn`. Allowed requests are sent with `redirect: "manual"`,
+ * so a 3xx comes back as a non-2xx response and is not followed.
  */
 export function withApiHostCheck(fetchFn: typeof fetch, logger: Logger): typeof fetch {
   return (input, init) => {
@@ -77,6 +89,6 @@ export function withApiHostCheck(fetchFn: typeof fetch, logger: Logger): typeof 
       logger.error("Request not sent: API host is not allowed", { host, protocol });
       return Promise.reject(new ApiHostNotAllowedError(host, protocol));
     }
-    return fetchFn(input, init);
+    return fetchFn(input, { ...init, redirect: NO_FOLLOW_REDIRECT });
   };
 }
