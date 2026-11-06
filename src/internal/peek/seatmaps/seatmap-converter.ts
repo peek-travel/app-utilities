@@ -10,10 +10,13 @@
 import {
   SEATMAP_BLOCK_STATUSES,
   SEATMAP_DISPLAY_TYPES,
+  type AssignableBooking,
+  type AssignableTicket,
   type AssignedSeatmap,
   type AssignedSeatmapBlock,
   type AssignedSeatmapGroup,
   type AssignedSeatmapSection,
+  type CurrentSeatAssignment,
   type Seatmap,
   type SeatmapAssignment,
   type SeatmapBlock,
@@ -31,6 +34,9 @@ import {
 } from "../../../errors.js";
 import {
   SEATMAP_ASSIGNMENT_PARENTS,
+  type RawAssignableBooking,
+  type RawAssignableSeatingAssignment,
+  type RawAssignableTicket,
   type RawAssignedSeatmapBlock,
   type RawAssignedSeatmapGroup,
   type RawAssignedSeatmapNode,
@@ -282,4 +288,48 @@ export function fromAssignedSeatmapNodes(
   nodes: RawAssignedSeatmapNode[],
 ): AssignedSeatmap[] {
   return nodes.map(fromAssignedSeatmap);
+}
+
+/** Converts a raw ticket's seating assignment into a {@link CurrentSeatAssignment}. */
+function fromCurrentSeatAssignment(
+  raw: RawAssignableSeatingAssignment,
+): CurrentSeatAssignment {
+  return {
+    assignmentId: raw.id,
+    blockId: raw.block?.id ?? null,
+    blockName: raw.block?.fullBlockName ?? null,
+  };
+}
+
+/** Converts a raw bookable ticket into an {@link AssignableTicket}. */
+function fromAssignableTicket(raw: RawAssignableTicket): AssignableTicket {
+  const option = raw.resourceOptionSnapshot ?? null;
+  return {
+    assignableId: raw.hashid,
+    ticketId: option?.id ?? null,
+    ticketName: option?.name ?? null,
+    currentlyAssignedTo: raw.seatingAssignment
+      ? fromCurrentSeatAssignment(raw.seatingAssignment)
+      : null,
+  };
+}
+
+/** Converts a raw booking node into an {@link AssignableBooking}. */
+function fromAssignableBooking(raw: RawAssignableBooking): AssignableBooking {
+  const guest = raw.primaryGuest ?? null;
+  return {
+    id: raw.id,
+    displayId: raw.displayId,
+    startsAt: stripFractionalSeconds(raw.startsAt),
+    endsAt: stripFractionalSeconds(raw.endsAt),
+    guestName: guest ? joinGuestName(guest.firstName, guest.lastName) : null,
+    assignableTickets: (raw.tickets ?? []).map(fromAssignableTicket),
+  };
+}
+
+/** Converts the booking nodes from an assignable-bookings response into models. */
+export function fromAssignableBookings(
+  nodes: RawAssignableBooking[],
+): AssignableBooking[] {
+  return nodes.map(fromAssignableBooking);
 }

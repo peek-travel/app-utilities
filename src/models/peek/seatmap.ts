@@ -251,3 +251,55 @@ export interface AssignedSeatmap extends Seatmap {
   /** The sections of the map, enriched with occupancy. */
   sections: AssignedSeatmapSection[];
 }
+
+/**
+ * The seat a bookable ticket is currently assigned to, when it has one. Returned
+ * on an {@link AssignableTicket} by `SeatmapService.assignableBookings`.
+ */
+export interface CurrentSeatAssignment {
+  /** The seating-assignment record id. */
+  assignmentId: string;
+  /** The assigned seat (block) id, or `null` when the gateway omits the block. */
+  blockId: string | null;
+  /** The assigned seat's full name (e.g. `"Table 12, Seat 1"`), or `null`. */
+  blockName: string | null;
+}
+
+/**
+ * A bookable ticket on an {@link AssignableBooking} — the unit that gets
+ * assigned to a seat. `currentlyAssignedTo` is `null` when the ticket has no
+ * seat yet (the assignable case).
+ */
+export interface AssignableTicket {
+  /** The ticket's stable assignment handle (its `hashid`). */
+  assignableId: string;
+  /** The ticket's resource-option id (from the snapshot), or `null`. */
+  ticketId: string | null;
+  /** The ticket's resource-option name (from the snapshot), or `null`. */
+  ticketName: string | null;
+  /** The seat this ticket currently holds, or `null` when unassigned. */
+  currentlyAssignedTo: CurrentSeatAssignment | null;
+}
+
+/**
+ * A confirmed booking overlapping a queried datetime range, with the tickets
+ * that can be assigned to seats. Returned by
+ * `SeatmapService.assignableBookings`.
+ *
+ * `guestName` is **customer PII**: when the owning access service was created
+ * without `fullCustomerAccess` it is always `null` (never requested).
+ */
+export interface AssignableBooking {
+  /** The booking id. */
+  id: string;
+  /** Human-facing booking display id. */
+  displayId: string;
+  /** Booking start, naive datetime (fractional seconds stripped), or `null`. */
+  startsAt: string | null;
+  /** Booking end, naive datetime (fractional seconds stripped), or `null`. */
+  endsAt: string | null;
+  /** Primary guest name, or `null` (also `null` when `fullCustomerAccess` is off). */
+  guestName: string | null;
+  /** The booking's tickets that can be assigned to seats. */
+  assignableTickets: AssignableTicket[];
+}

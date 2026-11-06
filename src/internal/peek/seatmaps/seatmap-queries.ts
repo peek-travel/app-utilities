@@ -319,3 +319,74 @@ export interface SeatmapAssignmentsResponse {
     seatingMaps?: RawAssignedSeatmapNode[] | null;
   } | null;
 }
+
+/**
+ * Builds the assignable-bookings query: confirmed bookings on a product that
+ * overlap a datetime range, with the tickets that can be assigned to seats.
+ *
+ * The booking's `primaryGuest` is **customer PII**, selected only when
+ * `fullCustomerAccess` is on; otherwise the gateway never returns it and the
+ * guest name maps to `null`.
+ */
+export function buildAssignableBookingsQuery(fullCustomerAccess: boolean): string {
+  const primaryGuest = fullCustomerAccess
+    ? "primaryGuest { firstName lastName }"
+    : "";
+  return `
+  query AssignableBookings($id: ID!, $range: NaiveDatetimeRange!) {
+    bookings(filter: {
+      activityIds: [$id]
+      overlapsRange: $range
+      reservationStatuses: [CONFIRMED]
+    }) {
+      id
+      displayId
+      startsAt
+      endsAt
+      ${primaryGuest}
+      tickets {
+        hashid
+        resourceOptionSnapshot {
+          id
+          name
+        }
+        seatingAssignment {
+          id
+          block {
+            id
+            fullBlockName
+          }
+        }
+      }
+    }
+  }
+`;
+}
+
+/** A ticket's current seat assignment, as selected by the assignable-bookings query. */
+export interface RawAssignableSeatingAssignment {
+  id: string;
+  block?: { id: string; fullBlockName: string } | null;
+}
+
+/** A bookable ticket node under the assignable-bookings query. */
+export interface RawAssignableTicket {
+  hashid: string;
+  resourceOptionSnapshot?: { id: string; name: string } | null;
+  seatingAssignment?: RawAssignableSeatingAssignment | null;
+}
+
+/** A booking node under the assignable-bookings query. */
+export interface RawAssignableBooking {
+  id: string;
+  displayId: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  primaryGuest?: RawSeatmapPrimaryGuest | null;
+  tickets?: RawAssignableTicket[] | null;
+}
+
+/** The `data` payload of the assignable-bookings query. */
+export interface AssignableBookingsResponse {
+  bookings?: RawAssignableBooking[] | null;
+}

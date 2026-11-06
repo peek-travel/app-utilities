@@ -14,6 +14,25 @@ action needed; `[additive]` only adds capability.
 
 ## Unreleased
 
+### `SeatmapService.assignableBookings` — bookings assignable to seats `[additive]`
+
+- **What:** `SeatmapService` gains `assignableBookings(productId, rangeStart,
+  rangeEnd): Promise<AssignableBooking[]>` — the confirmed bookings on a product
+  that overlap a datetime range, each with the tickets that can be assigned to
+  seats. New exported types `AssignableBooking`, `AssignableTicket`, and
+  `CurrentSeatAssignment`.
+- **Why:** seat assignment needs the list of bookings/tickets eligible for a map
+  and time window, plus which seat (if any) each ticket already holds.
+- **Caller action:** none — purely additive. Notes for adopters: `assignableId`
+  on a ticket is its `hashid` (the handle you assign by); `currentlyAssignedTo`
+  is `null` when a ticket has no seat yet; `rangeStart`/`rangeEnd` take the same
+  flexible datetimes as `getSeatMapAssignments` (seconds optional, timezone/
+  fractional stripped, both bounds on the same date) sent half-open
+  `[start,end)`; booking `startsAt`/`endsAt` are returned without fractional
+  seconds; and
+  `guestName` is **customer PII**, so it is `null` unless the access service was
+  created with `fullCustomerAccess`.
+
 ### `SeatmapService.getSeatMapAssignments` — seat occupancy over a range `[additive]`
 
 - **What:** `SeatmapService` gains `getSeatMapAssignments(productId, rangeStart,

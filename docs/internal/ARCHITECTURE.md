@@ -242,6 +242,21 @@ is off, so a GUEST occupant's `guestName` is `null`; staff (`AccountUser`) names
 are not gated. The plain `getSeatmapForProduct` read is unaffected — it returns
 the base `SeatmapBlock` without `status`/`assignedTo`.
 
+`assignableBookings(productId, rangeStart, rangeEnd)` reads the confirmed
+bookings on a product that overlap a range (via `bookings(filter: { activityIds,
+overlapsRange, reservationStatuses: [CONFIRMED] })`), returning
+`AssignableBooking[]` — each with `assignableTickets` (`AssignableTicket`, keyed
+by the ticket `hashid` as `assignableId`) and, per ticket, the seat it currently
+holds (`CurrentSeatAssignment`, `null` when unassigned — the assignable case).
+Range bounds are parsed and validated by the same shared `buildNaiveRange`
+helper as `getSeatMapAssignments` (normalize both bounds, enforce same date,
+emit the half-open `[start,end)` literal) and booking `startsAt`/`endsAt` have
+fractional seconds stripped. `guestName` is the same PII-gated primary-guest
+name. The query and converter live in the seatmaps triad alongside the
+seatmap-read code and reuse its `stripFractionalSeconds`/`joinGuestName` helpers;
+the models (`AssignableBooking`, `AssignableTicket`, `CurrentSeatAssignment`) are
+named to avoid colliding with the existing `Booking`/`Ticket` models.
+
 `ProductService` exposes three top-level product filters in addition to the combined `getAllProducts()`:
 - `getAllActivities()` — fetches only the `activities` connection (one request, no add-on pagination).
 - `getAllAddons()` — fetches only the `itemOptions` connection, paginated.

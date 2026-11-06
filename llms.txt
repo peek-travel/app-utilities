@@ -213,6 +213,16 @@ final authority and may still reject the request.
     `fullCustomerAccess` (null when off); for an ACCOUNT_USER it is the staff
     member's name (not gated). Unknown gateway values throw
     `UnknownSeatmapBlockStatusError` / `UnknownSeatmapAssignmentParentError`.
+  - `assignableBookings(productId, rangeStart, rangeEnd)` → `AssignableBooking[]`
+    (empty when none match): the confirmed bookings on a product overlapping the
+    range, each with `assignableTickets` (`AssignableTicket`: `assignableId` =
+    ticket hashid, `ticketId`/`ticketName` from the snapshot, `currentlyAssignedTo:
+    CurrentSeatAssignment | null` = the seat it currently holds, null when
+    unassigned). `startsAt`/`endsAt` have fractional seconds stripped; range
+    bounds use the same parsing/validation as `getSeatMapAssignments` (flexible,
+    tz/fractional stripped, both on the same date, sent half-open `[start,end)`).
+    `guestName` is the same PII-gated primary-guest name (null without
+    `fullCustomerAccess`).
 
 ## Sibling accessors (CNG, ACME — REST, not GraphQL)
 

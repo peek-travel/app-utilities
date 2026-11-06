@@ -10,16 +10,20 @@ import { SALES_ENDPOINT } from "../gateway-endpoints.js";
 import type { GraphQLBody, GraphQLClient } from "../graphql-client.js";
 import type { ResolvedAccessOptions } from "../../../access-options.js";
 import type {
+  AssignableBooking,
   AssignedSeatmap,
   Seatmap,
 } from "../../../models/peek/seatmap.js";
 import {
+  fromAssignableBookings,
   fromAssignedSeatmapNodes,
   fromSeatmapNodes,
 } from "./seatmap-converter.js";
 import {
   SEATMAPS_QUERY,
+  buildAssignableBookingsQuery,
   buildSeatmapAssignmentsQuery,
+  type AssignableBookingsResponse,
   type SeatmapAssignmentsResponse,
   type SeatmapsResponse,
 } from "./seatmap-queries.js";
@@ -74,6 +78,21 @@ function normalizeNaiveDatetime(input: string, label: string): string {
     throw new Error(`${label} has an out-of-range component (got "${input}").`);
   }
   return `${year}-${month}-${day}T${hour}:${minute}:${sec}`;
+}
+
+/**
+ * Normalizes both range bounds (see {@link normalizeNaiveDatetime}), enforces
+ * that they fall on the same date, and returns the gateway's half-open
+ * `[start,end)` range literal. Shared by every range-scoped read so they apply
+ * identical parsing and validation.
+ */
+function buildNaiveRange(rangeStart: string, rangeEnd: string): string {
+  const start = normalizeNaiveDatetime(rangeStart, "rangeStart");
+  const end = normalizeNaiveDatetime(rangeEnd, "rangeEnd");
+  if (start.slice(0, DATE_PREFIX_LENGTH) !== end.slice(0, DATE_PREFIX_LENGTH)) {
+    throw new Error(ERROR_RANGE_SAME_DATE);
+  }
+  return `[${start},${end})`;
 }
 
 /**
@@ -169,12 +188,7 @@ export class SeatmapService {
     if (!productId?.trim()) {
       throw new Error(ERROR_PRODUCT_ID_REQUIRED);
     }
-    const start = normalizeNaiveDatetime(rangeStart, "rangeStart");
-    const end = normalizeNaiveDatetime(rangeEnd, "rangeEnd");
-    if (start.slice(0, DATE_PREFIX_LENGTH) !== end.slice(0, DATE_PREFIX_LENGTH)) {
-      throw new Error(ERROR_RANGE_SAME_DATE);
-    }
-    const range = `[${start},${end})`;
+    const range = buildNaiveRange(rangeStart, rangeEnd);
 
     const body: GraphQLBody<SeatmapAssignmentsResponse> =
       await this.client.request<SeatmapAssignmentsResponse>(
@@ -184,5 +198,55 @@ export class SeatmapService {
       );
 
     return fromAssignedSeatmapNodes(body.data?.activity?.seatingMaps ?? []);
+  }
+
+  /**
+   * Returns the confirmed bookings on a product that overlap a datetime range,
+   * each with the tickets that can be assigned to seats (and the seat a ticket
+   * currently holds, when it has one). Use it to drive seat assignment: pick an
+   * {@link AssignableBooking}'s ticket by its `assignableId`.
+   *
+   * `rangeStart`/`rangeEnd` are parsed and validated exactly like
+   * {@link getSeatMapAssignments} (seconds optional, timezone and fractional
+   * seconds stripped, components range-checked, both bounds on the same date)
+   * and sent half-open — inclusive `rangeStart`, exclusive `rangeEnd`.
+   *
+   * A guest's name is **customer PII**: when this access service was created
+   * without `fullCustomerAccess`, `guestName` is always `null` (never
+   * requested).
+   *
+   * @param productId The activity's id.
+   * @param rangeStart Inclusive start of the range (naive datetime).
+   * @param rangeEnd Exclusive end of the range (naive datetime).
+   * @returns The overlapping confirmed bookings, or an empty list when none
+   *   match.
+   * @throws {Error} when `productId` is blank, a range bound is blank,
+   *   unparseable, or out of range, or the two bounds fall on different dates.
+   *
+   * @example
+   * ```ts
+   * const bookings = await peek
+   *   .getSeatmapService()
+   *   .assignableBookings("act-1", "2026-11-06T14:00", "2026-11-06T15:00");
+   * ```
+   */
+  async assignableBookings(
+    productId: string,
+    rangeStart: string,
+    rangeEnd: string,
+  ): Promise<AssignableBooking[]> {
+    if (!productId?.trim()) {
+      throw new Error(ERROR_PRODUCT_ID_REQUIRED);
+    }
+    const range = buildNaiveRange(rangeStart, rangeEnd);
+
+    const body: GraphQLBody<AssignableBookingsResponse> =
+      await this.client.request<AssignableBookingsResponse>(
+        SALES_ENDPOINT,
+        buildAssignableBookingsQuery(this.accessOptions.fullCustomerAccess),
+        { id: productId, range },
+      );
+
+    return fromAssignableBookings(body.data?.bookings ?? []);
   }
 }

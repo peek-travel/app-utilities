@@ -85,10 +85,13 @@ export {
   SEATMAP_OCCUPANT_TYPES,
 } from "./models/peek/seatmap.js";
 export type {
+  AssignableBooking,
+  AssignableTicket,
   AssignedSeatmap,
   AssignedSeatmapBlock,
   AssignedSeatmapGroup,
   AssignedSeatmapSection,
+  CurrentSeatAssignment,
   Seatmap,
   SeatmapAssignment,
   SeatmapBlock,

@@ -345,3 +345,85 @@ describe("SeatmapService.getSeatMapAssignments", () => {
     ).rejects.toBeInstanceOf(UnknownSeatmapBlockStatusError);
   });
 });
+
+/** An assignable-bookings response with one booking holding one assigned ticket. */
+function bookingsResponse() {
+  return {
+    data: {
+      bookings: [
+        {
+          id: "bk_1",
+          displayId: "ABC123",
+          startsAt: "2026-11-06T14:00:00.000000",
+          endsAt: "2026-11-06T15:00:00.000000",
+          primaryGuest: { firstName: "Ada", lastName: "Lovelace" },
+          tickets: [
+            {
+              hashid: "tkt_h1",
+              resourceOptionSnapshot: { id: "ro-1", name: "Adult - Premium" },
+              seatingAssignment: { id: "asa_1", block: { id: "csb_a7bk8", fullBlockName: "Table 12, Seat 1" } },
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+describe("SeatmapService.assignableBookings", () => {
+  it("returns overlapping bookings and sends id + half-open range", async () => {
+    const { fetchFn, calls } = makeFetch(() => jsonResponse(bookingsResponse()));
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: true });
+
+    const bookings = await service.assignableBookings(
+      "act-1",
+      "2026-11-06T14:00:00",
+      "2026-11-06T15:00:00",
+    );
+
+    expect(bookings).toHaveLength(1);
+    expect(bookings[0]).toMatchObject({ id: "bk_1", displayId: "ABC123", guestName: "Ada Lovelace" });
+    expect(bookings[0].startsAt).toBe("2026-11-06T14:00:00");
+    expect(bookings[0].assignableTickets[0].currentlyAssignedTo?.blockName).toBe("Table 12, Seat 1");
+
+    const sent = JSON.parse(calls[0].init.body as string);
+    expect(calls[0].url).toContain("/sales");
+    expect(sent.variables).toEqual({
+      id: "act-1",
+      range: "[2026-11-06T14:00:00,2026-11-06T15:00:00)",
+    });
+  });
+
+  it("selects primaryGuest only when fullCustomerAccess is on", async () => {
+    const { fetchFn, calls } = makeFetch(() => jsonResponse(bookingsResponse()));
+    const withPii = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: true });
+    await withPii.assignableBookings("act-1", "2026-11-06T14:00", "2026-11-06T15:00");
+    expect(JSON.parse(calls[0].init.body as string).query).toContain("primaryGuest");
+
+    const { fetchFn: noPiiFetch, calls: noPiiCalls } = makeFetch(() => jsonResponse(bookingsResponse()));
+    const noPii = new SeatmapService(buildClient(noPiiFetch), { fullCustomerAccess: false });
+    await noPii.assignableBookings("act-1", "2026-11-06T14:00", "2026-11-06T15:00");
+    expect(JSON.parse(noPiiCalls[0].init.body as string).query).not.toContain("primaryGuest");
+  });
+
+  it("returns an empty list when no bookings match", async () => {
+    const { fetchFn } = makeFetch(() => jsonResponse({ data: { bookings: null } }));
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+    expect(await service.assignableBookings("act-1", "2026-11-06T14:00", "2026-11-06T15:00")).toEqual([]);
+  });
+
+  it("throws on a blank product id or bad range without hitting the network", async () => {
+    const { fetchFn, calls } = makeFetch(() => jsonResponse({ data: {} }));
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+    await expect(
+      service.assignableBookings("  ", "2026-11-06T14:00", "2026-11-06T15:00"),
+    ).rejects.toThrow("A non-empty product id is required.");
+    await expect(
+      service.assignableBookings("act-1", "nope", "2026-11-06T15:00"),
+    ).rejects.toThrow("rangeStart");
+    await expect(
+      service.assignableBookings("act-1", "2026-11-06T23:00", "2026-11-07T01:00"),
+    ).rejects.toThrow("rangeStart and rangeEnd must fall on the same date.");
+    expect(calls).toHaveLength(0);
+  });
+});

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  fromAssignableBookings,
   fromAssignedSeatmap,
   fromSeatmapNodes,
 } from "../../../src/internal/peek/seatmaps/seatmap-converter.js";
 import type {
+  RawAssignableBooking,
   RawAssignedSeatmapNode,
   RawSeatmapNode,
 } from "../../../src/internal/peek/seatmaps/seatmap-queries.js";
@@ -593,5 +595,80 @@ describe("fromAssignedSeatmap", () => {
   it("treats a null assignments list under OCCUPIED as empty", () => {
     const block = firstBlock(assignedNode({ status: "OCCUPIED", assignments: null }));
     expect(block.assignedTo).toEqual([]);
+  });
+});
+
+const ASSIGNABLE_BOOKING: RawAssignableBooking = {
+  id: "bk_1",
+  displayId: "ABC123",
+  startsAt: "2026-11-02T19:00:00.000000",
+  endsAt: "2026-11-02T21:00:00.0",
+  primaryGuest: { firstName: "Ada", lastName: "Lovelace" },
+  tickets: [
+    {
+      hashid: "tkt_h1",
+      resourceOptionSnapshot: { id: "ro-1", name: "Adult - Premium" },
+      seatingAssignment: { id: "asa_1", block: { id: "csb_a7bk8", fullBlockName: "Table 12, Seat 1" } },
+    },
+  ],
+};
+
+describe("fromAssignableBookings", () => {
+  it("maps a booking with an assigned ticket", () => {
+    const [booking] = fromAssignableBookings([ASSIGNABLE_BOOKING]);
+    expect(booking).toEqual({
+      id: "bk_1",
+      displayId: "ABC123",
+      startsAt: "2026-11-02T19:00:00",
+      endsAt: "2026-11-02T21:00:00",
+      guestName: "Ada Lovelace",
+      assignableTickets: [
+        {
+          assignableId: "tkt_h1",
+          ticketId: "ro-1",
+          ticketName: "Adult - Premium",
+          currentlyAssignedTo: {
+            assignmentId: "asa_1",
+            blockId: "csb_a7bk8",
+            blockName: "Table 12, Seat 1",
+          },
+        },
+      ],
+    });
+  });
+
+  it("nulls currentlyAssignedTo when a ticket has no seating assignment", () => {
+    const [booking] = fromAssignableBookings([
+      { ...ASSIGNABLE_BOOKING, tickets: [{ hashid: "tkt_h2", resourceOptionSnapshot: { id: "ro-2", name: "Child" } }] },
+    ]);
+    expect(booking.assignableTickets[0].currentlyAssignedTo).toBeNull();
+  });
+
+  it("nulls ticket snapshot fields and block fields when absent", () => {
+    const [booking] = fromAssignableBookings([
+      { ...ASSIGNABLE_BOOKING, tickets: [{ hashid: "tkt_h3", seatingAssignment: { id: "asa_3" } }] },
+    ]);
+    expect(booking.assignableTickets[0]).toEqual({
+      assignableId: "tkt_h3",
+      ticketId: null,
+      ticketName: null,
+      currentlyAssignedTo: { assignmentId: "asa_3", blockId: null, blockName: null },
+    });
+  });
+
+  it("nulls guestName when primaryGuest is absent (PII off)", () => {
+    const [booking] = fromAssignableBookings([{ ...ASSIGNABLE_BOOKING, primaryGuest: null }]);
+    expect(booking.guestName).toBeNull();
+  });
+
+  it("defaults missing tickets and times to empty/null", () => {
+    const [booking] = fromAssignableBookings([{ id: "bk_2", displayId: "X" }]);
+    expect(booking.assignableTickets).toEqual([]);
+    expect(booking.startsAt).toBeNull();
+    expect(booking.endsAt).toBeNull();
+  });
+
+  it("returns an empty list for no nodes", () => {
+    expect(fromAssignableBookings([])).toEqual([]);
   });
 });
