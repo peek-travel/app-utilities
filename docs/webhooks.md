@@ -321,7 +321,11 @@ event**, so persist them alongside `installId`/`accountId`:
   GraphQL call POSTs to `<base>/peek_backoffice_api-v1` and a CNG/ACME REST call
   hits `<base>/<slug>/<path>`. If the URL you pass already carries this platform's
   slug (dashes or underscores) it is stripped back to the base; a URL carrying a
-  *different* platform's slug makes the constructor throw. If the registry tags
+  *different* platform's slug makes the constructor throw. Calls are sent only
+  when the URL uses `https` on `apps.peek.com`, `stage.apps.peek.com`, or a host
+  listed in `PEEK_REGISTRY_EXTRA_HOSTS`; any other URL throws
+  `ApiHostNotAllowedError` without sending a request (see the README, "Allowed
+  API hosts"). If the registry tags
   traffic with an app id in the path, that is the registry's concern and opaque to
   you. Or hand the whole install to `createAccessServiceForInstall` (below), which
   wires it for you.

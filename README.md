@@ -142,6 +142,23 @@ const peek = new PeekAccessService({
 });
 ```
 
+### Allowed API hosts (`PEEK_REGISTRY_EXTRA_HOSTS`)
+
+When an access service is built with an `apiUrl`, each request is sent only when
+the URL uses `https` and its host is on the allowed list:
+
+- `apps.peek.com` and `stage.apps.peek.com` (built in);
+- each host in the `PEEK_REGISTRY_EXTRA_HOSTS` environment variable — a
+  comma-separated list, empty by default (e.g.
+  `PEEK_REGISTRY_EXTRA_HOSTS=dev.example.com,localhost:8443`).
+
+The host must match a listed host exactly (case-insensitive); a subdomain of a
+listed host does not match, and an explicit non-default port must be listed with
+the host. `http` is never accepted, also for local development. For any other
+URL the call logs the host at `error` and throws `ApiHostNotAllowedError` without
+sending a request. The variable is read on every call. Access services built
+without an `apiUrl` (the deprecated `baseUrl`/`appId` path) are not affected.
+
 ### Errors
 
 Two kinds of failures surface as exceptions:
@@ -160,6 +177,10 @@ Two kinds of failures surface as exceptions:
   Carries `.statusCode`, `.url`, and the raw `.body` (parsed JSON when possible,
   otherwise the response text). Surfaced *before* the body is parsed as JSON, so
   a non-JSON error page reports its real status instead of a JSON parse error.
+- `ApiHostNotAllowedError` — the install's `apiUrl` is not on the allowed host
+  list or does not use `https` (see [Allowed API hosts](#allowed-api-hosts-peek_registry_extra_hosts)).
+  Thrown before the request is sent. Carries `.host` and `.protocol` (both
+  `null` when the URL cannot be parsed).
 - `PiiAccessDisabledError` — a payment / booking-modification operation was
   called on an access service created without `fullCustomerAccess` (see [Access options
   / PII](#access-options--pii)). Carries `.operation` (the blocked method name).
