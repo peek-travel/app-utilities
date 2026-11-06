@@ -12,6 +12,9 @@
 export const FORBIDDEN_STATUS = 403;
 
 const PERMISSION_MESSAGE_PREFIX = "CNG request forbidden: the app is missing the required permission";
+const API_HOST_UNPARSABLE = "(invalid URL)";
+const API_HOST_MESSAGE_SUFFIX = "is not an allowed API host (https and an allowed host are required)";
+
 const PERMISSION_MESSAGE_UNKNOWN = "CNG request forbidden: the app is missing a required permission";
 
 /** Builds the {@link CngPermissionError} message from the named permissions. */
@@ -209,8 +212,8 @@ export class ApiHostNotAllowedError extends Error {
   constructor(host: string | null, protocol: string | null, message?: string) {
     super(
       message ??
-        `Request not sent: "${host ?? "(invalid URL)"}" over "${protocol ?? "(invalid URL)"}" ` +
-          `is not an allowed API host (https and an allowed host are required)`,
+        `Request not sent: "${host ?? API_HOST_UNPARSABLE}" over ` +
+          `"${protocol ?? API_HOST_UNPARSABLE}" ${API_HOST_MESSAGE_SUFFIX}`,
     );
     this.name = "ApiHostNotAllowedError";
     this.host = host;

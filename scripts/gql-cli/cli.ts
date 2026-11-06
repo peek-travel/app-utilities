@@ -22,8 +22,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { GraphQLClient } from "../../src/internal/peek/graphql-client.js";
-import { resolveBaseApiUrl, requireNonEmpty } from "../../src/access-service-config.js";
-import { withApiHostCheck } from "../../src/internal/api-host.js";
+import {
+  resolveBaseApiUrl,
+  resolveFetch,
+  requireNonEmpty,
+} from "../../src/access-service-config.js";
 import {
   V2_EXTENDABLE_SLUG,
   peekApiEndpoints,
@@ -236,7 +239,7 @@ function buildContext(authToken: string): Ctx {
     logger,
     // Same host check as the access services: an `apiUrl` must be https on an
     // allowed host (`PEEK_REGISTRY_EXTRA_HOSTS` adds hosts).
-    fetchFn: apiUrl ? withApiHostCheck(fetch, logger) : fetch,
+    fetchFn: resolveFetch({ apiUrl, fetch }, logger),
   });
 
   const products = new ProductService(client);

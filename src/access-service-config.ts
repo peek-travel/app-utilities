@@ -46,7 +46,8 @@ export interface BaseAccessServiceConfig {
    * is `apps.peek.com`, `stage.apps.peek.com`, or a host listed in the
    * comma-separated `PEEK_REGISTRY_EXTRA_HOSTS` environment variable (exact
    * match, case-insensitive; subdomains do not match). Any other URL makes each
-   * call throw `ApiHostNotAllowedError` without sending a request.
+   * call throw `ApiHostNotAllowedError` without sending a request. Redirects
+   * from these requests are not followed: a 3xx is returned as an error status.
    */
   apiUrl?: string;
   /**
@@ -171,7 +172,10 @@ export function createTokenManager(config: BaseAccessServiceConfig): TokenManage
  * When the config targets an install by `apiUrl`, the result is wrapped so it
  * sends requests only to an allowed API host (see {@link withApiHostCheck}).
  */
-export function resolveFetch(config: BaseAccessServiceConfig, logger: Logger): typeof fetch {
+export function resolveFetch(
+  config: Pick<BaseAccessServiceConfig, "apiUrl" | "fetch">,
+  logger: Logger,
+): typeof fetch {
   const fetchFn = config.fetch ?? globalThis.fetch;
   return config.apiUrl ? withApiHostCheck(fetchFn, logger) : fetchFn;
 }

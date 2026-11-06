@@ -39,6 +39,20 @@ describe("readExtraHosts", () => {
     expect(readExtraHosts()).toEqual(["dev.example.com", "local.example.com:8443"]);
   });
 
+  it("normalizes entries the way a request URL host is", () => {
+    vi.stubEnv(EXTRA_HOSTS_ENV_VAR, "dev.example.com:443,bücher.example,api.example.com/");
+    expect(readExtraHosts()).toEqual([
+      "dev.example.com",
+      "xn--bcher-kva.example",
+      "api.example.com",
+    ]);
+  });
+
+  it("drops entries that are not valid hosts", () => {
+    vi.stubEnv(EXTRA_HOSTS_ENV_VAR, "bad host,dev.example.com,[::1");
+    expect(readExtraHosts()).toEqual(["dev.example.com"]);
+  });
+
   it("returns no hosts when there is no process global", () => {
     vi.stubGlobal("process", undefined);
     expect(readExtraHosts()).toEqual([]);
@@ -72,7 +86,30 @@ describe("withApiHostCheck", () => {
     const response = await withApiHostCheck(fetchFn, makeLogger())(url, init);
 
     expect(response.status).toBe(200);
-    expect(fetchFn).toHaveBeenCalledWith(url, init);
+    expect(fetchFn).toHaveBeenCalledWith(url, { method: "POST", redirect: "manual" });
+  });
+
+  it("does not follow redirects of an allowed request", async () => {
+    const fetchFn = makeFetch();
+
+    await withApiHostCheck(fetchFn, makeLogger())("https://apps.peek.com/a", {
+      method: "POST",
+      redirect: "follow",
+    });
+
+    expect(fetchFn).toHaveBeenCalledWith("https://apps.peek.com/a", {
+      method: "POST",
+      redirect: "manual",
+    });
+  });
+
+  it("sends the request to an IDN host listed in Unicode", async () => {
+    vi.stubEnv(EXTRA_HOSTS_ENV_VAR, "bücher.example");
+    const fetchFn = makeFetch();
+
+    await withApiHostCheck(fetchFn, makeLogger())("https://bücher.example/api");
+
+    expect(fetchFn).toHaveBeenCalledOnce();
   });
 
   it("accepts URL and Request inputs", async () => {
@@ -120,7 +157,7 @@ describe("withApiHostCheck", () => {
   });
 
   it.each([
-    ["https://evil.apps.peek.com/x", "evil.apps.peek.com"],
+    ["https://other.apps.peek.com/x", "other.apps.peek.com"],
     ["https://apps.peek.com.example.com/x", "apps.peek.com.example.com"],
     ["https://appspeek.com/x", "appspeek.com"],
     ["https://apps-peek.com/x", "apps-peek.com"],
@@ -149,23 +186,21 @@ describe("withApiHostCheck", () => {
 });
 
 describe("resolveFetch", () => {
-  const BASE = { installId: "i", jwtSecret: "s", issuer: "app" };
-
   it("returns the configured fetch unchanged without an apiUrl", () => {
     const fetchFn = makeFetch();
-    expect(resolveFetch({ ...BASE, fetch: fetchFn }, makeLogger())).toBe(fetchFn);
+    expect(resolveFetch({ fetch: fetchFn }, makeLogger())).toBe(fetchFn);
   });
 
   it("falls back to the global fetch", () => {
     const fetchFn = makeFetch();
     vi.stubGlobal("fetch", fetchFn);
-    expect(resolveFetch(BASE, makeLogger())).toBe(fetchFn);
+    expect(resolveFetch({}, makeLogger())).toBe(fetchFn);
   });
 
   it("wraps the fetch with the host check when there is an apiUrl", () => {
     const fetchFn = makeFetch();
     const resolved = resolveFetch(
-      { ...BASE, apiUrl: "https://apps.peek.com/installations-api/demo", fetch: fetchFn },
+      { apiUrl: "https://apps.peek.com/installations-api/demo", fetch: fetchFn },
       makeLogger(),
     );
     expect(resolved).not.toBe(fetchFn);

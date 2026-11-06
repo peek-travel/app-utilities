@@ -156,8 +156,10 @@ The host must match a listed host exactly (case-insensitive); a subdomain of a
 listed host does not match, and an explicit non-default port must be listed with
 the host. `http` is never accepted, also for local development. For any other
 URL the call logs the host at `error` and throws `ApiHostNotAllowedError` without
-sending a request. The variable is read on every call. Access services built
-without an `apiUrl` (the deprecated `baseUrl`/`appId` path) are not affected.
+sending a request. The variable is read on every call. Allowed requests do not
+follow redirects: a `3xx` response surfaces as the usual HTTP error
+(`PeekHttpError`, `CngApiError`, `AcmeApiError`). Access services built without
+an `apiUrl` (the deprecated `baseUrl`/`appId` path) are not affected.
 
 ### Errors
 
