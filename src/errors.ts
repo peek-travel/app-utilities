@@ -187,3 +187,33 @@ export class AcmeApiError extends Error {
     this.body = body;
   }
 }
+
+/**
+ * Thrown before a request is sent when the install's `apiUrl` does not point at
+ * an allowed API host. The allowed hosts are `apps.peek.com`,
+ * `stage.apps.peek.com`, and each host listed in the comma-separated
+ * `PEEK_REGISTRY_EXTRA_HOSTS` environment variable. The URL must use `https`
+ * and its host must match a listed host exactly (case-insensitive); a subdomain
+ * of a listed host does not match.
+ *
+ * No request is made, so no credentials are sent. The rejected host is on
+ * {@link ApiHostNotAllowedError.host} (`null` when the URL could not be parsed),
+ * and the URL scheme on {@link ApiHostNotAllowedError.protocol}.
+ */
+export class ApiHostNotAllowedError extends Error {
+  /** The host of the rejected URL, or `null` when the URL could not be parsed. */
+  public readonly host: string | null;
+  /** The scheme of the rejected URL (e.g. `"http:"`), or `null` when unparsable. */
+  public readonly protocol: string | null;
+
+  constructor(host: string | null, protocol: string | null, message?: string) {
+    super(
+      message ??
+        `Request not sent: "${host ?? "(invalid URL)"}" over "${protocol ?? "(invalid URL)"}" ` +
+          `is not an allowed API host (https and an allowed host are required)`,
+    );
+    this.name = "ApiHostNotAllowedError";
+    this.host = host;
+    this.protocol = protocol;
+  }
+}
