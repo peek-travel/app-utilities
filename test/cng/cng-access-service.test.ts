@@ -80,13 +80,13 @@ describe("CngAccessService", () => {
       installId: "install-123",
       jwtSecret: "secret",
       issuer: "app-name",
-      apiUrl: "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app",
+      apiUrl: "https://stage.apps.peek.com/installations-api/demo-app",
       fetch: fetchFn,
     });
     await cng.getAllActivities();
 
     expect(calls[0]).toBe(
-      "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app/cng_backoffice_api-v1/api/v2/app-registry/products?active=1",
+      "https://stage.apps.peek.com/installations-api/demo-app/cng_backoffice_api-v1/api/v2/app-registry/products?active=1",
     );
   });
 
@@ -101,13 +101,13 @@ describe("CngAccessService", () => {
       installId: "install-123",
       jwtSecret: "secret",
       issuer: "app-name",
-      apiUrl: "https://x.test/demo-app/cng-backoffice-api-v1",
+      apiUrl: "https://apps.peek.com/demo-app/cng-backoffice-api-v1",
       fetch: fetchFn,
     });
     await cng.getAllActivities();
 
     expect(calls[0]).toBe(
-      "https://x.test/demo-app/cng_backoffice_api-v1/api/v2/app-registry/products?active=1",
+      "https://apps.peek.com/demo-app/cng_backoffice_api-v1/api/v2/app-registry/products?active=1",
     );
   });
 
@@ -118,7 +118,7 @@ describe("CngAccessService", () => {
           installId: "install-123",
           jwtSecret: "secret",
           issuer: "app-name",
-          apiUrl: "https://x.test/demo-app/peek_backoffice_api-v1",
+          apiUrl: "https://apps.peek.com/demo-app/peek_backoffice_api-v1",
         }),
     ).toThrow(/peek.*backoffice.*cng|cng.*peek/i);
   });
@@ -130,7 +130,7 @@ describe("CngAccessService", () => {
           installId: "install-123",
           jwtSecret: "secret",
           issuer: "app-name",
-          apiUrl: "https://x.test/base",
+          apiUrl: "https://apps.peek.com/base",
         }),
     ).not.toThrow();
   });

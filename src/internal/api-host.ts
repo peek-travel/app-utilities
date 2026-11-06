@@ -1,0 +1,111 @@
+/**
+ * Allowed-host check for requests to an install's `apiUrl`.
+ *
+ * Every request built from an `apiUrl` carries the app JWT (and, in legacy v1
+ * mode, the `pk-api-key`). {@link withApiHostCheck} wraps the transport's
+ * `fetch` so a request is sent only when its URL uses `https` and its host is
+ * one of the {@link REGISTRY_HOSTS} or a host listed in the
+ * {@link EXTRA_HOSTS_ENV_VAR} environment variable. Any other URL throws
+ * {@link ApiHostNotAllowedError} before `fetch` is called. Redirects are not
+ * followed, so a request never goes on to a host that was not checked.
+ */
+import { ApiHostNotAllowedError } from "../errors.js";
+import type { Logger } from "../logger.js";
+
+/** The built-in allowed API hosts. */
+export const REGISTRY_HOSTS: readonly string[] = ["apps.peek.com", "stage.apps.peek.com"];
+
+/** Environment variable with extra allowed hosts, comma-separated. Empty by default. */
+export const EXTRA_HOSTS_ENV_VAR = "PEEK_REGISTRY_EXTRA_HOSTS";
+
+/** The only URL scheme an allowed request may use. */
+const ALLOWED_PROTOCOL = "https:";
+
+/** Separator between the hosts in {@link EXTRA_HOSTS_ENV_VAR}. */
+const HOST_SEPARATOR = ",";
+
+/** Prefix used to normalize an env host entry the same way a request URL is. */
+const HOST_PARSE_PREFIX = `${ALLOWED_PROTOCOL}//`;
+
+/** Redirect mode for checked requests: a 3xx is returned, never followed. */
+const NO_FOLLOW_REDIRECT: RequestRedirect = "manual";
+
+/** Parses `url`, or returns `null` when it is not a valid absolute URL (Node 18 has no `URL.parse`). */
+function parseUrl(url: string): URL | null {
+  try {
+    return new URL(url);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads the extra hosts from {@link EXTRA_HOSTS_ENV_VAR}: split on commas and
+ * trimmed. Each entry is normalized the way a request URL's `host` is
+ * (lowercased, IDN to punycode, the default `:443` port dropped). Empty
+ * entries, and entries that are not a bare host (a scheme, path, query, fragment or
+ * user part, e.g. `http://dev.example.com`), are dropped. Returns `[]` when the variable is unset or
+ * there is no `process` global (a non-Node runtime).
+ */
+export function readExtraHosts(): string[] {
+  const raw = globalThis.process?.env?.[EXTRA_HOSTS_ENV_VAR] ?? "";
+  return raw
+    .split(HOST_SEPARATOR)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .map(entryHost)
+    .filter((host) => host.length > 0);
+}
+
+/** Root path a bare host entry parses to. */
+const ROOT_PATH = "/";
+
+/** The normalized host of an env entry, or `""` when it is not a bare host. */
+function entryHost(entry: string): string {
+  const url = parseUrl(HOST_PARSE_PREFIX + entry);
+  const isBareHost =
+    url !== null &&
+    url.pathname === ROOT_PATH &&
+    !url.search &&
+    !url.hash &&
+    !url.username &&
+    !url.password;
+  return isBareHost ? url.host : "";
+}
+
+/**
+ * Returns `true` when `url` uses `https` and its host exactly matches a
+ * built-in or extra allowed host (case-insensitive). A subdomain of an allowed
+ * host does not match. The extra hosts are read on every call.
+ */
+function isAllowedUrl(url: URL | null): boolean {
+  if (!url || url.protocol !== ALLOWED_PROTOCOL) return false;
+  const host = url.host.toLowerCase();
+  return REGISTRY_HOSTS.includes(host) || readExtraHosts().includes(host);
+}
+
+/** The URL string of a `fetch` input. */
+function inputUrl(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input === "string") return input;
+  return input instanceof URL ? input.href : input.url;
+}
+
+/**
+ * Wraps `fetchFn` so it sends a request only to an allowed API URL: `https`,
+ * and a host that exactly matches a built-in or extra allowed host. For any
+ * other URL it logs the host and rejects with {@link ApiHostNotAllowedError}
+ * without calling `fetchFn`. Allowed requests are sent with `redirect: "manual"`,
+ * so a 3xx comes back as a non-2xx response and is not followed.
+ */
+export function withApiHostCheck(fetchFn: typeof fetch, logger: Logger): typeof fetch {
+  return (input, init) => {
+    const url = parseUrl(inputUrl(input));
+    if (!isAllowedUrl(url)) {
+      const host = url?.host ?? null;
+      const protocol = url?.protocol ?? null;
+      logger.error("Request not sent: API host is not allowed", { host, protocol });
+      return Promise.reject(new ApiHostNotAllowedError(host, protocol));
+    }
+    return fetchFn(input, { ...init, redirect: NO_FOLLOW_REDIRECT });
+  };
+}

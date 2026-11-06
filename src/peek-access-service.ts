@@ -16,6 +16,7 @@ import {
   createTokenManager,
   requireNonEmpty,
   resolveBaseApiUrl,
+  resolveFetch,
   DEFAULT_RETRY_DELAYS_MS,
   type BaseAccessServiceConfig,
 } from "./access-service-config.js";
@@ -244,7 +245,7 @@ export class PeekAccessService {
       getToken: () => tokens.getToken(),
       retryDelaysMs: config.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS,
       logger,
-      fetchFn: config.fetch ?? globalThis.fetch,
+      fetchFn: resolveFetch(config, logger),
     });
 
     this.productServiceOptions = {

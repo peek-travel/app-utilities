@@ -547,7 +547,7 @@ describe("PeekAccessService v2 mode", () => {
 
 describe("PeekAccessService apiUrl mode", () => {
   const API_URL =
-    "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app";
+    "https://stage.apps.peek.com/installations-api/demo-app";
   const RESOLVED_URL = `${API_URL}/peek_backoffice_api-v1`;
 
   it("POSTs every call to the base apiUrl with the Peek slug appended (no sales segment)", async () => {

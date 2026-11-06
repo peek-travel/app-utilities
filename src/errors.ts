@@ -12,6 +12,9 @@
 export const FORBIDDEN_STATUS = 403;
 
 const PERMISSION_MESSAGE_PREFIX = "CNG request forbidden: the app is missing the required permission";
+const API_HOST_UNPARSABLE = "(invalid URL)";
+const API_HOST_MESSAGE_SUFFIX = "is not an allowed API host (https and an allowed host are required)";
+
 const PERMISSION_MESSAGE_UNKNOWN = "CNG request forbidden: the app is missing a required permission";
 
 /** Builds the {@link CngPermissionError} message from the named permissions. */
@@ -185,5 +188,35 @@ export class AcmeApiError extends Error {
     this.name = "AcmeApiError";
     this.statusCode = statusCode;
     this.body = body;
+  }
+}
+
+/**
+ * Thrown before a request is sent when the install's `apiUrl` does not point at
+ * an allowed API host. The allowed hosts are `apps.peek.com`,
+ * `stage.apps.peek.com`, and each host listed in the comma-separated
+ * `PEEK_REGISTRY_EXTRA_HOSTS` environment variable. The URL must use `https`
+ * and its host must match a listed host exactly (case-insensitive); a subdomain
+ * of a listed host does not match.
+ *
+ * No request is made, so no credentials are sent. The rejected host is on
+ * {@link ApiHostNotAllowedError.host} (`null` when the URL could not be parsed),
+ * and the URL scheme on {@link ApiHostNotAllowedError.protocol}.
+ */
+export class ApiHostNotAllowedError extends Error {
+  /** The host of the rejected URL, or `null` when the URL could not be parsed. */
+  public readonly host: string | null;
+  /** The scheme of the rejected URL (e.g. `"http:"`), or `null` when unparsable. */
+  public readonly protocol: string | null;
+
+  constructor(host: string | null, protocol: string | null, message?: string) {
+    super(
+      message ??
+        `Request not sent: "${host ?? API_HOST_UNPARSABLE}" over ` +
+          `"${protocol ?? API_HOST_UNPARSABLE}" ${API_HOST_MESSAGE_SUFFIX}`,
+    );
+    this.name = "ApiHostNotAllowedError";
+    this.host = host;
+    this.protocol = protocol;
   }
 }

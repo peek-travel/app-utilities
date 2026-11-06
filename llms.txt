@@ -57,6 +57,15 @@ builds the right service for `install.platform` (`peek`/`cng`/`acme`) wired to
 reconstruct the URL with a compiled-in default that can't be right for every
 install; the fallbacks will be removed and a URL will become **required**.
 
+Allowed API hosts: with an `apiUrl`, each call is sent only when the URL uses
+`https` and its host is `apps.peek.com`, `stage.apps.peek.com`, or a host in the
+`PEEK_REGISTRY_EXTRA_HOSTS` env var (comma-separated, empty by default; read on
+every call). Exact host match, case-insensitive; subdomains do not match; a
+non-default port must be listed with the host. Otherwise the call logs the host
+and throws `ApiHostNotAllowedError` (`.host`, `.protocol`) without sending a
+request. Allowed requests do not follow redirects (a 3xx surfaces as the usual
+HTTP error). Services built without an `apiUrl` are not checked.
+
 ## Access options / PII — `fullCustomerAccess`
 
 **The most commonly-misunderstood option in this package. Read this before
@@ -249,7 +258,9 @@ stay internal.
   418/429 with no GraphQL `errors` — e.g. 401/404/5xx; carries `.statusCode`,
   `.url`, and raw `.body`; surfaced before JSON parsing so non-JSON error pages
   keep their status), `PiiAccessDisabledError` (a payment/booking-modification op
-  was called without `fullCustomerAccess`), the REST-sibling `CngApiError` /
+  was called without `fullCustomerAccess`), `ApiHostNotAllowedError` (the
+  `apiUrl` is not `https` on an allowed host; thrown before any request;
+  `.host`, `.protocol`), the REST-sibling `CngApiError` /
   `AcmeApiError`, and `CngPermissionError` (CNG HTTP 403; `.permissions`,
   `.statusCode`, raw `.body`) — all importable; branch with `instanceof`. Token claim
   extraction never throws once the signature verifies: a missing `user` block

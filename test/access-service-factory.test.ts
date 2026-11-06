@@ -6,7 +6,7 @@ import { CngAccessService } from "../src/cng-access-service.js";
 import { AcmeAccessService } from "../src/acme-access-service.js";
 
 const CREDS = { jwtSecret: "secret", issuer: "app-name" };
-const API_URL = "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app";
+const API_URL = "https://stage.apps.peek.com/installations-api/demo-app";
 
 function jsonResponse(body: unknown): Response {
   return {
