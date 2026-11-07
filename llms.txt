@@ -249,7 +249,9 @@ stay internal.
   418/429 with no GraphQL `errors` — e.g. 401/404/5xx; carries `.statusCode`,
   `.url`, and raw `.body`; surfaced before JSON parsing so non-JSON error pages
   keep their status), `PiiAccessDisabledError` (a payment/booking-modification op
-  was called without `fullCustomerAccess`), the REST-sibling `CngApiError` /
+  was called without `fullCustomerAccess`), `InstallWebhookError`
+  (`parseInstallWebhook`: the token has no `sub`, or the body `install_id` is not
+  equal to it; `.reason`), the REST-sibling `CngApiError` /
   `AcmeApiError`, and `CngPermissionError` (CNG HTTP 403; `.permissions`,
   `.statusCode`, raw `.body`) — all importable; branch with `instanceof`. Token claim
   extraction never throws once the signature verifies: a missing `user` block
@@ -283,10 +285,13 @@ an external system** (App Store config), not from code.
   `InstallWebhook`: `installId`, `accountId` (**also called the partner ID**),
   `accountName`, `platform`, `isTest`, `timezone`, `apiUrl`, `status`,
   `rawStatus`, `displayVersion`, `user` (nullable, for system-initiated events).
-  The **JSON body is the source of the event data**; the fields it shares with
-  the token (`installId`/`accountId`/`status`/`displayVersion`/`user`) fall back
-  to the **verified token** when the body omits them. The token authenticates the
-  whole delivery, so the body is trusted within a verified request. This webhook
+  **`installId` is always the token `sub`**: a body `install_id` that is present
+  and not equal to `sub` throws `InstallWebhookError` (`.reason`
+  `"install_id_mismatch"`), and a token with no `sub` throws it too (`.reason`
+  `"missing_subject"`); a body without `install_id` parses. The **JSON body is
+  the source of the other event data**; the fields it shares with the token
+  (`accountId`/`status`/`displayVersion`/`user`) fall back to the **verified
+  token** when the body omits them. This webhook
   is the **only** source of `accountId`, `timezone`, and `apiUrl` in the package
   — no GraphQL read returns them; **persist them per install**. `status` and `platform`
   are **nullable**: a value this version does not recognise maps to `null` (wire

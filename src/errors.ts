@@ -187,3 +187,34 @@ export class AcmeApiError extends Error {
     this.body = body;
   }
 }
+
+/** Why {@link InstallWebhookError} was thrown. */
+export type InstallWebhookErrorReason = "install_id_mismatch" | "missing_subject";
+
+/** {@link InstallWebhookErrorReason}: the body `install_id` is not the token `sub`. */
+export const INSTALL_WEBHOOK_INSTALL_ID_MISMATCH = "install_id_mismatch" as const;
+/** {@link InstallWebhookErrorReason}: the verified token has no `sub`. */
+export const INSTALL_WEBHOOK_MISSING_SUBJECT = "missing_subject" as const;
+
+const INSTALL_WEBHOOK_MESSAGES: Record<InstallWebhookErrorReason, string> = {
+  [INSTALL_WEBHOOK_INSTALL_ID_MISMATCH]: "Install webhook body install_id does not match the token subject",
+  [INSTALL_WEBHOOK_MISSING_SUBJECT]: "Install webhook token has no subject (install id)",
+};
+
+/**
+ * Thrown by `parseInstallWebhook` when the token signature is valid but the
+ * delivery does not name one install: the token has no `sub`, or the body
+ * `install_id` is present and is not equal to the token `sub`. The cause is on
+ * {@link InstallWebhookError.reason}. Handle it like a failed token check
+ * (respond `401`).
+ */
+export class InstallWebhookError extends Error {
+  /** Why the delivery was rejected. */
+  public readonly reason: InstallWebhookErrorReason;
+
+  constructor(reason: InstallWebhookErrorReason) {
+    super(INSTALL_WEBHOOK_MESSAGES[reason]);
+    this.name = "InstallWebhookError";
+    this.reason = reason;
+  }
+}

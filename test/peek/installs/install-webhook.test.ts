@@ -1,6 +1,7 @@
 import * as jwt from "jsonwebtoken";
 import { describe, expect, it } from "vitest";
 
+import { InstallWebhookError } from "../../../src/errors.js";
 import {
   parseInstallWebhook,
   verifyInstallWebhook,
@@ -46,7 +47,7 @@ function mintInstallToken(
 
 const ACCOUNT_ID = "acct_42";
 
-const BODY_INSTALL_ID = "cf34832d-16ea-4197-86fd-bf63e6917348";
+const OTHER_INSTALL_ID = "cf34832d-16ea-4197-86fd-bf63e6917348";
 const BODY_ACCOUNT_ID = "4b52e9d2-7411-4d47-9100-71bebb55d151";
 const API_URL =
   "https://app-registry.sandbox.peeklabs.com/installations-api/demo";
@@ -64,7 +65,7 @@ function buildBody(overrides: Record<string, unknown> = {}): Record<string, unkn
   // The JSON body is the source of the event data — it carries every field.
   return {
     status: "installed",
-    install_id: BODY_INSTALL_ID,
+    install_id: INSTALL_ID,
     display_version: "1.0.3",
     api: { url: API_URL },
     account: {
@@ -83,7 +84,7 @@ describe("parseInstallWebhook", () => {
     const event = parseInstallWebhook(mintInstallToken(SECRET), buildBody(), SECRET);
 
     expect(event).toEqual({
-      installId: BODY_INSTALL_ID,
+      installId: INSTALL_ID,
       accountId: BODY_ACCOUNT_ID,
       accountName: "Oskar's Boat Tours",
       platform: "peek",
@@ -105,23 +106,69 @@ describe("parseInstallWebhook", () => {
     });
   });
 
-  it("takes installId/accountId/status/displayVersion from the body, not the token", () => {
-    const token = mintInstallToken(
-      SECRET,
-      { status: "uninstalled", account: { id: "token-account-id" }, display_version: "9.9.9" },
-      { subject: "token-install-id" },
-    );
+  it("takes accountId/status/displayVersion from the body, not the token", () => {
+    const token = mintInstallToken(SECRET, {
+      status: "uninstalled",
+      account: { id: "token-account-id" },
+      display_version: "9.9.9",
+    });
 
     const event = parseInstallWebhook(token, buildBody(), SECRET);
 
-    // The token carried different values for all four; the body must win.
-    expect(event.installId).toBe(BODY_INSTALL_ID);
+    // The token carried different values for all three; the body must win.
+    expect(event.installId).toBe(INSTALL_ID);
     expect(event.accountId).toBe(BODY_ACCOUNT_ID);
     expect(event.status).toBe("installed");
     expect(event.displayVersion).toBe("1.0.3");
   });
 
-  it("falls back to the token for installId/accountId/status/displayVersion the body omits", () => {
+  it("takes installId from the token sub when the body install_id matches it", () => {
+    const event = parseInstallWebhook(
+      mintInstallToken(SECRET),
+      buildBody({ install_id: INSTALL_ID }),
+      SECRET,
+    );
+
+    expect(event.installId).toBe(INSTALL_ID);
+  });
+
+  it("takes installId from the token sub when the body has no install_id", () => {
+    const event = parseInstallWebhook(
+      mintInstallToken(SECRET),
+      buildBody({ install_id: undefined }),
+      SECRET,
+    );
+
+    expect(event.installId).toBe(INSTALL_ID);
+  });
+
+  it("treats an empty body install_id as missing", () => {
+    const event = parseInstallWebhook(mintInstallToken(SECRET), buildBody({ install_id: "" }), SECRET);
+
+    expect(event.installId).toBe(INSTALL_ID);
+  });
+
+  it("throws InstallWebhookError when the body install_id is not the token sub", () => {
+    // A valid token for INSTALL_ID with a body that names OTHER_INSTALL_ID.
+    const call = (): unknown =>
+      parseInstallWebhook(mintInstallToken(SECRET), buildBody({ install_id: OTHER_INSTALL_ID }), SECRET);
+
+    expect(call).toThrow(InstallWebhookError);
+    expect(call).toThrow(expect.objectContaining({ reason: "install_id_mismatch" }));
+  });
+
+  it("throws InstallWebhookError when the body install_id differs only in case", () => {
+    const call = (): unknown =>
+      parseInstallWebhook(
+        mintInstallToken(SECRET),
+        buildBody({ install_id: INSTALL_ID.toUpperCase() }),
+        SECRET,
+      );
+
+    expect(call).toThrow(InstallWebhookError);
+  });
+
+  it("falls back to the token for accountId/status/displayVersion the body omits", () => {
     const body = buildBody({
       install_id: undefined,
       display_version: undefined,
@@ -259,14 +306,39 @@ describe("parseInstallWebhook", () => {
 
     // The whole header value (scheme + token) verifies the same as the bare JWT;
     // a produced event (not a throw) proves the token verified.
-    expect(parseInstallWebhook(`Bearer ${token}`, buildBody(), SECRET).installId).toBe(BODY_INSTALL_ID);
-    expect(parseInstallWebhook(`bearer ${token}`, buildBody(), SECRET).installId).toBe(BODY_INSTALL_ID);
-    expect(parseInstallWebhook(`  ${token}  `, buildBody(), SECRET).installId).toBe(BODY_INSTALL_ID);
+    expect(parseInstallWebhook(`Bearer ${token}`, buildBody(), SECRET).installId).toBe(INSTALL_ID);
+    expect(parseInstallWebhook(`bearer ${token}`, buildBody(), SECRET).installId).toBe(INSTALL_ID);
+    expect(parseInstallWebhook(`  ${token}  `, buildBody(), SECRET).installId).toBe(INSTALL_ID);
   });
 
-  it("defaults every field to empty when both the token and body omit them", () => {
-    // Validly signed, but carries no sub/account/status/display_version/user.
+  it("throws InstallWebhookError when the verified token has no sub", () => {
+    // Validly signed, but carries no sub.
     const token = jwt.sign({}, SECRET, {
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      expiresIn: 60,
+    });
+    const call = (): unknown => parseInstallWebhook(token, buildBody(), SECRET);
+
+    expect(call).toThrow(InstallWebhookError);
+    expect(call).toThrow(expect.objectContaining({ reason: "missing_subject" }));
+  });
+
+  it.each([
+    ["a blank", "   "],
+    ["a \"null\"", "null"],
+  ])("throws InstallWebhookError when the token sub is %s string", (_label, subject) => {
+    const token = mintInstallToken(SECRET, {}, { subject });
+
+    expect(() => parseInstallWebhook(token, buildBody(), SECRET)).toThrow(
+      expect.objectContaining({ reason: "missing_subject" }),
+    );
+  });
+
+  it("defaults every other field to empty when the token carries only a sub and the body is missing", () => {
+    // Validly signed, with a sub but no account/status/display_version/user.
+    const token = jwt.sign({}, SECRET, {
+      subject: INSTALL_ID,
       issuer: ISSUER,
       audience: AUDIENCE,
       expiresIn: 60,
@@ -275,7 +347,7 @@ describe("parseInstallWebhook", () => {
     const event = parseInstallWebhook(token, undefined, SECRET);
 
     expect(event).toEqual({
-      installId: "",
+      installId: INSTALL_ID,
       accountId: "",
       accountName: "",
       platform: null,
@@ -366,5 +438,16 @@ describe("verifyInstallWebhook", () => {
 
   it("throws on a malformed token string", () => {
     expect(() => verifyInstallWebhook("not.a.jwt", SECRET)).toThrow();
+  });
+});
+
+describe("InstallWebhookError", () => {
+  it("carries its reason, name and message", () => {
+    const error = new InstallWebhookError("install_id_mismatch");
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.name).toBe("InstallWebhookError");
+    expect(error.reason).toBe("install_id_mismatch");
+    expect(error.message).toMatch(/install_id does not match/);
   });
 });
