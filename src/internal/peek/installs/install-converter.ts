@@ -28,8 +28,10 @@ export interface InstallWebhookBodyAccount {
  * The raw, snake_case JSON body delivered alongside the install webhook token.
  * This is the **primary source of the event data**: it carries the full
  * `account` block, the per-install `api.url`, the `modified_by` actor, and the
- * `install_id`/`status`/`display_version` the token also carries (the token is
- * the fallback for those). Extraction is defensive — any field may be absent.
+ * `status`/`display_version` the token also carries (the token is the fallback
+ * for those). Its `install_id` is only compared with the token `sub`: the
+ * parser takes `installId` from the token. Extraction is defensive — any field
+ * may be absent.
  */
 export interface InstallWebhookBody {
   status?: string;

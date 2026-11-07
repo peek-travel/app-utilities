@@ -163,6 +163,10 @@ Two kinds of failures surface as exceptions:
 - `PiiAccessDisabledError` — a payment / booking-modification operation was
   called on an access service created without `fullCustomerAccess` (see [Access options
   / PII](#access-options--pii)). Carries `.operation` (the blocked method name).
+- `InstallWebhookError` — `parseInstallWebhook` got a validly signed token that
+  does not name the delivered install: the token has no `sub`
+  (`.reason === "missing_subject"`), or the body `install_id` is not equal to it
+  (`.reason === "install_id_mismatch"`). Respond `401`.
 
 Once a token's signature verifies, claim *extraction* never throws: the whole
 `user` block may be absent (`claims.user === null`) and every field inside it is
@@ -321,7 +325,7 @@ app.post("/install-webhook", async (req, res) => {
     const token = req.header("x-peek-auth") ?? "";
     event = parseInstallWebhook(token, req.body, process.env.PEEK_INTERNAL_SECRET!);
   } catch {
-    return res.sendStatus(401); // bad signature / issuer / audience / expired
+    return res.sendStatus(401); // bad token, or the body names another install
   }
   switch (event.status) {
     case "installed":        await provision(event); break;
@@ -350,11 +354,12 @@ expiry, issuer, and `"Joken"` audience (the same checks as `verifyPeekAuthToken`
 throwing the underlying `jsonwebtoken` error), then returns one flat, JSON-safe
 `InstallWebhook`: `installId`, `accountId` (**also called the partner ID**),
 `accountName`, `platform`, `isTest`, `timezone`, `apiUrl`, `status`, `rawStatus`,
-`displayVersion`, and a **nullable** `user`. The **JSON body is the source of the
-event data**; the fields it shares with the token (`installId` / `accountId` /
-`status` / `displayVersion` / `user`) fall back to the **verified token** when
-the body omits them. The token authenticates the whole delivery, so the body is
-trusted within a verified request. This webhook is the only source of
+`displayVersion`, and a **nullable** `user`. **`installId` is always the token
+`sub`**: a body `install_id` that is present and not equal to it throws
+`InstallWebhookError`, and so does a token with no `sub`. The **JSON body is the
+source of the other event data**; the fields it shares with the token
+(`accountId` / `status` / `displayVersion` / `user`) fall back to the **verified
+token** when the body omits them. This webhook is the only source of
 `accountId`, `timezone`, and `apiUrl` in the package, since no GraphQL read
 returns them — **persist them per install**. `apiUrl` is the install's **base API
 URL**: pass it straight through (don't reconstruct it from `appId`) as the access
