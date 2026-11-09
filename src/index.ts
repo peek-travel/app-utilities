@@ -201,8 +201,10 @@ export {
   AdminAccountRequiredError,
   CngApiError,
   CngPermissionError,
+  InstallWebhookError,
   PeekGraphQLError,
   PeekHttpError,
   PiiAccessDisabledError,
   RateLimitError,
 } from "./errors.js";
+export type { InstallWebhookErrorReason } from "./errors.js";

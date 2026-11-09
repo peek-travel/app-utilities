@@ -12,8 +12,9 @@
  * timezone, test flag), the per-install `api.url`, the acting user, and the
  * install id / status / version.
  *
- * `parseInstallWebhook` verifies the token and reads the event from the body,
- * falling back to the token for the fields it also carries, returning one flat
+ * `parseInstallWebhook` verifies the token, takes the install id from the token
+ * `sub`, and reads the rest of the event from the body (falling back to the
+ * token for the fields it also carries), returning one flat
  * {@link InstallWebhook} so a consumer makes a single call instead of stitching
  * two differently shaped payloads together.
  *
@@ -25,7 +26,9 @@
  *
  * The signature/issuer/audience/expiry checks are strict (they are the security
  * boundary); the claim *extraction* is defensive so an unexpected-but-valid
- * payload yields empty fields rather than throwing.
+ * payload yields empty fields rather than throwing. The one exception is the
+ * install id: the token `sub` must be present, and a body `install_id` must be
+ * equal to it, or the parser throws {@link InstallWebhookError}.
  */
 import {
   extractInstallWebhookBody,
@@ -38,6 +41,11 @@ import {
   verifyPeekJwt,
   type RawPeekTokenUser,
 } from "../peek-auth-token.js";
+import {
+  INSTALL_WEBHOOK_INSTALL_ID_MISMATCH,
+  INSTALL_WEBHOOK_MISSING_SUBJECT,
+  InstallWebhookError,
+} from "../../../errors.js";
 import type { InstallWebhook } from "../../../models/peek/install.js";
 import type { InstallWebhookClaims } from "../../../models/peek/auth-token.js";
 
@@ -59,14 +67,20 @@ interface RawInstallWebhookPayload {
  * Verifies an install-status webhook token and merges it with the delivered
  * JSON body into one flat {@link InstallWebhook}.
  *
- * The **JSON body** is the source of the event data — `installId`, `accountId`,
+ * `installId` is **always the token `sub`**. The body `install_id` never sets
+ * it: when the body carries a non-empty `install_id` that is not equal to `sub`,
+ * this throws {@link InstallWebhookError} (`reason: "install_id_mismatch"`); a
+ * body without `install_id` parses normally. A verified token with no `sub`
+ * throws {@link InstallWebhookError} (`reason: "missing_subject"`).
+ *
+ * The **JSON body** is the source of the other event data — `accountId`,
  * `accountName`, `platform`, `isTest`, `timezone`, `apiUrl`, `status`,
- * `displayVersion`, and `user`. The **verified token** authenticates the whole
- * delivery and is the **fallback** for the fields it also carries (`installId`,
- * `accountId`, `status`, `displayVersion`, `user`) when the body omits them. A
- * missing or malformed body degrades the body-only fields (`accountName`,
- * `platform`, `isTest`, `timezone`, `apiUrl`) to `""`/`null`/`false` and leans
- * on the token for the rest; it never throws.
+ * `displayVersion`, and `user`. The **verified token** is the **fallback** for
+ * the fields it also carries (`accountId`, `status`, `displayVersion`, `user`)
+ * when the body omits them. A missing or malformed body degrades the body-only
+ * fields (`accountName`, `platform`, `isTest`, `timezone`, `apiUrl`) to
+ * `""`/`null`/`false` and leans on the token for the rest; it does not throw
+ * for that.
  *
  * Signature verification is strict: the HMAC signature (with `secret`), the
  * token expiry, the `"app_registry_v2"` issuer, and the `"Joken"` audience are
@@ -77,6 +91,11 @@ interface RawInstallWebhookPayload {
  * - `JsonWebTokenError` — signature invalid, wrong issuer/audience, or malformed
  * - `TokenExpiredError` — past `exp`
  * - `NotBeforeError` — before `nbf`
+ *
+ * A validly signed token that does not match the body throws
+ * {@link InstallWebhookError} (see above). It extends `JsonWebTokenError`, so
+ * an `instanceof JsonWebTokenError` check also matches it. Treat every throw as
+ * a rejected delivery (respond `401`).
  *
  * An unrecognised `status` or `platform` maps to `null` (with the wire status
  * preserved on {@link InstallWebhook.rawStatus}) rather than being coerced —
@@ -102,6 +121,8 @@ interface RawInstallWebhookPayload {
  * @throws {JsonWebTokenError} signature invalid or token malformed
  * @throws {TokenExpiredError} token has expired
  * @throws {NotBeforeError} token not yet valid
+ * @throws {InstallWebhookError} token has no `sub`, or the body `install_id`
+ *   is not equal to it
  */
 export function parseInstallWebhook(
   token: string,
@@ -110,13 +131,14 @@ export function parseInstallWebhook(
 ): InstallWebhook {
   const payload = verifyPeekJwt<RawInstallWebhookPayload>(token, secret);
   const parsed = extractInstallWebhookBody(body);
+  const installId = resolveInstallId(payload.sub, parsed.install_id);
   const account = parsed.account ?? {};
-  // The JSON body is the source of the event data; the verified token is the
-  // fallback for the fields it also carries. `||` so an empty body value falls
-  // through to the token rather than masking it.
+  // The JSON body is the source of the other event data; the verified token is
+  // the fallback for the fields it also carries. `||` so an empty body value
+  // falls through to the token rather than masking it.
   const rawStatus = parsed.status || payload.status || "";
   return {
-    installId: parsed.install_id || payload.sub || "",
+    installId,
     accountId: account.id || payload.account?.id || "",
     accountName: account.name || "",
     platform: toPeekPlatform(account.platform || ""),
@@ -128,6 +150,23 @@ export function parseInstallWebhook(
     displayVersion: parsed.display_version || payload.display_version || "",
     user: resolveInstallUser(parsed.modified_by, payload.user),
   };
+}
+
+/**
+ * Returns the install id from the verified token `sub`. Throws
+ * {@link InstallWebhookError} when the token has no usable `sub` (absent,
+ * non-string, blank, or `"null"` — see {@link cleanTokenString}), or when the body
+ * carries a non-empty `install_id` that is not equal to it. An absent or empty
+ * body `install_id` is accepted.
+ */
+function resolveInstallId(rawSubject: unknown, bodyInstallId: unknown): string {
+  // An absent, non-string, blank, or `"null"` sub names no install.
+  const tokenSubject = cleanTokenString(rawSubject);
+  if (tokenSubject === null) throw new InstallWebhookError(INSTALL_WEBHOOK_MISSING_SUBJECT);
+  if (bodyInstallId && bodyInstallId !== tokenSubject) {
+    throw new InstallWebhookError(INSTALL_WEBHOOK_INSTALL_ID_MISMATCH);
+  }
+  return tokenSubject;
 }
 
 /**
