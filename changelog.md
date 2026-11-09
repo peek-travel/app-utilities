@@ -12,9 +12,9 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 1.1.0
 
-### `parseInstallWebhook` takes `installId` from the token `sub` `[breaking]`
+### `parseInstallWebhook` takes `installId` from the token `sub` `[fix]`
 
 - **What:** `InstallWebhook.installId` is now always the verified token `sub`.
   The body `install_id` no longer sets it. `parseInstallWebhook` now throws the
@@ -22,8 +22,10 @@ action needed; `[additive]` only adds capability.
   `install_id` that is not equal to the token `sub`
   (`reason: "install_id_mismatch"`), or the token has no `sub`
   (`reason: "missing_subject"`). A body without `install_id` still parses, with
-  `installId` set from `sub`. Before, the body `install_id` was used first and
-  the token `sub` only filled in when the body had none.
+  `installId` set from `sub`. `InstallWebhookError` extends `JsonWebTokenError`
+  from `jsonwebtoken`, so code that branches on `JsonWebTokenError` also catches
+  it. Before, the body `install_id` was used first and the token `sub` only
+  filled in when the body had none.
 - **Why:** the install id of the event is now the one the signed token states.
   Peek's own deliveries put the same id in both places, so they parse as before.
 - **Caller action:** keep one `try/catch` around `parseInstallWebhook` and

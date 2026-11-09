@@ -157,6 +157,19 @@ describe("parseInstallWebhook", () => {
     expect(call).toThrow(expect.objectContaining({ reason: "install_id_mismatch" }));
   });
 
+  it("throws an error that is both an InstallWebhookError and a JsonWebTokenError on an install_id mismatch", () => {
+    let thrown: unknown;
+    try {
+      parseInstallWebhook(mintInstallToken(SECRET), buildBody({ install_id: OTHER_INSTALL_ID }), SECRET);
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(InstallWebhookError);
+    expect(thrown).toBeInstanceOf(jwt.JsonWebTokenError);
+    expect(thrown).toMatchObject({ name: "InstallWebhookError", reason: "install_id_mismatch" });
+  });
+
   it("throws InstallWebhookError when the body install_id differs only in case", () => {
     const call = (): unknown =>
       parseInstallWebhook(
@@ -446,6 +459,7 @@ describe("InstallWebhookError", () => {
     const error = new InstallWebhookError("install_id_mismatch");
 
     expect(error).toBeInstanceOf(Error);
+    expect(error).toBeInstanceOf(jwt.JsonWebTokenError);
     expect(error.name).toBe("InstallWebhookError");
     expect(error.reason).toBe("install_id_mismatch");
     expect(error.message).toMatch(/install_id does not match/);

@@ -166,7 +166,9 @@ Two kinds of failures surface as exceptions:
 - `InstallWebhookError` — `parseInstallWebhook` got a validly signed token that
   does not name the delivered install: the token has no `sub`
   (`.reason === "missing_subject"`), or the body `install_id` is not equal to it
-  (`.reason === "install_id_mismatch"`). Respond `401`.
+  (`.reason === "install_id_mismatch"`). It extends `jsonwebtoken`'s
+  `JsonWebTokenError`, so an `instanceof JsonWebTokenError` check also matches
+  it. Respond `401`.
 
 Once a token's signature verifies, claim *extraction* never throws: the whole
 `user` block may be absent (`claims.user === null`) and every field inside it is

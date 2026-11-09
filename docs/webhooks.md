@@ -193,7 +193,8 @@ body, **falling back to the token** for the fields it also carries (`accountId`,
 **`installId` is always the token `sub`.** The body `install_id` never sets it.
 When the body carries a non-empty `install_id` that is not equal to `sub`, the
 parser throws `InstallWebhookError` (`reason: "install_id_mismatch"`). A verified
-token with no `sub` throws `InstallWebhookError` (`reason: "missing_subject"`). A
+token with no `sub` throws `InstallWebhookError` (`reason: "missing_subject"`).
+`InstallWebhookError` extends `JsonWebTokenError` from `jsonwebtoken`. A
 body without `install_id` parses normally.
 
 ## Step 1 — subscribe to the event (external, one-time)
@@ -251,7 +252,8 @@ throws the underlying `jsonwebtoken` error (`JsonWebTokenError` /
 `TokenExpiredError` / `NotBeforeError`) on any verification failure, so a single
 `try/catch` → `401` covers every bad-token case. It also throws
 `InstallWebhookError` when the token has no `sub` or the body `install_id` is not
-equal to it; the same `try/catch` → `401` covers that. The signature checks are
+equal to it. `InstallWebhookError` extends `JsonWebTokenError`, so the same
+`try/catch` → `401` (or an `instanceof JsonWebTokenError` branch) covers that. The signature checks are
 strict (they are the security boundary); the other claim *extraction* is
 defensive, so a validly-signed token or a missing/garbled body yields empty
 fields rather than throwing.

@@ -5,8 +5,11 @@
  *
  * `AdminAccountRequiredError` and `RateLimitError` are shared by all gateways.
  * `PeekGraphQLError` is Peek-only; `CngApiError` and `CngPermissionError` are
- * CNG-only; `AcmeApiError` is ACME-only.
+ * CNG-only; `AcmeApiError` is ACME-only. `InstallWebhookError` is thrown by
+ * `parseInstallWebhook` and extends `jsonwebtoken`'s `JsonWebTokenError`.
  */
+
+import jwt from "jsonwebtoken";
 
 /** The HTTP status the CNG gateway uses for a missing-permission rejection. */
 export const FORBIDDEN_STATUS = 403;
@@ -205,10 +208,11 @@ const INSTALL_WEBHOOK_MESSAGES: Record<InstallWebhookErrorReason, string> = {
  * Thrown by `parseInstallWebhook` when the token signature is valid but the
  * delivery does not name one install: the token has no `sub`, or the body
  * `install_id` is present and is not equal to the token `sub`. The cause is on
- * {@link InstallWebhookError.reason}. Handle it like a failed token check
- * (respond `401`).
+ * {@link InstallWebhookError.reason}. It extends `JsonWebTokenError` from
+ * `jsonwebtoken`, so a handler that already treats `JsonWebTokenError` as a
+ * failed token check (respond `401`) handles it with no change.
  */
-export class InstallWebhookError extends Error {
+export class InstallWebhookError extends jwt.JsonWebTokenError {
   /** Why the delivery was rejected. */
   public readonly reason: InstallWebhookErrorReason;
 

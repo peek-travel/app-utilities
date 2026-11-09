@@ -595,7 +595,7 @@ options/result types callers need), all data-model **types** (including
 `InstallWebhookClaims`/`InstallWebhookAccount`), the `Logger` interface +
 `noopLogger`, and the typed error classes (`AdminAccountRequiredError`,
 `RateLimitError`, `PeekGraphQLError`, `PeekHttpError`, `PiiAccessDisabledError`,
-`InstallWebhookError` (+ its `InstallWebhookErrorReason` type), `CngApiError`, `CngPermissionError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
+`InstallWebhookError` (extends `jsonwebtoken`'s `JsonWebTokenError`; + its `InstallWebhookErrorReason` type), `CngApiError`, `CngPermissionError`, `AcmeApiError`). Query strings and raw response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and

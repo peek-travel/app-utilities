@@ -93,8 +93,9 @@ interface RawInstallWebhookPayload {
  * - `NotBeforeError` — before `nbf`
  *
  * A validly signed token that does not match the body throws
- * {@link InstallWebhookError} (see above). Treat every throw as a rejected
- * delivery (respond `401`).
+ * {@link InstallWebhookError} (see above). It extends `JsonWebTokenError`, so
+ * an `instanceof JsonWebTokenError` check also matches it. Treat every throw as
+ * a rejected delivery (respond `401`).
  *
  * An unrecognised `status` or `platform` maps to `null` (with the wire status
  * preserved on {@link InstallWebhook.rawStatus}) rather than being coerced —
