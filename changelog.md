@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 1.1.1
 
 ### `SeatmapService.deleteSeatAssignments` — delete seat assignments `[additive]`
 
