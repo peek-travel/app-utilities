@@ -40,6 +40,7 @@ import {
   ResellerService,
   ResourcePoolService,
   ReviewService,
+  SeatmapService,
   TimeslotService,
   noopLogger,
   type Logger,
@@ -59,6 +60,7 @@ import type {
   NoteMode,
   RefundInput,
   ResourcePoolMode,
+  SeatmapBlockAssignment,
   SetMetaDataAttachmentInput,
   SetMetaDataGuestInput,
   TimeslotFilter,
@@ -188,6 +190,7 @@ interface Ctx {
   bookings: BookingService;
   reviews: ReviewService;
   customQuestions: CustomQuestionService;
+  seatmaps: SeatmapService;
 }
 
 /** Builds the internal client with the pasted token, then wires every service. */
@@ -257,6 +260,7 @@ function buildContext(authToken: string): Ctx {
     bookings: new BookingService(client, { productService: products }, { accessOptions, integrator }),
     reviews: new ReviewService(client, accessOptions),
     customQuestions: new CustomQuestionService(client),
+    seatmaps: new SeatmapService(client, accessOptions),
   };
 }
 
@@ -367,6 +371,13 @@ const REGISTRY: FnSpec[] = [
 
   // ── custom questions ──
   { name: "getAllCustomQuestions", group: "custom-questions", desc: "All custom questions on the account.", params: [], run: (c) => c.customQuestions.getAll() },
+
+  // ── seatmaps ──
+  { name: "getSeatmapForProduct", group: "seatmaps", desc: "Seating maps configured on an activity.", params: [p("productId", "string", "Activity id")], run: (c, [id]) => c.seatmaps.getSeatmapForProduct(id as string) },
+  { name: "getSeatMapAssignments", group: "seatmaps", desc: "A product's seating maps with seat occupancy over a datetime range (guest names need PEEK_FULL_CUSTOMER_ACCESS).", params: [p("productId", "string", "Activity id"), p("rangeStart", "string", "Naive start, e.g. 2026-11-06T14:00:00"), p("rangeEnd", "string", "Naive end, e.g. 2026-11-06T16:00:00")], run: (c, [id, s, e]) => c.seatmaps.getSeatMapAssignments(id as string, s as string, e as string) },
+  { name: "assignableBookings", group: "seatmaps", desc: "Confirmed bookings overlapping a range with their assignable tickets (guest names need PEEK_FULL_CUSTOMER_ACCESS).", params: [p("productId", "string", "Activity id"), p("rangeStart", "string", "Naive start, e.g. 2026-11-06T14:00:00"), p("rangeEnd", "string", "Naive end, e.g. 2026-11-06T15:00:00")], run: (c, [id, s, e]) => c.seatmaps.assignableBookings(id as string, s as string, e as string) },
+  { name: "assignTicketsToSeats", group: "seatmaps", desc: "Bulk-assign tickets to seats. Returns SUCCESS/PARTIAL/FAILED.", params: [p("assignments", "json", 'SeatmapBlockAssignment[] JSON, e.g. [{"assignableId":"t_A1","blockId":"csb_A1"}]')], run: (c, [a]) => c.seatmaps.assignTicketsToSeats(a as SeatmapBlockAssignment[]) },
+  { name: "deleteSeatAssignments", group: "seatmaps", desc: "Delete seat assignments by id (asa_…). Returns the deleted assignments.", params: [p("assignmentIds", "json", 'assignment id strings JSON, e.g. ["asa_9kQ2mNv","asa_7hL4pXw"]')], run: (c, [a]) => c.seatmaps.deleteSeatAssignments(a as string[]) },
 ];
 
 const BY_NAME = new Map(REGISTRY.map((f) => [f.name, f]));

@@ -118,6 +118,83 @@ export class PiiAccessDisabledError extends Error {
 }
 
 /**
+ * Thrown when the Peek gateway returns a seatmap `display.type` the package does
+ * not recognize. The known set is small and gateway-owned
+ * ({@link SEATMAP_DISPLAY_TYPES}); rather than silently widening the clean
+ * model's `type` to an arbitrary string, the seatmap converter throws this so a
+ * caller learns the gateway grew a new kind. The offending value is preserved on
+ * {@link UnknownSeatmapDisplayTypeError.type}.
+ */
+export class UnknownSeatmapDisplayTypeError extends Error {
+  /** The unrecognized `display.type` value the gateway returned. */
+  public readonly type: string;
+
+  constructor(type: string, knownTypes: readonly string[]) {
+    super(
+      `Unknown seatmap display type "${type}" returned by the gateway; ` +
+        `expected one of: ${knownTypes.join(", ")}.`,
+    );
+    this.name = "UnknownSeatmapDisplayTypeError";
+    this.type = type;
+  }
+}
+
+/**
+ * Thrown when the Peek gateway returns a seat `availability.status` the package
+ * does not recognize. The known set is small and gateway-owned
+ * ({@link SEATMAP_BLOCK_STATUSES}); rather than silently widening the clean
+ * model's `status`, `SeatmapService.getSeatMapAssignments` throws this. The
+ * offending value is preserved on {@link UnknownSeatmapBlockStatusError.status}.
+ */
+export class UnknownSeatmapBlockStatusError extends Error {
+  /** The unrecognized `availability.status` value the gateway returned. */
+  public readonly status: string;
+
+  constructor(status: string, knownStatuses: readonly string[]) {
+    super(
+      `Unknown seatmap block status "${status}" returned by the gateway; ` +
+        `expected one of: ${knownStatuses.join(", ")}.`,
+    );
+    this.name = "UnknownSeatmapBlockStatusError";
+    this.status = status;
+  }
+}
+
+/**
+ * Thrown when a seat assignment's `parent` carries a `__typename` the package
+ * does not recognize. The occupant kind is derived from that typename
+ * (`Ticket`/`AccountUser`/`FieldLocation`/`BlockedSeat`); an unknown one makes
+ * `SeatmapService.getSeatMapAssignments` throw rather than guess. The offending
+ * value is preserved on {@link UnknownSeatmapAssignmentParentError.typename}.
+ */
+export class UnknownSeatmapAssignmentParentError extends Error {
+  /** The unrecognized assignment-parent `__typename` the gateway returned. */
+  public readonly typename: string;
+
+  constructor(typename: string, knownTypenames: readonly string[]) {
+    super(
+      `Unknown seatmap assignment parent "${typename}" returned by the gateway; ` +
+        `expected one of: ${knownTypenames.join(", ")}.`,
+    );
+    this.name = "UnknownSeatmapAssignmentParentError";
+    this.typename = typename;
+  }
+}
+
+/**
+ * Thrown when `SeatmapService.deleteSeatAssignments` gets a non-success union
+ * member back (e.g. `AssignBlocksErrorInvalidBlockCount`) — a batch-level
+ * failure the gateway reports inside an otherwise-successful response, not a
+ * transport error. The gateway's explanation is on the standard `.message`.
+ */
+export class SeatmapDeleteError extends Error {
+  constructor(message?: string | null) {
+    super(message || "Deleting seat assignments failed.");
+    this.name = "SeatmapDeleteError";
+  }
+}
+
+/**
  * Thrown when the CNG REST gateway returns a non-2xx response that is not one
  * of the specifically-handled statuses (418/429). The offending status is
  * preserved on {@link CngApiError.statusCode}, and the raw response body (parsed

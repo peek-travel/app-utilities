@@ -12,6 +12,107 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 1.1.1
+
+### `SeatmapService.deleteSeatAssignments` — delete seat assignments `[additive]`
+
+- **What:** `SeatmapService` gains `deleteSeatAssignments(assignmentIds:
+  string[]): Promise<DeletedSeatAssignment[]>` — deletes seat assignments by id
+  and returns the now-deleted assignments (for reloading state). New exported
+  model `DeletedSeatAssignment` and typed error `SeatmapDeleteError`.
+- **Why:** the write that clears seats, pairing with the assignment reads/writes.
+- **Caller action:** none — purely additive. Notes for adopters: every id must
+  start with `asa_` and at least one must be supplied (validated before any
+  network call — throws `Error`); on success you get back the deleted
+  assignments (`{ assignmentId, blockId, blockName, ticketHashId }`); a
+  batch-level failure from the gateway throws `SeatmapDeleteError` (reason on
+  `.message`), while transport/GraphQL errors throw as usual.
+
+### `SeatmapService.assignTicketsToSeats` — bulk seat assignment `[additive]`
+
+- **What:** `SeatmapService` gains `assignTicketsToSeats(assignments:
+  SeatmapBlockAssignment[]): Promise<AssignmentResponse>` — assigns bookable
+  tickets to seats in bulk (one batched mutation). New exported types
+  `SeatmapBlockAssignment`, `AssignmentResponse`, `SuccessfulAssignment`, the
+  `AssignmentStatus` union, and the `ASSIGNMENT_STATUSES` constant.
+- **Why:** callers need to commit seat assignments (the write that pairs with the
+  `assignableBookings` / `getSeatMapAssignments` reads), in one round trip.
+- **Caller action:** none — purely additive. Notes for adopters: each
+  `SeatmapBlockAssignment` must carry an `assignableId` starting with `t_` and a
+  `blockId` starting with `csb_`, and at least one must be supplied — all
+  validated before any network call (throws `Error`). The result's `status` is
+  `SUCCESS` (all assigned), `FAILED` (none), or `PARTIAL` (some).
+  `successfulAssignments` are `{ assignableId, assignmentId }` pairs (the created
+  `asa_…` record); `failedAssignments` lists the failed `assignableId`s.
+  **Per-assignment** failures (overbooking, invalid type, …) are reported in
+  `failedAssignments`, not thrown; only transport/GraphQL-level errors throw.
+
+### `SeatmapService.assignableBookings` — bookings assignable to seats `[additive]`
+
+- **What:** `SeatmapService` gains `assignableBookings(productId, rangeStart,
+  rangeEnd): Promise<AssignableBooking[]>` — the confirmed bookings on a product
+  that overlap a datetime range, each with the tickets that can be assigned to
+  seats. New exported types `AssignableBooking`, `AssignableTicket`, and
+  `CurrentSeatAssignment`.
+- **Why:** seat assignment needs the list of bookings/tickets eligible for a map
+  and time window, plus which seat (if any) each ticket already holds.
+- **Caller action:** none — purely additive. Notes for adopters: `assignableId`
+  on a ticket is its `hashid` (the handle you assign by); `currentlyAssignedTo`
+  is `null` when a ticket has no seat yet; `rangeStart`/`rangeEnd` take the same
+  flexible datetimes as `getSeatMapAssignments` (seconds optional, timezone/
+  fractional stripped, both bounds on the same date) sent half-open
+  `[start,end)`; booking `startsAt`/`endsAt` are returned without fractional
+  seconds; and
+  `guestName` is **customer PII**, so it is `null` unless the access service was
+  created with `fullCustomerAccess`.
+
+### `SeatmapService.getSeatMapAssignments` — seat occupancy over a range `[additive]`
+
+- **What:** `SeatmapService` gains `getSeatMapAssignments(productId, rangeStart,
+  rangeEnd): Promise<AssignedSeatmap[]>` — every seating map on an activity with
+  each seat enriched by its occupancy over a datetime range. New exported types:
+  `AssignedSeatmap`, `AssignedSeatmapSection`, `AssignedSeatmapGroup`, and
+  `AssignedSeatmapBlock` (each extends its base `Seatmap*` type;
+  `AssignedSeatmapBlock` adds `status: SeatmapBlockStatus` and `assignedTo:
+  SeatmapAssignment[]`), plus `SeatmapAssignment`, the `SeatmapBlockStatus` /
+  `SeatmapOccupantType` unions, the `SEATMAP_BLOCK_STATUSES` /
+  `SEATMAP_OCCUPANT_TYPES` constants, and two typed errors
+  `UnknownSeatmapBlockStatusError` and `UnknownSeatmapAssignmentParentError`.
+- **Why:** callers need who/what occupies each seat (bookings/guests, staff,
+  field locations, blocked seats) for a given map and time window — not just the
+  static layout `getSeatmapForProduct` returns.
+- **Caller action:** none — purely additive; `getSeatmapForProduct` is unchanged
+  and still returns the base `Seatmap[]` without `status`/`assignedTo`. When
+  adopting the new call, note: it takes the **product id** and returns every map
+  on that activity (like `getSeatmapForProduct`), empty when there are none;
+  `rangeStart`/`rangeEnd` accept flexible datetimes (seconds optional, any
+  timezone/fractional seconds stripped) normalized to naive
+  `YYYY-MM-DDTHH:MM:SS` and queried half-open `[start,end)` — and the two bounds
+  must fall on the same date (it throws otherwise); an occupant's
+  `guestName` is **customer PII**, so for a GUEST it is `null` unless the access
+  service was created with `fullCustomerAccess` (staff/ACCOUNT_USER names are not
+  gated); and an unrecognized seat status or assignment parent throws the
+  matching new error (`.status` / `.typename` carry the offending value).
+
+### New `SeatmapService` for reading product seating maps `[additive]`
+
+- **What:** `PeekAccessService.getSeatmapService()` returns a new `SeatmapService`
+  with `getSeatmapForProduct(productId): Promise<Seatmap[]>` — every seating map
+  configured on an activity (empty when the activity is missing or has none). The
+  clean models `Seatmap`, `SeatmapZone`, `SeatmapTicket`, `SeatmapSection`,
+  `SeatmapGroup`, `SeatmapBlock`, and the shared `SeatmapDisplay` geometry are now
+  exported, along with the `SeatmapDisplayType` union, the `SEATMAP_DISPLAY_TYPES`
+  constant, and a new typed error `UnknownSeatmapDisplayTypeError`.
+- **Why:** callers need the physical seat layout (zones/pricing tiers, sections,
+  tables, and seats) a product sells against, exposed as clean models instead of
+  raw GraphQL.
+- **Caller action:** none — purely additive. Note two behaviors when adopting it:
+  a product can have multiple maps, so the result is an array; and a gateway
+  `display.type` outside `SEATMAP_DISPLAY_TYPES` (`"SHAPE" | "SECTION" | "LABEL"`)
+  throws `UnknownSeatmapDisplayTypeError` (`.type` holds the offending value) —
+  catch it if you need to tolerate a newly-added kind. Seating maps are structural
+  layout, not customer data, so the call is unaffected by `fullCustomerAccess`.
+
 ## 1.1.0
 
 ### `parseInstallWebhook` takes `installId` from the token `sub` `[fix]`

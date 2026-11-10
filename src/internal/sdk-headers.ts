@@ -17,7 +17,7 @@ export const SDK_HEADER_NAME = "x-peek-sdk";
 const SDK_PLATFORM = "js";
 
 /** Must equal the `version` field in `package.json`. */
-export const SDK_VERSION = "1.1.0";
+export const SDK_VERSION = "1.1.1";
 
 /** The `x-peek-sdk` header value, e.g. `js-0.9.0`. */
 export const SDK_HEADER_VALUE = `${SDK_PLATFORM}-${SDK_VERSION}`;

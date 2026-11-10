@@ -12,6 +12,7 @@ import { PricingService } from "../../src/internal/peek/pricing/pricing-service.
 import { ResellerService } from "../../src/internal/peek/resellers/reseller-service.js";
 import { ReviewService } from "../../src/internal/peek/reviews/review-service.js";
 import { CustomQuestionService } from "../../src/internal/peek/custom-questions/custom-question-service.js";
+import { SeatmapService } from "../../src/internal/peek/seatmaps/seatmap-service.js";
 import { ResourcePoolService } from "../../src/internal/peek/resource-pools/resource-pool-service.js";
 import { TimeslotService } from "../../src/internal/peek/timeslots/timeslot-service.js";
 import type { Logger } from "../../src/logger.js";
@@ -282,6 +283,18 @@ describe("PeekAccessService.getProductService", () => {
     const customQuestionService = service.getCustomQuestionService();
     expect(customQuestionService).toBeInstanceOf(CustomQuestionService);
     expect(service.getCustomQuestionService()).toBe(customQuestionService);
+  });
+
+  it("returns a SeatmapService and memoizes the instance", () => {
+    const { fetchFn } = makeEmptyFetch();
+    const service = new PeekAccessService({
+      ...REQUIRED_CONFIG,
+      fetch: fetchFn,
+    });
+
+    const seatmapService = service.getSeatmapService();
+    expect(seatmapService).toBeInstanceOf(SeatmapService);
+    expect(service.getSeatmapService()).toBe(seatmapService);
   });
 
   it("wires the default endpoint, global fetch, and a minted bearer token", async () => {
