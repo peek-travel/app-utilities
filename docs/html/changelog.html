@@ -67,7 +67,7 @@
   <div class="filterwrap"><input id="filter" type="search" placeholder="Filter versions…" aria-label="Filter changelog" /></div>
   <div class="navlabel">Versions</div>
 <a class="navlink" href="#overview" data-target="overview">Overview</a>
-<a class="navlink" href="#v-unreleased" data-target="v-unreleased">Unreleased</a>
+<a class="navlink" href="#v-1-1-2" data-target="v-1-1-2">1.1.2</a>
 <a class="navlink" href="#v-1-1-1" data-target="v-1-1-1">1.1.1</a>
 <a class="navlink" href="#v-1-1-0" data-target="v-1-1-0">1.1.0</a>
 <a class="navlink" href="#v-1-0-1" data-target="v-1-0-1">1.0.1</a>
@@ -96,8 +96,8 @@
 <p>Consumer-facing changelog for <code>@peektravel/app-utilities</code>. It records only changes a <strong>caller</strong> can observe or needs to act on — new capabilities, behavior changes, and breaking changes — grouped by version, newest first. Internal refactors, test-only changes, and invisible cleanups are intentionally omitted.</p>
 <p>Each entry states <strong>what</strong> changed, <strong>why</strong>, and — when relevant — the <strong>caller action</strong> required. Entries tagged <span class="tag tag--breaking">breaking</span> change observable behavior an existing consumer could depend on; <span class="tag tag--fix">fix</span> corrects broken behavior with no action needed; <span class="tag tag--additive">additive</span> only adds capability.</p>
 </section>
-<section class="ver" id="v-unreleased" data-search="unreleased `seatmapzone.colorhex` — zone display color `[additive]` - **what:** `seatmapzone` gains a nullable `colorhex: string | null` field — the   zone's display color as a hex string (e.g. `&quot;#ff0000&quot;`), or `null` when the   gateway reports none. it is populated on both `getseatmapforproduct` and   `getseatmapassignments` results. - **why:** callers rendering a seating map need the zone color to match peek pro. - **caller action:** none — purely additive.">
-<h2>Unreleased</h2>
+<section class="ver" id="v-1-1-2" data-search="1.1.2 `seatmapzone.colorhex` — zone display color `[additive]` - **what:** `seatmapzone` gains a nullable `colorhex: string | null` field — the   zone's display color as a hex string (e.g. `&quot;#ff0000&quot;`), or `null` when the   gateway reports none. it is populated on both `getseatmapforproduct` and   `getseatmapassignments` results. - **why:** callers rendering a seating map need the zone color to match peek pro. - **caller action:** none — purely additive.">
+<h2>1.1.2</h2>
 <h3><code>SeatmapZone.colorHex</code> — zone display color <span class="tag tag--additive">additive</span></h3>
 <ul><li><strong>What:</strong> <code>SeatmapZone</code> gains a nullable <code>colorHex: string | null</code> field — the zone's display color as a hex string (e.g. <code>"#ff0000"</code>), or <code>null</code> when the gateway reports none. It is populated on both <code>getSeatmapForProduct</code> and <code>getSeatMapAssignments</code> results.</li><li><strong>Why:</strong> callers rendering a seating map need the zone color to match Peek Pro.</li><li><strong>Caller action:</strong> none — purely additive.</li></ul>
 </section>

@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 1.1.2
 
 ### `SeatmapZone.colorHex` — zone display color `[additive]`
 
