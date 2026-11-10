@@ -234,6 +234,7 @@ export {
   AdminAccountRequiredError,
   CngApiError,
   CngPermissionError,
+  InstallWebhookError,
   PeekGraphQLError,
   PeekHttpError,
   PiiAccessDisabledError,
@@ -243,3 +244,4 @@ export {
   UnknownSeatmapBlockStatusError,
   UnknownSeatmapDisplayTypeError,
 } from "./errors.js";
+export type { InstallWebhookErrorReason } from "./errors.js";

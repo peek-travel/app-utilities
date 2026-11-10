@@ -489,15 +489,20 @@ backwards compatibility; new callers use `parseInstallWebhook`.
 
 Three design rules hold this together and are load-bearing:
 
-- **The JSON body is the source of the event data; the JWT authenticates it and
-  is the fallback.** Every field is read from the body first: `accountName`,
-  `platform`, `isTest`, `timezone`, `apiUrl` are body-only, and `installId`,
-  `accountId`, `status`, `displayVersion`, `user` (from `modified_by`) fall back
-  to the verified token when the body omits them. The real install token does not
-  actually carry those five, so reading it first returned empty core fields — the
-  body is where the data lives. The signature still authenticates the whole
-  delivery (only Peek can mint a valid token), so the body is trusted within a
-  verified request. `user` resolution is defensive on the body path (a
+- **`installId` comes only from the token `sub`.** The body `install_id` never
+  sets it; it is only compared. A non-empty body `install_id` that is not equal to
+  `sub` throws `InstallWebhookError` (`reason: "install_id_mismatch"`), and a
+  verified token with no `sub` throws it with `reason: "missing_subject"`. The
+  check lives in `resolveInstallId` in `install-webhook.ts`; the converter stays
+  pure.
+- **The JSON body is the source of the other event data; the JWT authenticates
+  it and is the fallback.** `accountName`, `platform`, `isTest`, `timezone`,
+  `apiUrl` are body-only, and `accountId`, `status`, `displayVersion`, `user`
+  (from `modified_by`) fall back to the verified token when the body omits them.
+  The install token does not reliably carry those four, so reading it first
+  returned empty core fields — the body is where the data lives. The token does
+  carry `sub`, and the registry sets the body `install_id` to the same value, so
+  a real delivery passes the install-id check. `user` resolution is defensive on the body path (a
   `modified_by` without an `id` is treated as absent) but keeps the strict
   `mapPeekTokenUser` `id` check on the token path.
 - **`InstallWebhook` is flat and JSON-safe.** The shape the parser returns is the
@@ -673,9 +678,10 @@ options/result types callers need), all data-model **types** (including
 `noopLogger`, and the typed error classes (`AdminAccountRequiredError`,
 `RateLimitError`, `PeekGraphQLError`, `PeekHttpError`, `PiiAccessDisabledError`,
 `UnknownSeatmapDisplayTypeError`, `UnknownSeatmapBlockStatusError`,
-`UnknownSeatmapAssignmentParentError`, `SeatmapDeleteError`, `CngApiError`,
-`CngPermissionError`, `AcmeApiError`). Query strings and raw response interfaces
-are deliberately kept
+`UnknownSeatmapAssignmentParentError`, `SeatmapDeleteError`, `InstallWebhookError`
+(extends `jsonwebtoken`'s `JsonWebTokenError`; + its `InstallWebhookErrorReason`
+type), `CngApiError`, `CngPermissionError`, `AcmeApiError`). Query strings and raw
+response interfaces are deliberately kept
 internal — including the booking-webhook registration query
 (`BOOKING_WEBHOOK_GQL_QUERY` stays internal, documented via `docs/webhooks.md`).
 The webhook-related public exports are the two parsers `parseBookingWebhook` and

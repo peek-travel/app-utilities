@@ -25,9 +25,10 @@ checks the signature for you before returning the merged event.
 `app_registry_v2` JWT authenticates the notification; a plain JSON body alongside
 it carries the **event data** — the full account block (name, platform,
 timezone, test flag), the per-install `api.url`, the acting user, and the install
-id / status / version. `parseInstallWebhook` verifies the token and reads the
-event from the body — falling back to the token for the fields it also carries —
-merging both into one flat `InstallWebhook`, so you make a single call.
+id / status / version. `parseInstallWebhook` verifies the token, takes the
+install id from the token `sub`, and reads the rest of the event from the body —
+falling back to the token for the fields it also carries — merging both into one
+flat `InstallWebhook`, so you make a single call.
 
 # Booking webhooks
 
@@ -183,10 +184,18 @@ and the only place it ever learns it: no GraphQL read returns the account id, so
 whatever you persist from this delivery is all you will ever have.
 
 `parseInstallWebhook(token, body, secret)` verifies the token (issuer, audience,
-expiry, HMAC — the security-critical boilerplate you'd otherwise hand-roll) and
-reads the event from the body, **falling back to the token** for the fields it
-also carries (`installId`, `accountId`, `status`, `displayVersion`, `user`),
-returning one flat, JSON-safe `InstallWebhook` you store as a unit.
+expiry, HMAC — the security-critical boilerplate you'd otherwise hand-roll),
+takes `installId` from the token `sub`, and reads the rest of the event from the
+body, **falling back to the token** for the fields it also carries (`accountId`,
+`status`, `displayVersion`, `user`), returning one flat, JSON-safe
+`InstallWebhook` you store as a unit.
+
+**`installId` is always the token `sub`.** The body `install_id` never sets it.
+When the body carries a non-empty `install_id` that is not equal to `sub`, the
+parser throws `InstallWebhookError` (`reason: "install_id_mismatch"`). A verified
+token with no `sub` throws `InstallWebhookError` (`reason: "missing_subject"`).
+`InstallWebhookError` extends `JsonWebTokenError` from `jsonwebtoken`. A
+body without `install_id` parses normally.
 
 ## Step 1 — subscribe to the event (external, one-time)
 
@@ -212,7 +221,8 @@ app.post("/webhooks/install", async (req, res) => {
     const token = req.header("x-peek-auth") ?? "";
     event = parseInstallWebhook(token, req.body, process.env.PEEK_INTERNAL_SECRET!);
   } catch {
-    return res.sendStatus(401); // signature/issuer/audience/expiry failed
+    // token check failed, or the body names another install (InstallWebhookError)
+    return res.sendStatus(401);
   }
 
   switch (event.status) {
@@ -240,16 +250,19 @@ app.post("/webhooks/install", async (req, res) => {
 [`PeekAccessService.verifyPeekAuthToken`](../README.md#access-options--pii). It
 throws the underlying `jsonwebtoken` error (`JsonWebTokenError` /
 `TokenExpiredError` / `NotBeforeError`) on any verification failure, so a single
-`try/catch` → `401` covers every bad-token case. The signature checks are strict
-(they are the security boundary); claim *extraction* is defensive, so a
-validly-signed token or a missing/garbled body yields empty fields rather than
-throwing.
+`try/catch` → `401` covers every bad-token case. It also throws
+`InstallWebhookError` when the token has no `sub` or the body `install_id` is not
+equal to it. `InstallWebhookError` extends `JsonWebTokenError`, so the same
+`try/catch` → `401` (or an `instanceof JsonWebTokenError` branch) covers that. The signature checks are
+strict (they are the security boundary); the other claim *extraction* is
+defensive, so a validly-signed token or a missing/garbled body yields empty
+fields rather than throwing.
 
 The resulting `InstallWebhook` is flat:
 
 | Field | Type | Source | From | Notes |
 | --- | --- | --- | --- | --- |
-| `installId` | `string` | body → token | `install_id` / `sub` | Peek-assigned install UUID |
+| `installId` | `string` | token | `sub` | Peek-assigned install UUID; a body `install_id` must equal it |
 | `accountId` | `string` | body → token | `account.id` | **also called the partner ID** |
 | `accountName` | `string` | body | `account.name` | partner display name; `""` when absent |
 | `platform` | `PeekPlatform \| null` | body | `account.platform` | **persist per install** — see below; `null` when unrecognised |
@@ -383,8 +396,8 @@ webhook's `apiUrl` now.
 
 ## Why `status` and `platform` can be `null`
 
-`parseInstallWebhook` never throws on the *body* (only token verification can
-throw). The sender is first-party and the payload contract is Peek's own, so a
+`parseInstallWebhook` never throws on the body's *event data* (only token
+verification and the install-id check can throw). The sender is first-party and the payload contract is Peek's own, so a
 malformed body is not the failure worth designing for. The failure that *is* real
 is the contract **growing** — a new status, or a fourth platform.
 
