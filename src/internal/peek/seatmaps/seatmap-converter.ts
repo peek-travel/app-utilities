@@ -130,6 +130,7 @@ function fromZone(raw: RawSeatmapZone): SeatmapZone {
   return {
     id: raw.id,
     name: raw.name,
+    colorHex: raw.colorHex ?? null,
     tickets: (raw.resourceOptions ?? []).map((option) => ({
       id: option.id,
       name: option.name,

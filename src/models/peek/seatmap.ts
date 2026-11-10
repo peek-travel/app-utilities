@@ -84,6 +84,11 @@ export interface SeatmapZone {
   id: string;
   /** Human-readable name of the zone (e.g. `"Premium"`). */
   name: string;
+  /**
+   * The zone's display color as a hex string (e.g. `"#ff0000"`), or `null` when
+   * the gateway reports no color for the zone.
+   */
+  colorHex: string | null;
   /** The tickets (resource options) this zone sells seats as. */
   tickets: SeatmapTicket[];
 }

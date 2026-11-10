@@ -12,6 +12,19 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 1.1.2
+
+### `SeatmapZone.colorHex` — zone display color `[additive]`
+
+- **What:** `SeatmapZone` gains a nullable `colorHex: string | null` field — the
+  zone's display color as a hex string (e.g. `"#ff0000"`), or `null` when the
+  gateway reports none. It is populated on both `getSeatmapForProduct` and
+  `getSeatMapAssignments` results.
+- **Why:** callers rendering a seating map need the zone color to match Peek Pro.
+- **Caller action:** none — purely additive.
+
+---
+
 ## 1.1.1
 
 ### `SeatmapService.deleteSeatAssignments` — delete seat assignments `[additive]`

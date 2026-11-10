@@ -610,6 +610,7 @@ render({
    fields:[
     {name:"id",type:"string",n:false,desc:"Zone id (e.g. <code>csz_z77an</code>)."},
     {name:"name",type:"string",n:false,desc:"Zone name (e.g. <code>Premium</code>)."},
+    {name:"colorHex",type:"string",n:true,desc:"Zone display color as a hex string (e.g. <code>#ff0000</code>), or <code>null</code> when the gateway reports none."},
     {name:"tickets",type:"SeatmapTicket[]",n:false,desc:"Tickets (resource options) this zone sells seats as."}
    ]},
   {name:"SeatmapTicket",kind:"interface",file:"src/models/peek/seatmap.ts",desc:"A bookable ticket a zone sells seats as.",
