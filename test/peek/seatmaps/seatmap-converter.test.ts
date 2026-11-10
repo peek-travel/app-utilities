@@ -27,6 +27,7 @@ function fullNode(): RawSeatmapNode {
       {
         id: "csz_z77an",
         name: "Premium",
+        colorHex: "#ff0000",
         resourceOptions: [{ id: "ro-1", name: "Adult - Premium" }],
       },
     ],
@@ -87,6 +88,7 @@ describe("fromSeatmapNodes", () => {
       {
         id: "csz_z77an",
         name: "Premium",
+        colorHex: "#ff0000",
         tickets: [{ id: "ro-1", name: "Adult - Premium" }],
       },
     ]);
@@ -290,6 +292,7 @@ describe("fromSeatmapNodes", () => {
     const [map] = fromSeatmapNodes([node]);
 
     expect(map.zones[0].tickets).toEqual([]);
+    expect(map.zones[0].colorHex).toBeNull();
     expect(map.sections[0].groups[0].assignableTo).toEqual([]);
     expect(map.sections[0].groups[0].blocks).toEqual([]);
   });
@@ -311,7 +314,7 @@ function assignedNode(
     id: "csm_8j734",
     name: "Dinner Theater",
     zones: [
-      { id: "csz_z77an", name: "Premium", resourceOptions: [{ id: "ro-1", name: "Adult - Premium" }] },
+      { id: "csz_z77an", name: "Premium", colorHex: "#ff0000", resourceOptions: [{ id: "ro-1", name: "Adult - Premium" }] },
     ],
     sections: [
       {
@@ -366,6 +369,7 @@ describe("fromAssignedSeatmap", () => {
     const map = fromAssignedSeatmap(assignedNode({ status: "AVAILABLE", assignments: [] }));
     expect(map).toMatchObject({ id: "csm_8j734", name: "Dinner Theater" });
     expect(map.zones[0].tickets[0]).toEqual({ id: "ro-1", name: "Adult - Premium" });
+    expect(map.zones[0].colorHex).toBe("#ff0000");
     const block = map.sections[0].groups[0].blocks[0];
     expect(block).toMatchObject({
       id: "csb_a7bk8",

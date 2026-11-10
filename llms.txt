@@ -187,7 +187,8 @@ final authority and may still reject the request.
 - `getSeatmapService()` — two reads:
   - `getSeatmapForProduct(productId)` → `Seatmap[]`, every seating map configured
     on an activity (empty when the activity is missing or has none). A `Seatmap`
-    has `zones` (pricing tiers, each with `tickets: SeatmapTicket[]`) and
+    has `zones` (pricing tiers, each with a nullable `colorHex` and
+    `tickets: SeatmapTicket[]`) and
     `sections` (a tree of `SeatmapSection` → `SeatmapGroup` tables →
     `SeatmapBlock` seats). All three rendered levels share one `SeatmapDisplay`
     geometry: only `x`/`y` are always set, every other field is `null` where

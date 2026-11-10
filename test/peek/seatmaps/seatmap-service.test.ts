@@ -64,6 +64,7 @@ const SEATMAP_NODE = {
     {
       id: "csz_z77an",
       name: "Premium",
+      colorHex: "#ff0000",
       resourceOptions: [{ id: "ro-1", name: "Adult - Premium" }],
     },
   ],
@@ -105,6 +106,7 @@ describe("SeatmapService.getSeatmapForProduct", () => {
     expect(maps).toHaveLength(1);
     expect(maps[0].id).toBe("csm_8j734");
     expect(maps[0].zones[0].tickets[0]).toEqual({ id: "ro-1", name: "Adult - Premium" });
+    expect(maps[0].zones[0].colorHex).toBe("#ff0000");
     expect(maps[0].sections[0].groups[0].blocks[0].zoneId).toBe("csz_zy3de");
 
     // Reaches the sales endpoint with the product id as the `id` variable.

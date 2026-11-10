@@ -14,6 +14,7 @@ export const SEATMAPS_QUERY = `
         zones {
           id
           name
+          colorHex
           resourceOptions {
             id
             name
@@ -114,6 +115,7 @@ export interface RawSeatmapResourceOption {
 export interface RawSeatmapZone {
   id: string;
   name: string;
+  colorHex?: string | null;
   resourceOptions?: RawSeatmapResourceOption[] | null;
 }
 
@@ -156,6 +158,7 @@ export function buildSeatmapAssignmentsQuery(fullCustomerAccess: boolean): strin
       zones {
         id
         name
+        colorHex
         resourceOptions {
           id
           name

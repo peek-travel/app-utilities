@@ -206,7 +206,8 @@ Seating maps are their own resource triad under `src/internal/peek/seatmaps/` �
 returns every `Seatmap` configured on an activity (`Seatmap[]`, empty when the
 activity is missing or has none); it is unaffected by `fullCustomerAccess`
 (seating maps are structural layout, not customer data). A map carries `zones`
-(pricing tiers, each mapping to `SeatmapTicket[]`) and a tree of
+(pricing tiers, each with a nullable `colorHex` and mapping to
+`SeatmapTicket[]`) and a tree of
 `SeatmapSection` → `SeatmapGroup` (tables) → `SeatmapBlock` (seats). All three
 rendered levels share one `SeatmapDisplay` geometry type: only `x`/`y` are
 always present, and every other field (`width`/`height`/`label`/`type` on
