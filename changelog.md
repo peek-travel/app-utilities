@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 1.2.0
 
 ### Requests to an `apiUrl` go only to allowed API hosts `[breaking]`
 
