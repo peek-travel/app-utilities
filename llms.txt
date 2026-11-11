@@ -222,8 +222,9 @@ final authority and may still reject the request.
     unassigned). `startsAt`/`endsAt` have fractional seconds stripped; range
     bounds use the same parsing/validation as `getSeatMapAssignments` (flexible,
     tz/fractional stripped, both on the same date, sent half-open `[start,end)`).
-    `guestName` is the same PII-gated primary-guest name (null without
-    `fullCustomerAccess`).
+    `notes` carries the operator-facing booking notes (empty string when none,
+    not PII-gated). `guestName` is the same PII-gated primary-guest name (null
+    without `fullCustomerAccess`).
   - `assignTicketsToSeats(assignments: SeatmapBlockAssignment[])` →
     `AssignmentResponse`: bulk-assigns tickets to seats (one batched mutation).
     Each `SeatmapBlockAssignment` is `{ assignableId (starts `t_`), blockId

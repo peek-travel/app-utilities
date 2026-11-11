@@ -359,6 +359,7 @@ function bookingsResponse() {
           displayId: "ABC123",
           startsAt: "2026-11-06T14:00:00.000000",
           endsAt: "2026-11-06T15:00:00.000000",
+          operatorNotes: "VIP — window seat",
           primaryGuest: { firstName: "Ada", lastName: "Lovelace" },
           tickets: [
             {
@@ -385,7 +386,7 @@ describe("SeatmapService.assignableBookings", () => {
     );
 
     expect(bookings).toHaveLength(1);
-    expect(bookings[0]).toMatchObject({ id: "bk_1", displayId: "ABC123", guestName: "Ada Lovelace" });
+    expect(bookings[0]).toMatchObject({ id: "bk_1", displayId: "ABC123", guestName: "Ada Lovelace", notes: "VIP — window seat" });
     expect(bookings[0].startsAt).toBe("2026-11-06T14:00:00");
     expect(bookings[0].assignableTickets[0].currentlyAssignedTo?.blockName).toBe("Table 12, Seat 1");
 

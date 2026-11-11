@@ -12,6 +12,20 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 1.1.3
+
+### `AssignableBooking.notes` — operator notes on assignable bookings `[additive]`
+
+- **What:** `AssignableBooking` (returned by `SeatmapService.assignableBookings`)
+  gains a `notes: string` field carrying the booking's operator-facing notes —
+  an empty string when the booking has none.
+- **Why:** callers reconciling seat assignments need the same operator notes they
+  see elsewhere, without a second booking lookup.
+- **Caller action:** none — purely additive. The field is not PII-gated, so it is
+  populated regardless of `fullCustomerAccess`.
+
+---
+
 ## 1.1.2
 
 ### `SeatmapZone.colorHex` — zone display color `[additive]`

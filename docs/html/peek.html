@@ -695,6 +695,7 @@ render({
     {name:"displayId",type:"string",n:false,desc:"Human-facing booking display id."},
     {name:"startsAt",type:"string | null",n:true,desc:"Booking start, naive datetime (fractional seconds stripped), or <code>null</code>."},
     {name:"endsAt",type:"string | null",n:true,desc:"Booking end, naive datetime (fractional seconds stripped), or <code>null</code>."},
+    {name:"notes",type:"string",n:false,desc:"Operator-facing booking notes; empty string when none."},
     {name:"guestName",type:"string | null",n:true,desc:"Primary guest name; <code>null</code> when absent or when <code>fullCustomerAccess</code> is off (customer PII)."},
     {name:"assignableTickets",type:"AssignableTicket[]",n:false,desc:"The booking's tickets that can be assigned to seats."}
    ]},
