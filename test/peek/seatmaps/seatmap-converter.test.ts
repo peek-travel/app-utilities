@@ -609,6 +609,7 @@ const ASSIGNABLE_BOOKING: RawAssignableBooking = {
   displayId: "ABC123",
   startsAt: "2026-11-02T19:00:00.000000",
   endsAt: "2026-11-02T21:00:00.0",
+  operatorNotes: "VIP — window seat",
   primaryGuest: { firstName: "Ada", lastName: "Lovelace" },
   tickets: [
     {
@@ -627,6 +628,7 @@ describe("fromAssignableBookings", () => {
       displayId: "ABC123",
       startsAt: "2026-11-02T19:00:00",
       endsAt: "2026-11-02T21:00:00",
+      notes: "VIP — window seat",
       guestName: "Ada Lovelace",
       assignableTickets: [
         {
@@ -667,11 +669,12 @@ describe("fromAssignableBookings", () => {
     expect(booking.guestName).toBeNull();
   });
 
-  it("defaults missing tickets and times to empty/null", () => {
+  it("defaults missing tickets, times, and notes to empty/null", () => {
     const [booking] = fromAssignableBookings([{ id: "bk_2", displayId: "X" }]);
     expect(booking.assignableTickets).toEqual([]);
     expect(booking.startsAt).toBeNull();
     expect(booking.endsAt).toBeNull();
+    expect(booking.notes).toBe("");
   });
 
   it("returns an empty list for no nodes", () => {

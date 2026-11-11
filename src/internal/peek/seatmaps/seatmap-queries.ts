@@ -346,6 +346,7 @@ export function buildAssignableBookingsQuery(fullCustomerAccess: boolean): strin
       displayId
       startsAt
       endsAt
+      operatorNotes
       ${primaryGuest}
       tickets {
         hashid
@@ -385,6 +386,7 @@ export interface RawAssignableBooking {
   displayId: string;
   startsAt?: string | null;
   endsAt?: string | null;
+  operatorNotes?: string | null;
   primaryGuest?: RawSeatmapPrimaryGuest | null;
   tickets?: RawAssignableTicket[] | null;
 }

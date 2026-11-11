@@ -252,8 +252,10 @@ holds (`CurrentSeatAssignment`, `null` when unassigned — the assignable case).
 Range bounds are parsed and validated by the same shared `buildNaiveRange`
 helper as `getSeatMapAssignments` (normalize both bounds, enforce same date,
 emit the half-open `[start,end)` literal) and booking `startsAt`/`endsAt` have
-fractional seconds stripped. `guestName` is the same PII-gated primary-guest
-name. The query and converter live in the seatmaps triad alongside the
+fractional seconds stripped. `notes` carries the operator-facing booking notes
+(`operatorNotes`, empty string when none — always selected, not PII-gated).
+`guestName` is the same PII-gated primary-guest name. The query and converter
+live in the seatmaps triad alongside the
 seatmap-read code and reuse its `stripFractionalSeconds`/`joinGuestName` helpers;
 the models (`AssignableBooking`, `AssignableTicket`, `CurrentSeatAssignment`) are
 named to avoid colliding with the existing `Booking`/`Ticket` models.

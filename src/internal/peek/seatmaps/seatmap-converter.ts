@@ -332,6 +332,7 @@ function fromAssignableBooking(raw: RawAssignableBooking): AssignableBooking {
     displayId: raw.displayId,
     startsAt: stripFractionalSeconds(raw.startsAt),
     endsAt: stripFractionalSeconds(raw.endsAt),
+    notes: raw.operatorNotes || "",
     guestName: guest ? joinGuestName(guest.firstName, guest.lastName) : null,
     assignableTickets: (raw.tickets ?? []).map(fromAssignableTicket),
   };

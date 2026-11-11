@@ -67,6 +67,7 @@
   <div class="filterwrap"><input id="filter" type="search" placeholder="Filter versions…" aria-label="Filter changelog" /></div>
   <div class="navlabel">Versions</div>
 <a class="navlink" href="#overview" data-target="overview">Overview</a>
+<a class="navlink" href="#v-unreleased" data-target="v-unreleased">Unreleased</a>
 <a class="navlink" href="#v-1-1-2" data-target="v-1-1-2">1.1.2</a>
 <a class="navlink" href="#v-1-1-1" data-target="v-1-1-1">1.1.1</a>
 <a class="navlink" href="#v-1-1-0" data-target="v-1-1-0">1.1.0</a>
@@ -95,6 +96,11 @@
 <h1>Changelog</h1>
 <p>Consumer-facing changelog for <code>@peektravel/app-utilities</code>. It records only changes a <strong>caller</strong> can observe or needs to act on — new capabilities, behavior changes, and breaking changes — grouped by version, newest first. Internal refactors, test-only changes, and invisible cleanups are intentionally omitted.</p>
 <p>Each entry states <strong>what</strong> changed, <strong>why</strong>, and — when relevant — the <strong>caller action</strong> required. Entries tagged <span class="tag tag--breaking">breaking</span> change observable behavior an existing consumer could depend on; <span class="tag tag--fix">fix</span> corrects broken behavior with no action needed; <span class="tag tag--additive">additive</span> only adds capability.</p>
+</section>
+<section class="ver" id="v-unreleased" data-search="unreleased `assignablebooking.notes` — operator notes on assignable bookings `[additive]` - **what:** `assignablebooking` (returned by `seatmapservice.assignablebookings`)   gains a `notes: string` field carrying the booking's operator-facing notes —   an empty string when the booking has none. - **why:** callers reconciling seat assignments need the same operator notes they   see elsewhere, without a second booking lookup. - **caller action:** none — purely additive. the field is not pii-gated, so it is   populated regardless of `fullcustomeraccess`.">
+<h2>Unreleased</h2>
+<h3><code>AssignableBooking.notes</code> — operator notes on assignable bookings <span class="tag tag--additive">additive</span></h3>
+<ul><li><strong>What:</strong> <code>AssignableBooking</code> (returned by <code>SeatmapService.assignableBookings</code>) gains a <code>notes: string</code> field carrying the booking's operator-facing notes — an empty string when the booking has none.</li><li><strong>Why:</strong> callers reconciling seat assignments need the same operator notes they see elsewhere, without a second booking lookup.</li><li><strong>Caller action:</strong> none — purely additive. The field is not PII-gated, so it is populated regardless of <code>fullCustomerAccess</code>.</li></ul>
 </section>
 <section class="ver" id="v-1-1-2" data-search="1.1.2 `seatmapzone.colorhex` — zone display color `[additive]` - **what:** `seatmapzone` gains a nullable `colorhex: string | null` field — the   zone's display color as a hex string (e.g. `&quot;#ff0000&quot;`), or `null` when the   gateway reports none. it is populated on both `getseatmapforproduct` and   `getseatmapassignments` results. - **why:** callers rendering a seating map need the zone color to match peek pro. - **caller action:** none — purely additive.">
 <h2>1.1.2</h2>

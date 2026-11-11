@@ -303,6 +303,8 @@ export interface AssignableBooking {
   startsAt: string | null;
   /** Booking end, naive datetime (fractional seconds stripped), or `null`. */
   endsAt: string | null;
+  /** Operator-facing booking notes; empty string when none. */
+  notes: string;
   /** Primary guest name, or `null` (also `null` when `fullCustomerAccess` is off). */
   guestName: string | null;
   /** The booking's tickets that can be assigned to seats. */
