@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 1.1.3
 
 ### `AssignableBooking.notes` — operator notes on assignable bookings `[additive]`
 
