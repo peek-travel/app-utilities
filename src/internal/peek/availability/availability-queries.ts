@@ -1,7 +1,7 @@
 /**
  * Raw Peek GraphQL query and response shape for availability times. Internal.
  * The raw node is mapped to the public {@link AvailabilityTime} model by the
- * availability converter (it normalizes `minimumTicketsRequired`).
+ * availability converter.
  */
 import type { Availability, Duration } from "../../../models/peek/availability-time.js";
 import type { Money } from "../../../models/peek/money.js";
@@ -22,7 +22,6 @@ export const AVAILABILITY_TIMES_QUERY = `
         }
       }
       status
-      minimumTicketsRequired
       price {
         amount
         currency
@@ -45,7 +44,6 @@ export interface AvailabilityTimeNode {
   end: string;
   duration: Duration;
   status: string;
-  minimumTicketsRequired: number | null;
   price: Money | null;
   availability: Availability[];
 }

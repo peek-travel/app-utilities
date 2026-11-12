@@ -413,7 +413,12 @@ export interface CreateBookingInput {
   acceptAllCustomQuestionIds?: boolean;
   /** Suppress the customer confirmation email. Default: false. */
   skipCustomerEmail?: boolean;
-  /** Clone the quote from an existing order. */
+  /**
+   * Attach the new booking to an **existing** order instead of creating a new
+   * one. When set (a valid order id, `o_…`/`O-…`), the booking is added to that
+   * order via an amendment, and the returned {@link CreatedBooking} carries that
+   * same `orderId`. Omit to create the booking in its own new order.
+   */
   parentOrderId?: string | null;
   /** Mark the booking paid after creation (requires `idempotencyKey`). */
   markAsPaid?: boolean;

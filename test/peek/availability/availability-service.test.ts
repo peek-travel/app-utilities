@@ -48,7 +48,6 @@ const SLOT = {
   end: "2026-01-02T11:00:00Z",
   duration: { name: "1h", length: { amount: 60, unit: "MINUTES" } },
   status: "AVAILABLE",
-  minimumTicketsRequired: 2,
   price: { amount: "50.00", currency: "USD", formatted: "$50.00" },
   availability: [{ qty: 10, taken: 2, resourceOptionId: "r1" }],
 };
@@ -70,20 +69,6 @@ describe("AvailabilityService.getAvailabilityTimes", () => {
     expect(variables.resourceOptionQuantities).toEqual([
       { resourceOptionId: "r1", quantity: 2 },
     ]);
-  });
-
-  it("normalizes a zero minimumTicketsRequired to 1", async () => {
-    const { fetchFn } = makeFetch({
-      data: { availabilityTimes: [{ ...SLOT, minimumTicketsRequired: 0 }] },
-    });
-
-    const [slot] = await new AvailabilityService(buildClient(fetchFn)).getAvailabilityTimes({
-      activityId: "act-1",
-      date: "2026-01-02",
-      resourceOptionQuantities: [],
-    });
-
-    expect(slot!.minimumTicketsRequired).toBe(1);
   });
 
   it("returns an empty list when a 200 response carries no data", async () => {

@@ -356,8 +356,7 @@ surface changes.
 `availability` is a full triad (`src/internal/peek/availability/`, model
 `src/models/peek/availability-time.ts`): `AvailabilityService.getAvailabilityTimes`
 reads `availabilityTimes` and `availability-converter.ts` maps each raw node to
-an `AvailabilityTime`. Each slot carries `minimumTicketsRequired` (normalized —
-a raw `0` meaning "no minimum" is reported as `1`) and a per-ticket `price`
+an `AvailabilityTime`. Each slot carries a per-ticket `price`
 (`Money | null`). `Money` (`src/models/peek/money.ts`, `{ amount, currency,
 formatted }`) is the shared, public clean-money model reused across resources
 (booking add-ons, availability prices); it is distinct from the pricing domain's
@@ -570,7 +569,19 @@ Recurring patterns inside services:
 - **Multi-step mutations** — booking creation (`createQuoteV2` →
   `createOrderFromQuote`) and both add-on mutations (`createQuoteFromOrder` →
   `updateQuoteV2` → `amendOrder`) are orchestrated as ordered request chains
-  with per-step error checks. When `CreateBookingInput.listPrice` is set, the pure
+  with per-step error checks. When `CreateBookingInput.parentOrderId` is set,
+  `create` instead takes the **amendment path** (`createViaAmend`):
+  `createQuoteFromOrder` seeds a quote bound to that order, `updateQuoteV2` adds
+  the new booking to it in the **sparse** input shape (same field names as the
+  strict quote but with `reservationStatus: "CONFIRMED"` stamped explicitly at
+  the booking and ticket level, since sparse drops those defaults), and
+  `amendOrder` applies it — `createOrderFromQuote` is never called because it
+  always mints a *new* order. The amended order holds every pre-existing booking
+  plus the new one, so `create` locates the new booking by the client-generated
+  `refid` it carried through the quote (the expanded `amendOrder` selection reads
+  back `sales { … on Booking { id displayId refid balance } }`), never by list
+  position; a missing refid match is a hard error. `markAsPaid` then charges that
+  booking's own balance, not the order total. When `CreateBookingInput.listPrice` is set, the pure
   `bookings/list-price.ts` (`distributeListPrice`) splits that total across the
   expanded ticket seats in integer cents — `floor(total / n)` for the first n-1,
   the remainder to the last — and `create` attaches a per-ticket

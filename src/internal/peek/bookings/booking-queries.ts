@@ -426,7 +426,18 @@ export const AMEND_ORDER_MUTATION = `
   mutation AmendOrder($input: AmendOrderInput!) {
     amendOrder(input: $input) {
       errors { code detail value }
-      order { id }
+      order {
+        id
+        sales {
+          __typename
+          ... on Booking {
+            id
+            displayId
+            refid
+            balance { total { amount currency formatted } }
+          }
+        }
+      }
     }
   }
 `;
@@ -442,8 +453,20 @@ export interface UpdateQuoteV2Response {
   updateQuoteV2: { errors: PaymentMutationError[] | null; quote: { id: string } | null };
 }
 
+/** A sale node on an amended order; only `Booking` members carry the fields. */
+export interface AmendOrderSaleNode {
+  __typename: string;
+  id?: string;
+  displayId?: string;
+  refid?: string;
+  balance?: { total: { amount: string; currency: string; formatted: string } | null } | null;
+}
+
 export interface AmendOrderResponse {
-  amendOrder: { errors: PaymentMutationError[] | null; order: { id: string } | null };
+  amendOrder: {
+    errors: PaymentMutationError[] | null;
+    order: { id: string; sales: AmendOrderSaleNode[] } | null;
+  };
 }
 
 export const CREATE_QUOTE_V2_MUTATION = `

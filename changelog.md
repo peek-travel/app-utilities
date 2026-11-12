@@ -12,6 +12,39 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 1.2.0
+
+### `AvailabilityTime.minimumTicketsRequired` removed `[breaking]`
+
+- **What:** the `minimumTicketsRequired` field is removed from `AvailabilityTime`
+  (returned by `getAvailabilityService().getAvailabilityTimes(...)`) and is no
+  longer requested from the gateway.
+- **Why:** the value did not mean what callers assumed (the smallest bookable
+  party size); it was misleading and better omitted than surfaced with the wrong
+  semantics.
+- **Caller action:** remove any references to `AvailabilityTime.minimumTicketsRequired`.
+  If you need a minimum party size, do not rely on this field — it was not a
+  reliable source.
+
+### `BookingService.create` with `parentOrderId` now attaches to the order `[fix]`
+
+- **What:** passing `parentOrderId` to `create()` now adds the new booking to
+  that existing order instead of silently creating a brand-new one. The returned
+  `CreatedBooking.orderId` equals the `parentOrderId` you passed, and
+  `bookingId`/`displayId`/`balance*` describe the newly added booking. When
+  `markAsPaid` is set it charges that new booking's own balance (not the order
+  total, which now includes the pre-existing bookings).
+- **Why:** the old implementation mapped `parentOrderId` to a quote `clonedFromId`
+  and still called `createOrderFromQuote`, which always mints a new order — so the
+  booking was never attached and the call reported success against the wrong
+  order. Attaching now goes through the amendment path
+  (`createQuoteFromOrder` → `updateQuoteV2` → `amendOrder`).
+- **Caller action:** none to adopt the fix. If you relied on the previous
+  (broken) behavior of getting a separate new order, omit `parentOrderId` to keep
+  creating the booking in its own order.
+
+---
+
 ## 1.1.3
 
 ### `AssignableBooking.notes` — operator notes on assignable bookings `[additive]`
