@@ -1333,11 +1333,126 @@ describe("BookingService.create", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it("clones from a parent order when provided", async () => {
-    const { service, calls } = makeService(createHandler());
+  // Handler for the amend path (createQuoteFromOrder → updateQuoteV2 →
+  // amendOrder). The amended order echoes the booking-quote refid the service
+  // generated (captured off the updateQuoteV2 call) back on the new Booking sale,
+  // alongside an unrelated pre-existing booking, so the service must select by
+  // refid rather than list position.
+  function amendHandler(overrides: Partial<Record<string, unknown>> = {}): Handler {
+    let bookingRefid = "";
+    return (query, variables) => {
+      if (query.includes("createQuoteFromOrder")) {
+        return { data: { createQuoteFromOrder: { errors: null, quote: { id: "aq-1", saleQuotes: [] } } } };
+      }
+      if (query.includes("updateQuoteV2")) {
+        const input = (variables as { input: { quoteInput: { bookingQuotes: Array<{ refid: string }> } } }).input;
+        bookingRefid = input.quoteInput.bookingQuotes[0]!.refid;
+        return overrides.update ?? { data: { updateQuoteV2: { errors: null, quote: { id: "aq-1" } } } };
+      }
+      if (query.includes("amendOrder")) {
+        return (
+          overrides.amend ?? {
+            data: {
+              amendOrder: {
+                errors: null,
+                order: {
+                  id: "o_parent",
+                  sales: [
+                    // A pre-existing booking that must NOT be picked.
+                    { __typename: "Booking", id: "b_old", displayId: "B-OLD", refid: "refid-old", balance: { total: { amount: "100.00", currency: "USD", formatted: "$100.00" } } },
+                    { __typename: "Booking", id: "b_new", displayId: "B-NEW", refid: bookingRefid, balance: { total: { amount: "40.00", currency: "USD", formatted: "$40.00" } } },
+                  ],
+                },
+              },
+            },
+          }
+        );
+      }
+      if (query.includes("applyPaymentToOrder")) {
+        return overrides.payment ?? { data: { applyPaymentToOrder: { transactionId: "tx-amend", errors: null } } };
+      }
+      return {};
+    };
+  }
+
+  it("attaches to an existing order via the amend path, selecting the new booking by refid", async () => {
+    const { service, calls } = makeService(amendHandler());
+
+    const result = await service.create({ ...validCreate, parentOrderId: "o_parent" });
+
+    // The new order path (createQuoteV2 → createOrderFromQuote) is never used.
+    expect(calls.every((c) => !c.query.includes("createQuoteV2"))).toBe(true);
+    expect(calls.every((c) => !c.query.includes("createOrderFromQuote"))).toBe(true);
+    // The amend chain ran, bound to the order.
+    expect(calls.find((c) => c.query.includes("createQuoteFromOrder"))!.variables.input).toEqual({
+      orderId: "o_parent",
+      quoteInput: {},
+    });
+    expect(calls.find((c) => c.query.includes("amendOrder"))!.variables.input).toEqual({
+      quoteId: "aq-1",
+      orderId: "o_parent",
+    });
+
+    // Resolved from the Booking whose refid matched (b_new), not list position.
+    expect(result).toEqual({
+      orderId: "o_parent",
+      bookingId: "b_new",
+      displayId: "B-NEW",
+      balanceAmount: "40.00",
+      balanceCurrency: "USD",
+      balanceFormatted: "$40.00",
+    });
+  });
+
+  it("stamps reservationStatus CONFIRMED at the booking and ticket level on the amend quote", async () => {
+    const { service, calls } = makeService(amendHandler());
     await service.create({ ...validCreate, parentOrderId: "o_parent" });
-    const quoteInput = (calls[0]!.variables.input as { quoteInput: { source?: { clonedFromId: string } } }).quoteInput;
-    expect(quoteInput.source).toEqual({ clonedFromId: "o_parent" });
+
+    const bq = (calls.find((c) => c.query.includes("updateQuoteV2"))!.variables.input as {
+      quoteInput: { bookingQuotes: Array<{ reservationStatus: string; tickets: Array<{ reservationStatus: string }> }> };
+    }).quoteInput.bookingQuotes[0]!;
+    expect(bq.reservationStatus).toBe("CONFIRMED");
+    expect(bq.tickets.every((t) => t.reservationStatus === "CONFIRMED")).toBe(true);
+  });
+
+  it("marks the amended booking paid using its own balance", async () => {
+    const { service, calls } = makeService(amendHandler());
+    const result = await service.create({
+      ...validCreate,
+      parentOrderId: "o_parent",
+      markAsPaid: true,
+      idempotencyKey: "k1",
+    });
+    expect(result.transactionId).toBe("tx-amend");
+    const payInput = calls.find((c) => c.query.includes("applyPaymentToOrder"))!.variables.input;
+    expect(payInput).toMatchObject({
+      amount: { amount: "40.00", currency: "USD" }, // B's balance, not the order total
+      orderId: "o_parent",
+      scopedTo: ["b_new"],
+    });
+  });
+
+  it("hard-fails when the amended order has no booking matching the refid", async () => {
+    const amend = {
+      data: {
+        amendOrder: {
+          errors: null,
+          order: { id: "o_parent", sales: [{ __typename: "Booking", id: "b_old", displayId: "B-OLD", refid: "refid-old", balance: null }] },
+        },
+      },
+    };
+    const { service } = makeService(amendHandler({ amend }));
+    await expect(service.create({ ...validCreate, parentOrderId: "o_parent" })).rejects.toThrow(
+      /did not contain a booking matching/,
+    );
+  });
+
+  it("throws when the amend order step fails", async () => {
+    const amend = { data: { amendOrder: { errors: [{ code: "stale_quote", detail: "x", value: null }], order: null } } };
+    const { service } = makeService(amendHandler({ amend }));
+    await expect(service.create({ ...validCreate, parentOrderId: "o_parent" })).rejects.toThrow(
+      /Failed to amend order/,
+    );
   });
 
   const q = (over: Partial<CustomQuestion>): CustomQuestion => ({
@@ -1551,7 +1666,7 @@ describe("BookingService.create", () => {
   });
 
   it.each(["o_abc123", "O-123ABC"])("accepts a valid parentOrderId: %s", async (parentOrderId) => {
-    const { service } = makeService(createHandler());
+    const { service } = makeService(amendHandler());
     await expect(service.create({ ...validCreate, parentOrderId })).resolves.toBeDefined();
   });
 

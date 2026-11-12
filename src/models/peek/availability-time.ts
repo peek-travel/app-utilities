@@ -27,13 +27,6 @@ export interface AvailabilityTime {
   duration: Duration;
   /** Availability status reported by Peek (e.g. open/closed/sold-out). */
   status: string;
-  /**
-   * Minimum number of tickets required to book this slot.
-   *
-   * Normalized: a raw value of `0` (no minimum) is reported as `1`, so callers
-   * can always treat it as the smallest bookable party size.
-   */
-  minimumTicketsRequired: number;
   /** Per-ticket price for the slot, when reported by Peek. */
   price: Money | null;
   /**

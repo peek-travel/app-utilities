@@ -196,6 +196,10 @@ const ERROR_NO_ADDON_OPTION_TO_REMOVE =
 const ERROR_CREATE_QUOTE_FAILED = "Failed to create quote from order";
 const ERROR_UPDATE_QUOTE_FAILED = "Failed to update quote with add-on";
 const ERROR_AMEND_ORDER_FAILED = "Failed to amend order with add-on";
+/** `__typename` of the order's booking sales (vs. other sale-interface members). */
+const BOOKING_TYPENAME = "Booking";
+const ERROR_AMEND_NO_MATCHING_BOOKING =
+  "Amended order did not contain a booking matching the created refid";
 
 export class BookingService {
   private readonly pageSize: number;
@@ -977,11 +981,11 @@ export class BookingService {
     }
   }
 
-  /** Runs `amendOrder` and validates the response. */
+  /** Runs `amendOrder`, validates the response, and returns the amended order. */
   private async amendOrderOrThrow(
     quoteId: string,
     normalizedOrderId: string,
-  ): Promise<void> {
+  ): Promise<NonNullable<AmendOrderResponse["amendOrder"]["order"]>> {
     const body: GraphQLBody<AmendOrderResponse> =
       await this.client.request<AmendOrderResponse>(
         SALES_ENDPOINT,
@@ -992,6 +996,7 @@ export class BookingService {
     if ((amended?.errors && amended.errors.length > 0) || !amended?.order) {
       throw new Error(ERROR_AMEND_ORDER_FAILED);
     }
+    return amended.order;
   }
 
   /**
@@ -1075,10 +1080,14 @@ export class BookingService {
       bookingQuote.questionAnswers = questionAnswers;
     }
 
-    const quoteInput: Record<string, unknown> = { bookingQuotes: [bookingQuote] };
+    // Attaching to an existing order is a different backend path: a brand-new
+    // quote always mints a brand-new order, so `createOrderFromQuote` can never
+    // add to one. Route through the amendment path instead.
     if (input.parentOrderId) {
-      quoteInput.source = { clonedFromId: input.parentOrderId };
+      return this.createViaAmend(input, bookingQuote);
     }
+
+    const quoteInput: Record<string, unknown> = { bookingQuotes: [bookingQuote] };
 
     // Step 1 — create the quote.
     const quoteBody: GraphQLBody<CreateQuoteV2Response> =
@@ -1118,6 +1127,69 @@ export class BookingService {
     };
 
     // Step 3 — optionally mark the booking paid.
+    if (input.markAsPaid) {
+      created.transactionId = await this.markCreatedBookingPaid(created, input);
+    }
+
+    return created;
+  }
+
+  /**
+   * Adds a new booking to an **existing** order (`input.parentOrderId`) via the
+   * amendment path — the same three-mutation chain the add-on flow uses:
+   * `createQuoteFromOrder` (seeds a quote already bound to the order) →
+   * `updateQuoteV2` (adds the new booking to that quote, in the sparse input
+   * shape) → `amendOrder` (applies the quote to the order). `createOrderFromQuote`
+   * is deliberately **not** called here: it always mints a fresh order, so it can
+   * never attach to one.
+   *
+   * The amended order holds every pre-existing booking plus the new one, so the
+   * new booking is located by the client-generated `refid` carried through on the
+   * quote (never by list position — that is only safe on the new-order path where
+   * there is a single sale).
+   */
+  private async createViaAmend(
+    input: CreateBookingInput,
+    bookingQuote: Record<string, unknown>,
+  ): Promise<CreatedBooking> {
+    const normalizedOrderId = normalizeBookingId(input.parentOrderId!);
+    const bookingRefid = bookingQuote.refid as string;
+
+    // The sparse booking input drops the booking- and ticket-level
+    // reservationStatus defaults the strict input applies, so stamp CONFIRMED
+    // explicitly at both levels.
+    bookingQuote.reservationStatus = RESERVATION_STATUS_CONFIRMED;
+    for (const ticket of bookingQuote.tickets as Array<Record<string, unknown>>) {
+      ticket.reservationStatus = RESERVATION_STATUS_CONFIRMED;
+    }
+
+    // Step 1 — seed an amendment quote bound to the order.
+    const { quoteId } = await this.createQuoteFromOrderOrThrow(normalizedOrderId);
+    // Step 2 — add the new booking to that quote (sparse shape).
+    await this.updateQuoteOrThrow(quoteId, { bookingQuotes: [bookingQuote] });
+    // Step 3 — apply the quote to the existing order.
+    const order = await this.amendOrderOrThrow(quoteId, normalizedOrderId);
+
+    // Select our booking by the refid we generated. A missing match means the
+    // amend did not add it — hard-fail rather than fall back to a wrong sale.
+    const newBooking = order.sales.find(
+      (sale) => sale.__typename === BOOKING_TYPENAME && sale.refid === bookingRefid,
+    );
+    if (!newBooking?.id) {
+      throw new Error(ERROR_AMEND_NO_MATCHING_BOOKING);
+    }
+
+    const created: CreatedBooking = {
+      orderId: order.id,
+      bookingId: newBooking.id,
+      displayId: newBooking.displayId ?? "",
+      balanceAmount: newBooking.balance?.total?.amount ?? "0.00",
+      balanceCurrency: newBooking.balance?.total?.currency ?? "USD",
+      balanceFormatted: newBooking.balance?.total?.formatted ?? "$0.00",
+    };
+
+    // Mark the new booking paid using its own balance (not the order total,
+    // which now includes the pre-existing bookings).
     if (input.markAsPaid) {
       created.transactionId = await this.markCreatedBookingPaid(created, input);
     }

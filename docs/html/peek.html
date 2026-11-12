@@ -487,7 +487,7 @@ render({
      {name:"listAddons",sig:"(bookingId: string): Promise&lt;BookingAddons&gt;",desc:"Add-ons on a booking, grouped by add-on item.",notes:"Validates booking id; throws when booking not found or multiple bookings match."},
      {name:"addAddon",pii:true,sig:"(bookingId: string, input: AddAddonInput): Promise&lt;BookingAddonsMutationResult&gt;",desc:"Adds an add-on (createQuoteFromOrder → updateQuoteV2 → amendOrder).",notes:"<code>quantity</code> must be a positive-integer string; <code>addonOptionId</code> required (falls back to deprecated <code>addonId</code>). Resolves parent item via product service; reuses a non-canceled add-on's item refid. Throws on missing option, invalid quantity, add-on not found, or any mutation failure."},
      {name:"removeAddon",pii:true,sig:"(bookingId: string, input: AddAddonInput): Promise&lt;BookingAddonsMutationResult&gt;",desc:"Removes (cancels) add-on options.",notes:"Same three mutations with cancellation vars; cancels up to <code>quantity</code> confirmed options; marks parent canceled only when all options canceled. Throws when no matching confirmed option found."},
-     {name:"create",sig:"(input: CreateBookingInput): Promise&lt;CreatedBooking&gt;",desc:"Creates a booking (createQuoteV2 → createOrderFromQuote), optionally marking paid.",notes:"Validates: <code>activityId</code>, <code>availabilityTimeId</code>, ≥1 ticket with <code>resourceOptionId</code>+positive quantity, guest <code>name</code>; <code>idempotencyKey</code> required when <code>markAsPaid</code>; <code>parentOrderId</code> (if set) must be a valid order id. Resolves + validates custom-question answers before creating. Throws on quote/order failures."}
+     {name:"create",sig:"(input: CreateBookingInput): Promise&lt;CreatedBooking&gt;",desc:"Creates a booking, optionally attaching it to an existing order and/or marking it paid.",notes:"Validates: <code>activityId</code>, <code>availabilityTimeId</code>, ≥1 ticket with <code>resourceOptionId</code>+positive quantity, guest <code>name</code>; <code>idempotencyKey</code> required when <code>markAsPaid</code>; <code>parentOrderId</code> (if set) must be a valid order id. Resolves + validates custom-question answers before creating. When <code>parentOrderId</code> is set the booking is attached to that existing order (the returned <code>orderId</code> matches it, and <code>markAsPaid</code> charges the new booking's own balance); otherwise it is created in its own new order. Throws on creation failures."}
    ]
   },
   {
@@ -962,7 +962,6 @@ render({
     {name:"end",type:"string",n:false,desc:"Slot end (ISO datetime)."},
     {name:"duration",type:"Duration",n:false,desc:"Slot length."},
     {name:"status",type:"string",n:false,desc:"Availability status (open/closed/sold-out)."},
-    {name:"minimumTicketsRequired",type:"number",n:false,desc:"Minimum tickets to book the slot. Normalized: a raw <code>0</code> (no minimum) is reported as <code>1</code>."},
     {name:"price",type:"Money | null",n:true,desc:"Per-ticket price for the slot, when reported."},
     {name:"availability",type:"Availability[]",n:false,desc:"Remaining availability per resource option."}
    ]},
@@ -1220,7 +1219,7 @@ render({
     {name:"requireRequiredQuestions",type:"boolean",n:"opt",desc:"Fail if a required question unanswered (default false)."},
     {name:"acceptAllCustomQuestionIds",type:"boolean",n:"opt",desc:"Accept a <code>cq_…</code> id not in the activity's question list as a plain text answer instead of failing; by-name answers still must match (default false)."},
     {name:"skipCustomerEmail",type:"boolean",n:"opt",desc:"Suppress confirmation email (default false)."},
-    {name:"parentOrderId",type:"string | null",n:"opt",desc:"Clone quote from an existing order."},
+    {name:"parentOrderId",type:"string | null",n:"opt",desc:"Attach the new booking to an existing order (<code>o_…</code>/<code>O-…</code>) instead of creating a new one; the returned <code>orderId</code> matches it. Omit to create its own order."},
     {name:"markAsPaid",type:"boolean",n:"opt",desc:"Mark paid after creation (requires <code>idempotencyKey</code>)."},
     {name:"markAsPaidAmount",type:"string",n:"opt",desc:"Partial payment amount; defaults to full balance."},
     {name:"idempotencyKey",type:"string",n:"opt",desc:"Idempotency key for the mark-paid charge."}
