@@ -12,6 +12,27 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## Unreleased
+
+### `parseInstallWebhook` now rejects a non-Peek `apiUrl` `[breaking]`
+
+- **What:** when an install/update webhook body carries a non-empty `apiUrl`,
+  `parseInstallWebhook` now validates that its host is a Peek-owned domain —
+  `peek.com` (production) or `peeklabs.com` (sandbox), or a subdomain of either.
+  A foreign or unparseable host throws `InstallWebhookError` with the new
+  `reason: "invalid_api_url"` (a new member of `InstallWebhookErrorReason`); a
+  value delivered without a scheme is treated as `https`. An absent/empty
+  `apiUrl` is unaffected and still parses. Nothing else about the parser changes.
+- **Why:** the `apiUrl` is the endpoint the app points its API calls at, so a
+  spoofed webhook with an attacker-controlled `apiUrl` could redirect those calls
+  to a foreign gateway. Pinning the host to Peek-owned domains closes that.
+- **Caller action:** none for genuine Peek deliveries. If you catch
+  `InstallWebhookError` by `.reason`, note the added `"invalid_api_url"` case;
+  the existing `try/catch` → `401` (or `instanceof JsonWebTokenError`) handling
+  already covers it with no change.
+
+---
+
 ## 1.2.1
 
 ### `SeatmapService.getSeatmapIdsForProduct` added `[additive]`

@@ -505,6 +505,14 @@ Three design rules hold this together and are load-bearing:
   verified token with no `sub` throws it with `reason: "missing_subject"`. The
   check lives in `resolveInstallId` in `install-webhook.ts`; the converter stays
   pure.
+- **A delivered `apiUrl` must be a Peek-owned domain.** When the body carries a
+  non-empty `apiUrl`, its host must be `peek.com` (production) or `peeklabs.com`
+  (sandbox), or a subdomain of either, or `parseInstallWebhook` throws
+  `InstallWebhookError` (`reason: "invalid_api_url"`) — a spoofed webhook must not
+  be able to point the app's API calls at a foreign gateway. An absent `apiUrl`
+  is not validated. The check (`assertAllowedApiUrl`, with the allow-list in
+  `ALLOWED_API_URL_DOMAINS`) lives in `install-webhook.ts`; a scheme-less value is
+  parsed as `https`, and the converter stays pure.
 - **The JSON body is the source of the other event data; the JWT authenticates
   it and is the fallback.** `accountName`, `platform`, `isTest`, `timezone`,
   `apiUrl` are body-only, and `accountId`, `status`, `displayVersion`, `user`
