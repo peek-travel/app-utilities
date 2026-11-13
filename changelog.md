@@ -12,7 +12,7 @@ action needed; `[additive]` only adds capability.
 
 ---
 
-## Unreleased
+## 1.3.0
 
 ### `BookingService.create` accepts a `promoCode` `[additive]`
 
