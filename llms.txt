@@ -172,7 +172,9 @@ final authority and may still reject the request.
   `removeAddon(id, {addonOptionId, quantity})`, `create(input)` (optional
   `input.listPrice` — total booking price string, commas allowed; split evenly
   across tickets with the remainder cent on the last, sent per ticket in the
-  activity currency, fallback USD)
+  activity currency, fallback USD; optional `input.promoCode` — non-empty string
+  applied to the `createQuoteV2` quote as an enabled promo code, cannot be
+  combined with `input.parentOrderId` or `create` throws)
 - `getReviewService()` — `getReviews(productId, reviewCount?, reviewOffset?)`
   (single newest-first page of `Review`s, count 1–50, offset ≥ 0);
   `getAllReviewSummaries()` → `ProductReviewSummary[]` (one per activity:

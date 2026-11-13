@@ -200,6 +200,8 @@ const ERROR_AMEND_ORDER_FAILED = "Failed to amend order with add-on";
 const BOOKING_TYPENAME = "Booking";
 const ERROR_AMEND_NO_MATCHING_BOOKING =
   "Amended order did not contain a booking matching the created refid";
+const ERROR_PROMO_CODE_WITH_PARENT_ORDER =
+  "promoCode cannot be combined with parentOrderId (the amendment path does not create a quote)";
 
 export class BookingService {
   private readonly pageSize: number;
@@ -1020,7 +1022,8 @@ export class BookingService {
    *
    * @throws {Error} when `activityId`, `availabilityTimeId`, a ticket
    * `resourceOptionId`/positive `quantity`, or the guest `name` is missing; when
-   * `markAsPaid` is set without an `idempotencyKey`; when
+   * `markAsPaid` is set without an `idempotencyKey`; when `promoCode` is combined
+   * with `parentOrderId` (the amendment path creates no quote); when
    * `requireRequiredQuestions` is set and a required custom question is left
    * unanswered; or when the quote/order mutations fail.
    */
@@ -1088,6 +1091,12 @@ export class BookingService {
     }
 
     const quoteInput: Record<string, unknown> = { bookingQuotes: [bookingQuote] };
+    const promoCode = resolvePromoCode(input);
+    if (promoCode) {
+      // The gateway validates and prices the code; we mint a fresh refid per
+      // code and always send it enabled.
+      quoteInput.promoCodes = [{ code: promoCode, refid: randomUUID(), isEnabled: true }];
+    }
 
     // Step 1 — create the quote.
     const quoteBody: GraphQLBody<CreateQuoteV2Response> =
@@ -1428,7 +1437,19 @@ function validateCreateInput(input: CreateBookingInput): void {
   }
   if (input.parentOrderId) {
     assertOrderId(input.parentOrderId);
+    if (resolvePromoCode(input)) {
+      throw new Error(ERROR_PROMO_CODE_WITH_PARENT_ORDER);
+    }
   }
+}
+
+/**
+ * Returns the booking's promo code trimmed of surrounding whitespace, or `""`
+ * when none was supplied (`null`/`undefined`/empty/whitespace-only). A non-empty
+ * result is applied to the `createQuoteV2` quote.
+ */
+function resolvePromoCode(input: CreateBookingInput): string {
+  return (input.promoCode ?? "").trim();
 }
 
 function parseQuantity(value: unknown): number | null {

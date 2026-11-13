@@ -14,6 +14,22 @@ action needed; `[additive]` only adds capability.
 
 ## Unreleased
 
+### `BookingService.create` accepts a `promoCode` `[additive]`
+
+- **What:** `CreateBookingInput` gains an optional `promoCode?: string | null`.
+  When set to a non-empty string (surrounding whitespace is trimmed), the booking's
+  `createQuoteV2` quote carries it as an enabled promo code
+  (`promoCodes: [{ code, refid, isEnabled: true }]`, with a freshly generated
+  `refid`); the gateway validates and prices it. An empty/whitespace-only value or
+  `null`/omitted sends no promo code, so existing callers are unaffected.
+- **Why:** callers need to apply a discount code at booking time without dropping
+  to raw GraphQL.
+- **Caller action:** none to keep current behavior. To apply a code, pass
+  `promoCode`. It **cannot** be combined with `parentOrderId` — attaching to an
+  existing order takes the amendment path, which creates no new quote, so
+  `create` throws rather than silently dropping the code; apply the promo to the
+  parent order separately in that case.
+
 ### `parseInstallWebhook` now rejects a non-Peek `apiUrl` `[breaking]`
 
 - **What:** when an install/update webhook body carries a non-empty `apiUrl`,

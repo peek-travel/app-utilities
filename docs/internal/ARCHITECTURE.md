@@ -604,7 +604,12 @@ Recurring patterns inside services:
   `price { amount, currency }` to the `createQuoteV2` tickets, resolving the
   currency from the activity via `ProductService.getAllProducts()` (fallback
   `"USD"`, in parallel with the question-answer read). A malformed `listPrice`
-  throws before any network call. When `CreateBookingInput.customQuestionAnswers`
+  throws before any network call. When `CreateBookingInput.promoCode` is a
+  non-empty string (trimmed via `resolvePromoCode`), `create` attaches it to the
+  `createQuoteV2` `quoteInput` as `promoCodes: [{ code, refid, isEnabled: true }]`
+  with a fresh `refid`; it is rejected up front when combined with `parentOrderId`
+  (the amendment path creates no quote) so the code is never silently dropped.
+  When `CreateBookingInput.customQuestionAnswers`
   is supplied, `create` first fetches the activity's custom questions
   (`ProductService.getCustomQuestions`) and runs the pure resolver in
   `bookings/custom-question-answer.ts` (`resolveCustomQuestionAnswers`) to match
