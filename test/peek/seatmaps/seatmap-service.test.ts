@@ -165,6 +165,65 @@ describe("SeatmapService.getSeatmapForProduct", () => {
   });
 });
 
+describe("SeatmapService.getSeatmapIdsForProduct", () => {
+  it("returns the id and name of every seating map on the product", async () => {
+    const { fetchFn, calls } = makeFetch(() =>
+      jsonResponse({
+        data: {
+          activity: {
+            seatingMaps: [
+              { id: "csm_8j734", name: "Dinner Theater" },
+              { id: "csm_zz001", name: "Patio" },
+            ],
+          },
+        },
+      }),
+    );
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+
+    const maps = await service.getSeatmapIdsForProduct("act-1");
+
+    expect(maps).toEqual([
+      { id: "csm_8j734", name: "Dinner Theater" },
+      { id: "csm_zz001", name: "Patio" },
+    ]);
+
+    // Reaches the sales endpoint with the product id, and the trimmed query
+    // selects no layout (no zones/sections).
+    expect(calls[0].url).toContain("/sales");
+    const sent = JSON.parse(calls[0].init.body as string);
+    expect(sent.variables).toEqual({ id: "act-1" });
+    expect(sent.query).not.toContain("zones");
+    expect(sent.query).not.toContain("sections");
+  });
+
+  it("returns an empty list when the activity is not found", async () => {
+    const { fetchFn } = makeFetch(() => jsonResponse({ data: { activity: null } }));
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+
+    expect(await service.getSeatmapIdsForProduct("missing")).toEqual([]);
+  });
+
+  it("returns an empty list when the activity has no seating maps", async () => {
+    const { fetchFn } = makeFetch(() =>
+      jsonResponse({ data: { activity: { seatingMaps: null } } }),
+    );
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+
+    expect(await service.getSeatmapIdsForProduct("act-1")).toEqual([]);
+  });
+
+  it("throws on a blank product id without hitting the network", async () => {
+    const { fetchFn, calls } = makeFetch(() => jsonResponse({ data: {} }));
+    const service = new SeatmapService(buildClient(fetchFn), { fullCustomerAccess: false });
+
+    await expect(service.getSeatmapIdsForProduct("  ")).rejects.toThrow(
+      "A non-empty product id is required.",
+    );
+    expect(calls).toHaveLength(0);
+  });
+});
+
 /** A seat-assignments response with one map holding one occupied GUEST seat. */
 function assignmentsResponse() {
   return {

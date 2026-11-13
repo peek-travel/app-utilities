@@ -158,6 +158,19 @@ export interface Seatmap {
 }
 
 /**
+ * A lightweight summary of a seating map — just its identity, without the
+ * {@link SeatmapZone zones} and section/group/block layout a full {@link Seatmap}
+ * carries. Returned by `SeatmapService.getSeatmapIdsForProduct` when a caller
+ * only needs to list the maps assigned to a product.
+ */
+export interface SeatmapSummary {
+  /** Unique identifier of the seating map (e.g. `"csm_8j734"`). */
+  id: string;
+  /** Human-readable name of the seating map. */
+  name: string;
+}
+
+/**
  * Occupancy status of a seat over a queried datetime range. See
  * {@link SEATMAP_BLOCK_STATUSES}. The gateway owns this set; a value outside it
  * makes `SeatmapService.getSeatMapAssignments` throw

@@ -17,17 +17,20 @@ import type {
   DeletedSeatAssignment,
   Seatmap,
   SeatmapBlockAssignment,
+  SeatmapSummary,
 } from "../../../models/peek/seatmap.js";
 import {
   fromAssignableBookings,
   fromAssignedSeatmapNodes,
   fromDeletedAssignments,
   fromSeatmapNodes,
+  fromSeatmapSummaryNodes,
   toAssignmentResponse,
 } from "./seatmap-converter.js";
 import {
   DELETE_ASSIGNMENTS_MUTATION,
   DELETE_ASSIGNMENTS_SUCCESS_TYPENAME,
+  SEATMAP_IDS_QUERY,
   SEATMAPS_QUERY,
   assignBlocksVariables,
   buildAssignBlocksMutation,
@@ -37,6 +40,7 @@ import {
   type AssignableBookingsResponse,
   type DeleteAssignmentsResponse,
   type SeatmapAssignmentsResponse,
+  type SeatmapIdsResponse,
   type SeatmapsResponse,
 } from "./seatmap-queries.js";
 
@@ -176,6 +180,41 @@ export class SeatmapService {
       );
 
     return fromSeatmapNodes(body.data?.activity?.seatingMaps ?? []);
+  }
+
+  /**
+   * Returns the id and name of every seating map configured on a product — a
+   * lightweight alternative to {@link getSeatmapForProduct} for callers that only
+   * need to list the maps assigned to a product, not their zone/section/seat
+   * layout. The gateway query is trimmed to match (id + name only).
+   *
+   * Like {@link getSeatmapForProduct}, seating maps are structural layout, not
+   * customer data, so the result is unaffected by `fullCustomerAccess`.
+   *
+   * @param productId The activity's id.
+   * @returns The product's seating maps as {@link SeatmapSummary} id/name pairs,
+   *   or an empty list when the product has none or is not found.
+   * @throws {Error} when `productId` is missing or blank.
+   *
+   * @example
+   * ```ts
+   * const maps = await peek.getSeatmapService().getSeatmapIdsForProduct("act-1");
+   * // → [{ id: "csm_8j734", name: "Main Floor" }, …]
+   * ```
+   */
+  async getSeatmapIdsForProduct(productId: string): Promise<SeatmapSummary[]> {
+    if (!productId?.trim()) {
+      throw new Error(ERROR_PRODUCT_ID_REQUIRED);
+    }
+
+    const body: GraphQLBody<SeatmapIdsResponse> =
+      await this.client.request<SeatmapIdsResponse>(
+        SALES_ENDPOINT,
+        SEATMAP_IDS_QUERY,
+        { id: productId },
+      );
+
+    return fromSeatmapSummaryNodes(body.data?.activity?.seatingMaps ?? []);
   }
 
   /**

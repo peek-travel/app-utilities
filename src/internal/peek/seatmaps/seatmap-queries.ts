@@ -135,6 +135,35 @@ export interface SeatmapsResponse {
 }
 
 /**
+ * Fetches just the id + name of every seating map on a single activity
+ * (product) — the simplified counterpart of {@link SEATMAPS_QUERY}, selecting no
+ * zones, sections, groups, or blocks.
+ */
+export const SEATMAP_IDS_QUERY = `
+  query Sales($id: ID!) {
+    activity(id: $id) {
+      seatingMaps {
+        id
+        name
+      }
+    }
+  }
+`;
+
+/** A single seating-map node as returned by {@link SEATMAP_IDS_QUERY} — id + name only. */
+export interface RawSeatmapSummaryNode {
+  id: string;
+  name: string;
+}
+
+/** The `data` payload of {@link SEATMAP_IDS_QUERY}. */
+export interface SeatmapIdsResponse {
+  activity?: {
+    seatingMaps?: RawSeatmapSummaryNode[] | null;
+  } | null;
+}
+
+/**
  * Builds the seat-assignments query for a product's seating maps over a datetime
  * range. It reads the same `activity(id).seatingMaps` entry as
  * {@link SEATMAPS_QUERY} and selects the same structural fields (zones, section/

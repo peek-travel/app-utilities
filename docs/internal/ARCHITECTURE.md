@@ -217,6 +217,14 @@ where the gateway does not select it. `SeatmapDisplay.type` is narrowed to
 that set makes the converter throw the exported `UnknownSeatmapDisplayTypeError`
 rather than silently widen the model.
 
+`getSeatmapIdsForProduct(productId)` is the lightweight sibling of
+`getSeatmapForProduct`: a trimmed query selecting only each map's `id`/`name`
+(no zones/sections/groups/blocks), mapped by the pure `fromSeatmapSummaryNodes`
+to `SeatmapSummary[]` (empty when the activity is missing or has none). Same
+validation and non-PII posture as the full read; use it when a caller only needs
+to list the maps assigned to a product. `SeatmapSummary` is exported from
+`src/index.ts`.
+
 `getSeatMapAssignments(productId, rangeStart, rangeEnd)` reads a product's maps
 through the same `activity(id).seatingMaps` entry as the plain read (the gateway
 has no top-level `seatingMap(id)`), with every seat enriched by its occupancy

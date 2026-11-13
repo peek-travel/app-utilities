@@ -5,6 +5,7 @@ import {
   fromAssignedSeatmap,
   fromDeletedAssignments,
   fromSeatmapNodes,
+  fromSeatmapSummaryNodes,
   toAssignmentResponse,
 } from "../../../src/internal/peek/seatmaps/seatmap-converter.js";
 import type {
@@ -299,6 +300,24 @@ describe("fromSeatmapNodes", () => {
 
   it("returns an empty list for no nodes", () => {
     expect(fromSeatmapNodes([])).toEqual([]);
+  });
+});
+
+describe("fromSeatmapSummaryNodes", () => {
+  it("maps each node to its id and name only", () => {
+    expect(
+      fromSeatmapSummaryNodes([
+        { id: "csm_8j734", name: "Dinner Theater" },
+        { id: "csm_zz001", name: "Patio" },
+      ]),
+    ).toEqual([
+      { id: "csm_8j734", name: "Dinner Theater" },
+      { id: "csm_zz001", name: "Patio" },
+    ]);
+  });
+
+  it("returns an empty list for no nodes", () => {
+    expect(fromSeatmapSummaryNodes([])).toEqual([]);
   });
 });
 

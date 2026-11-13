@@ -106,6 +106,7 @@ export type {
   SeatmapGroup,
   SeatmapOccupantType,
   SeatmapSection,
+  SeatmapSummary,
   SeatmapTicket,
   SeatmapZone,
   SuccessfulAssignment,
