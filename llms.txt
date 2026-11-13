@@ -184,7 +184,7 @@ final authority and may still reject the request.
   carries no per-activity config, so `order` is `0` and `isRequired` is `false` on
   every entry. Question definitions, not answers — no PII; unaffected by
   `fullCustomerAccess`.
-- `getSeatmapService()` — two reads:
+- `getSeatmapService()` — the seatmap reads and writes:
   - `getSeatmapForProduct(productId)` → `Seatmap[]`, every seating map configured
     on an activity (empty when the activity is missing or has none). A `Seatmap`
     has `zones` (pricing tiers, each with a nullable `colorHex` and
@@ -196,6 +196,11 @@ final authority and may still reject the request.
     "LABEL"`) and an unrecognized value throws `UnknownSeatmapDisplayTypeError`.
     Structural layout, not customer data — no PII; unaffected by
     `fullCustomerAccess`.
+  - `getSeatmapIdsForProduct(productId)` → `SeatmapSummary[]` (`{ id, name }`),
+    the lightweight list of every seating map on an activity without the
+    zone/section/seat layout (empty when the activity is missing or has none).
+    Same validation and non-PII posture as `getSeatmapForProduct`; use it when
+    you only need to list the maps assigned to a product.
   - `getSeatMapAssignments(productId, rangeStart, rangeEnd)` → `AssignedSeatmap[]`
     (empty when the activity is missing or has no maps): every map on an activity
     with each seat enriched by its occupancy over a datetime range.

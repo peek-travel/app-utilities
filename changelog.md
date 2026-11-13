@@ -12,6 +12,21 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 1.2.1
+
+### `SeatmapService.getSeatmapIdsForProduct` added `[additive]`
+
+- **What:** new `getSeatmapIdsForProduct(productId)` on `SeatmapService` returns
+  the `id` and `name` of every seating map assigned to a product as
+  `SeatmapSummary[]` (a new exported model type) — a lightweight alternative to
+  `getSeatmapForProduct` that omits the zone/section/seat layout.
+- **Why:** callers that only need to list a product's maps (e.g. to pick one)
+  had to fetch and discard the full layout payload.
+- **Caller action:** none — purely additive. Like the full read it is structural
+  layout, not customer data, so it is unaffected by `fullCustomerAccess`.
+
+---
+
 ## 1.2.0
 
 ### `AvailabilityTime.minimumTicketsRequired` removed `[breaking]`

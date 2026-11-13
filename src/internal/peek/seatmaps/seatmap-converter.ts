@@ -29,6 +29,7 @@ import {
   type SeatmapBlockAssignment,
   type SeatmapGroup,
   type SeatmapSection,
+  type SeatmapSummary,
   type SeatmapZone,
   type SuccessfulAssignment,
 } from "../../../models/peek/seatmap.js";
@@ -56,6 +57,7 @@ import {
   type RawSeatmapGroup,
   type RawSeatmapNode,
   type RawSeatmapSection,
+  type RawSeatmapSummaryNode,
   type RawSeatmapZone,
 } from "./seatmap-queries.js";
 
@@ -151,6 +153,13 @@ function fromSeatmap(raw: RawSeatmapNode): Seatmap {
 /** Converts the seating-map nodes from a response into {@link Seatmap}s. */
 export function fromSeatmapNodes(nodes: RawSeatmapNode[]): Seatmap[] {
   return nodes.map(fromSeatmap);
+}
+
+/** Converts the lightweight id/name seating-map nodes into {@link SeatmapSummary}s. */
+export function fromSeatmapSummaryNodes(
+  nodes: RawSeatmapSummaryNode[],
+): SeatmapSummary[] {
+  return nodes.map((node) => ({ id: node.id, name: node.name }));
 }
 
 /**
