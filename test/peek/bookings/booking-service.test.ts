@@ -1333,6 +1333,66 @@ describe("BookingService.create", () => {
     expect(calls).toHaveLength(0);
   });
 
+  function quotePromoCodes(calls: RecordedCall[]) {
+    const quoteInput = (calls.find((c) => c.query.includes("createQuoteV2"))!.variables.input as {
+      quoteInput: { promoCodes?: Array<{ code: string; refid: string; isEnabled: boolean }> };
+    }).quoteInput;
+    return quoteInput.promoCodes;
+  }
+
+  it("attaches a promo code to the quote as an enabled code with a fresh refid", async () => {
+    const { service, calls } = makeService(createHandler());
+
+    await service.create({ ...validCreate, promoCode: "SAVE10" });
+
+    const promoCodes = quotePromoCodes(calls)!;
+    expect(promoCodes).toHaveLength(1);
+    expect(promoCodes[0]!.code).toBe("SAVE10");
+    expect(promoCodes[0]!.isEnabled).toBe(true);
+    // refid is a freshly generated UUID.
+    expect(promoCodes[0]!.refid).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  it("trims surrounding whitespace from the promo code", async () => {
+    const { service, calls } = makeService(createHandler());
+
+    await service.create({ ...validCreate, promoCode: "  SAVE10  " });
+
+    expect(quotePromoCodes(calls)![0]!.code).toBe("SAVE10");
+  });
+
+  it.each([
+    ["omitted", undefined],
+    ["null", null],
+    ["empty", ""],
+    ["whitespace-only", "   "],
+  ])("sends no promoCodes when the promo code is %s", async (_label, promoCode) => {
+    const { service, calls } = makeService(createHandler());
+
+    await service.create({ ...validCreate, promoCode });
+
+    expect(quotePromoCodes(calls)).toBeUndefined();
+  });
+
+  it("rejects a promo code combined with parentOrderId before any network call", async () => {
+    const { service, calls } = makeService(createHandler());
+
+    await expect(
+      service.create({ ...validCreate, promoCode: "SAVE10", parentOrderId: "o_parent" }),
+    ).rejects.toThrow(/promoCode cannot be combined with parentOrderId/);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("allows parentOrderId when the promo code is only whitespace", async () => {
+    const { service } = makeService(amendHandler());
+
+    await expect(
+      service.create({ ...validCreate, promoCode: "   ", parentOrderId: "o_parent" }),
+    ).resolves.toBeDefined();
+  });
+
   // Handler for the amend path (createQuoteFromOrder → updateQuoteV2 →
   // amendOrder). The amended order echoes the booking-quote refid the service
   // generated (captured off the updateQuoteV2 call) back on the new Booking sale,

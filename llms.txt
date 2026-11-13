@@ -172,7 +172,9 @@ final authority and may still reject the request.
   `removeAddon(id, {addonOptionId, quantity})`, `create(input)` (optional
   `input.listPrice` — total booking price string, commas allowed; split evenly
   across tickets with the remainder cent on the last, sent per ticket in the
-  activity currency, fallback USD)
+  activity currency, fallback USD; optional `input.promoCode` — non-empty string
+  applied to the `createQuoteV2` quote as an enabled promo code, cannot be
+  combined with `input.parentOrderId` or `create` throws)
 - `getReviewService()` — `getReviews(productId, reviewCount?, reviewOffset?)`
   (single newest-first page of `Review`s, count 1–50, offset ≥ 0);
   `getAllReviewSummaries()` → `ProductReviewSummary[]` (one per activity:
@@ -313,8 +315,8 @@ stay internal.
   `.url`, and raw `.body`; surfaced before JSON parsing so non-JSON error pages
   keep their status), `PiiAccessDisabledError` (a payment/booking-modification op
   was called without `fullCustomerAccess`), `InstallWebhookError` (extends
-  `JsonWebTokenError`; `parseInstallWebhook`: the token has no `sub`, or the body `install_id` is not
-  equal to it; `.reason`), the REST-sibling `CngApiError` /
+  `JsonWebTokenError`; `parseInstallWebhook`: the token has no `sub`, the body `install_id` is not
+  equal to it, or the body `apiUrl` is not a Peek-owned domain; `.reason`), the REST-sibling `CngApiError` /
   `AcmeApiError`, and `CngPermissionError` (CNG HTTP 403; `.permissions`,
   `.statusCode`, raw `.body`), and the seatmap errors
   `UnknownSeatmapDisplayTypeError` (a `display.type` outside the known set; `.type`
@@ -358,7 +360,10 @@ an external system** (App Store config), not from code.
   **`installId` is always the token `sub`**: a body `install_id` that is present
   and not equal to `sub` throws `InstallWebhookError` (`.reason`
   `"install_id_mismatch"`), and a token with no `sub` throws it too (`.reason`
-  `"missing_subject"`); a body without `install_id` parses. `InstallWebhookError`
+  `"missing_subject"`); a body without `install_id` parses. A non-empty `apiUrl`
+  whose host is not a Peek-owned domain (`peek.com`/`peeklabs.com` or a subdomain)
+  throws `InstallWebhookError` (`.reason` `"invalid_api_url"`); an absent `apiUrl`
+  is not validated. `InstallWebhookError`
   extends `jsonwebtoken`'s `JsonWebTokenError`, so the usual `try/catch` → `401`
   (or an `instanceof JsonWebTokenError` check) covers it. The **JSON body is
   the source of the other event data**; the fields it shares with the token

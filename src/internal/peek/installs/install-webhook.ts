@@ -43,6 +43,7 @@ import {
 } from "../peek-auth-token.js";
 import {
   INSTALL_WEBHOOK_INSTALL_ID_MISMATCH,
+  INSTALL_WEBHOOK_INVALID_API_URL,
   INSTALL_WEBHOOK_MISSING_SUBJECT,
   InstallWebhookError,
 } from "../../../errors.js";
@@ -92,10 +93,18 @@ interface RawInstallWebhookPayload {
  * - `TokenExpiredError` — past `exp`
  * - `NotBeforeError` — before `nbf`
  *
- * A validly signed token that does not match the body throws
- * {@link InstallWebhookError} (see above). It extends `JsonWebTokenError`, so
- * an `instanceof JsonWebTokenError` check also matches it. Treat every throw as
- * a rejected delivery (respond `401`).
+ * The delivered `apiUrl` is validated: when the body carries a non-empty
+ * `apiUrl`, its host must be a Peek-owned domain — `peek.com` (production) or
+ * `peeklabs.com` (sandbox), or a subdomain of either — or this throws
+ * {@link InstallWebhookError} (`reason: "invalid_api_url"`), so a spoofed
+ * webhook can't point the app at a foreign gateway. An absent `apiUrl` (the
+ * body omitted it) is not validated. A value delivered without a scheme is
+ * treated as `https`.
+ *
+ * A validly signed token that does not match the body, or that carries a
+ * foreign `apiUrl`, throws {@link InstallWebhookError} (see above). It extends
+ * `JsonWebTokenError`, so an `instanceof JsonWebTokenError` check also matches
+ * it. Treat every throw as a rejected delivery (respond `401`).
  *
  * An unrecognised `status` or `platform` maps to `null` (with the wire status
  * preserved on {@link InstallWebhook.rawStatus}) rather than being coerced —
@@ -121,8 +130,8 @@ interface RawInstallWebhookPayload {
  * @throws {JsonWebTokenError} signature invalid or token malformed
  * @throws {TokenExpiredError} token has expired
  * @throws {NotBeforeError} token not yet valid
- * @throws {InstallWebhookError} token has no `sub`, or the body `install_id`
- *   is not equal to it
+ * @throws {InstallWebhookError} token has no `sub`, the body `install_id` is
+ *   not equal to it, or the body `apiUrl` is not a Peek-owned domain
  */
 export function parseInstallWebhook(
   token: string,
@@ -137,6 +146,8 @@ export function parseInstallWebhook(
   // the fallback for the fields it also carries. `||` so an empty body value
   // falls through to the token rather than masking it.
   const rawStatus = parsed.status || payload.status || "";
+  const apiUrl = parsed.api?.url || "";
+  assertAllowedApiUrl(apiUrl);
   return {
     installId,
     accountId: account.id || payload.account?.id || "",
@@ -144,7 +155,7 @@ export function parseInstallWebhook(
     platform: toPeekPlatform(account.platform || ""),
     isTest: Boolean(account.is_test),
     timezone: account.timezone || "",
-    apiUrl: parsed.api?.url || "",
+    apiUrl,
     status: toInstallStatus(rawStatus),
     rawStatus,
     displayVersion: parsed.display_version || payload.display_version || "",
@@ -167,6 +178,59 @@ function resolveInstallId(rawSubject: unknown, bodyInstallId: unknown): string {
     throw new InstallWebhookError(INSTALL_WEBHOOK_INSTALL_ID_MISMATCH);
   }
   return tokenSubject;
+}
+
+/**
+ * The Peek-owned domains an install webhook's `apiUrl` may target. A delivered
+ * `apiUrl` must have one of these as its host, or a subdomain of one: `peek.com`
+ * is the production registry, `peeklabs.com` the sandbox/staging registry. Any
+ * other host is rejected so a spoofed webhook can't point the app at an
+ * attacker-controlled gateway.
+ */
+const ALLOWED_API_URL_DOMAINS = ["peek.com", "peeklabs.com"] as const;
+
+/** Matches a leading URL scheme (`https://`, `http://`, …) on an `apiUrl`. */
+const URL_SCHEME_RE = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+/**
+ * Rejects an install/update webhook whose `apiUrl` targets a host outside the
+ * Peek-owned {@link ALLOWED_API_URL_DOMAINS}. An empty `apiUrl` (a body that
+ * omitted it) is left alone — there is nothing to point the app at, so nothing
+ * to validate. A present-but-foreign or unparseable host throws
+ * {@link InstallWebhookError} (`reason: "invalid_api_url"`).
+ */
+function assertAllowedApiUrl(apiUrl: string): void {
+  if (!apiUrl) return;
+  const host = apiUrlHost(apiUrl);
+  if (host === null || !isAllowedApiUrlHost(host)) {
+    throw new InstallWebhookError(INSTALL_WEBHOOK_INVALID_API_URL);
+  }
+}
+
+/**
+ * Extracts the host from an `apiUrl`, tolerating a value delivered without a
+ * scheme (e.g. `registry.apps.peek.com/apis`) by assuming `https`. Returns
+ * `null` when the value cannot be parsed as a URL with a host at all.
+ */
+function apiUrlHost(apiUrl: string): string | null {
+  const candidate = URL_SCHEME_RE.test(apiUrl) ? apiUrl : `https://${apiUrl}`;
+  try {
+    return new URL(candidate).hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether `host` is one of the {@link ALLOWED_API_URL_DOMAINS} or a subdomain of
+ * one (case-insensitive). `apps.peek.com` and `peek.com` match; `peek.com.evil.com`
+ * and `notpeek.com` do not.
+ */
+function isAllowedApiUrlHost(host: string): boolean {
+  const lower = host.toLowerCase();
+  return ALLOWED_API_URL_DOMAINS.some(
+    (domain) => lower === domain || lower.endsWith(`.${domain}`),
+  );
 }
 
 /**

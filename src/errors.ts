@@ -269,22 +269,29 @@ export class AcmeApiError extends Error {
 }
 
 /** Why {@link InstallWebhookError} was thrown. */
-export type InstallWebhookErrorReason = "install_id_mismatch" | "missing_subject";
+export type InstallWebhookErrorReason =
+  | "install_id_mismatch"
+  | "missing_subject"
+  | "invalid_api_url";
 
 /** {@link InstallWebhookErrorReason}: the body `install_id` is not the token `sub`. */
 export const INSTALL_WEBHOOK_INSTALL_ID_MISMATCH = "install_id_mismatch" as const;
 /** {@link InstallWebhookErrorReason}: the verified token has no `sub`. */
 export const INSTALL_WEBHOOK_MISSING_SUBJECT = "missing_subject" as const;
+/** {@link InstallWebhookErrorReason}: the `apiUrl` targets a non-Peek domain. */
+export const INSTALL_WEBHOOK_INVALID_API_URL = "invalid_api_url" as const;
 
 const INSTALL_WEBHOOK_MESSAGES: Record<InstallWebhookErrorReason, string> = {
   [INSTALL_WEBHOOK_INSTALL_ID_MISMATCH]: "Install webhook body install_id does not match the token subject",
   [INSTALL_WEBHOOK_MISSING_SUBJECT]: "Install webhook token has no subject (install id)",
+  [INSTALL_WEBHOOK_INVALID_API_URL]: "Install webhook apiUrl must be a Peek-owned domain (peek.com or peeklabs.com)",
 };
 
 /**
  * Thrown by `parseInstallWebhook` when the token signature is valid but the
- * delivery does not name one install: the token has no `sub`, or the body
- * `install_id` is present and is not equal to the token `sub`. The cause is on
+ * delivery is rejected: the token has no `sub`, the body `install_id` is present
+ * and is not equal to the token `sub`, or the body carries an `apiUrl` whose host
+ * is not a Peek-owned domain. The cause is on
  * {@link InstallWebhookError.reason}. It extends `JsonWebTokenError` from
  * `jsonwebtoken`, so a handler that already treats `JsonWebTokenError` as a
  * failed token check (respond `401`) handles it with no change.

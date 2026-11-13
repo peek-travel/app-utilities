@@ -420,6 +420,16 @@ export interface CreateBookingInput {
    * same `orderId`. Omit to create the booking in its own new order.
    */
   parentOrderId?: string | null;
+  /**
+   * Promo code to apply to the booking's quote. When set to a non-empty string,
+   * it is sent on the `createQuoteV2` quote as an enabled promo code (the gateway
+   * validates and prices it). An empty/whitespace-only value or `null` is treated
+   * as no promo code. Cannot be combined with {@link CreateBookingInput.parentOrderId}:
+   * attaching to an existing order takes the amendment path, which does not create
+   * a new quote, so a promo code there would be silently dropped — creation throws
+   * instead.
+   */
+  promoCode?: string | null;
   /** Mark the booking paid after creation (requires `idempotencyKey`). */
   markAsPaid?: boolean;
   /** Partial payment amount when marking paid; defaults to the full balance. */

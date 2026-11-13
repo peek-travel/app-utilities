@@ -194,8 +194,12 @@ body, **falling back to the token** for the fields it also carries (`accountId`,
 When the body carries a non-empty `install_id` that is not equal to `sub`, the
 parser throws `InstallWebhookError` (`reason: "install_id_mismatch"`). A verified
 token with no `sub` throws `InstallWebhookError` (`reason: "missing_subject"`).
-`InstallWebhookError` extends `JsonWebTokenError` from `jsonwebtoken`. A
-body without `install_id` parses normally.
+When the body carries a non-empty `apiUrl` whose host is not a Peek-owned domain
+(`peek.com` production or `peeklabs.com` sandbox, or a subdomain of either), the
+parser throws `InstallWebhookError` (`reason: "invalid_api_url"`) — so a spoofed
+webhook can't point your app at a foreign gateway; an absent `apiUrl` is not
+validated. `InstallWebhookError` extends `JsonWebTokenError` from `jsonwebtoken`.
+A body without `install_id` parses normally.
 
 ## Step 1 — subscribe to the event (external, one-time)
 
@@ -251,8 +255,9 @@ app.post("/webhooks/install", async (req, res) => {
 throws the underlying `jsonwebtoken` error (`JsonWebTokenError` /
 `TokenExpiredError` / `NotBeforeError`) on any verification failure, so a single
 `try/catch` → `401` covers every bad-token case. It also throws
-`InstallWebhookError` when the token has no `sub` or the body `install_id` is not
-equal to it. `InstallWebhookError` extends `JsonWebTokenError`, so the same
+`InstallWebhookError` when the token has no `sub`, the body `install_id` is not
+equal to it, or the body `apiUrl` is not a Peek-owned domain.
+`InstallWebhookError` extends `JsonWebTokenError`, so the same
 `try/catch` → `401` (or an `instanceof JsonWebTokenError` branch) covers that. The signature checks are
 strict (they are the security boundary); the other claim *extraction* is
 defensive, so a validly-signed token or a missing/garbled body yields empty
@@ -268,7 +273,7 @@ The resulting `InstallWebhook` is flat:
 | `platform` | `PeekPlatform \| null` | body | `account.platform` | **persist per install** — see below; `null` when unrecognised |
 | `isTest` | `boolean` | body | `account.is_test` | defaults to `false` |
 | `timezone` | `string` | body | `account.timezone` | IANA zone (e.g. `America/New_York`); **persist per install**; `""` when absent |
-| `apiUrl` | `string` | body | `api.url` | per-install backoffice API base URL; **persist per install**; `""` when absent |
+| `apiUrl` | `string` | body | `api.url` | per-install backoffice API base URL; **persist per install**; `""` when absent; a non-empty value must be a Peek-owned domain (`peek.com`/`peeklabs.com`) or the parser throws |
 | `status` | `InstallStatus \| null` | body → token | `status` | `null` when unrecognised — see below |
 | `rawStatus` | `string` | body → token | `status` | always the wire value, for logging |
 | `displayVersion` | `string` | body → token | `display_version` | `""` when absent |

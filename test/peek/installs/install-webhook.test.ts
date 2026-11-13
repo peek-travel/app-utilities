@@ -213,6 +213,45 @@ describe("parseInstallWebhook", () => {
     expect(event.apiUrl).toBe("");
   });
 
+  it.each([
+    ["a production apps.peek.com host", "https://apps.peek.com/installations-api/app-1"],
+    ["a deep peek.com subdomain", "https://registry.apps.peek.com/apis"],
+    ["the bare peek.com host", "https://peek.com/installations-api/app-1"],
+    ["a sandbox peeklabs.com host", "https://app-registry.sandbox.peeklabs.com/installations-api/demo"],
+    ["an UPPERCASE peek.com host", "https://APPS.PEEK.COM/installations-api/app-1"],
+    ["a scheme-less peek.com host", "registry.apps.peek.com/apis"],
+  ])("accepts an apiUrl on %s", (_label, url) => {
+    const event = parseInstallWebhook(mintInstallToken(SECRET), buildBody({ api: { url } }), SECRET);
+
+    expect(event.apiUrl).toBe(url);
+  });
+
+  it.each([
+    ["a foreign domain", "https://registry.hackerdomain.com/api"],
+    ["a peek.com lookalike suffix", "https://registry.hackerdomain.com/peek.com"],
+    ["a subdomain-spoof host", "https://peek.com.evil.com/api"],
+    ["a userinfo-spoof host", "https://peek.com@evil.com/api"],
+    ["a name-prefix lookalike", "https://notpeek.com/api"],
+    ["a scheme-less foreign host", "registry.hackerdomain.com/api"],
+    ["an unparseable value", "::::"],
+  ])("throws InstallWebhookError on an apiUrl with %s", (_label, url) => {
+    const call = (): unknown =>
+      parseInstallWebhook(mintInstallToken(SECRET), buildBody({ api: { url } }), SECRET);
+
+    expect(call).toThrow(InstallWebhookError);
+    expect(call).toThrow(expect.objectContaining({ reason: "invalid_api_url" }));
+  });
+
+  it("does not validate an absent apiUrl", () => {
+    const event = parseInstallWebhook(
+      mintInstallToken(SECRET),
+      buildBody({ api: undefined }),
+      SECRET,
+    );
+
+    expect(event.apiUrl).toBe("");
+  });
+
   it("prefers the body's modified_by for the acting user", () => {
     const body = buildBody({ modified_by: SAMPLE_MODIFIED_BY });
 
@@ -463,5 +502,12 @@ describe("InstallWebhookError", () => {
     expect(error.name).toBe("InstallWebhookError");
     expect(error.reason).toBe("install_id_mismatch");
     expect(error.message).toMatch(/install_id does not match/);
+  });
+
+  it("carries the apiUrl reason and message", () => {
+    const error = new InstallWebhookError("invalid_api_url");
+
+    expect(error.reason).toBe("invalid_api_url");
+    expect(error.message).toMatch(/Peek-owned domain/);
   });
 });
