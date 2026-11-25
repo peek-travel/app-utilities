@@ -7,6 +7,7 @@ import {
 import { peekApiEndpoints } from "../../../src/internal/peek/gateway-endpoints.js";
 import { ResourcePoolService } from "../../../src/internal/peek/resource-pools/resource-pool-service.js";
 import { noopLogger } from "../../../src/logger.js";
+import { SDK_QUERY_STRING } from "../../../src/internal/sdk-headers.js";
 
 interface RecordedCall {
   url: string;
@@ -68,7 +69,7 @@ describe("ResourcePoolService.getAll", () => {
     expect(pools[0]!.id).toBe("pool-1");
     const variables = JSON.parse(calls[0]!.init.body as string).variables;
     expect(variables.filter.mode).toBe("ALL");
-    expect(calls[0]!.url).toBe("https://gw.test/gql/app-1/sales");
+    expect(calls[0]!.url).toBe(`https://gw.test/gql/app-1/sales?${SDK_QUERY_STRING}`);
   });
 
   it("passes through an explicit mode filter", async () => {

@@ -13,7 +13,7 @@ import {
 import { peekApiEndpoints } from "../../../src/internal/peek/gateway-endpoints.js";
 import { ProductService } from "../../../src/internal/peek/products/product-service.js";
 import { noopLogger, type Logger } from "../../../src/logger.js";
-import { SDK_HEADER_VALUE } from "../../../src/internal/sdk-headers.js";
+import { SDK_HEADER_VALUE, SDK_QUERY_STRING } from "../../../src/internal/sdk-headers.js";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return {
@@ -174,7 +174,7 @@ describe("ProductService.getAllProducts", () => {
 
     // 1 activities call + 2 item-option pages.
     expect(calls).toHaveLength(3);
-    expect(calls[0]!.url).toBe("https://gw.test/gql/app-1/sales");
+    expect(calls[0]!.url).toBe(`https://gw.test/gql/app-1/sales?${SDK_QUERY_STRING}`);
     const headers = calls[0]!.init.headers as Record<string, string>;
     expect(headers["X-Peek-Auth"]).toBe("Bearer tok-123");
     expect(headers["pk-api-key"]).toBe("gw-key");
@@ -280,7 +280,7 @@ describe("ProductService.getAllProducts", () => {
       statusCode: 500,
       body: { oops: true },
     });
-    expect(error.url).toBe("https://gw.test/gql/app-1/sales");
+    expect(error.url).toBe(`https://gw.test/gql/app-1/sales?${SDK_QUERY_STRING}`);
   });
 
   it("surfaces the HTTP status for a non-JSON error page instead of a JSON parse error", async () => {

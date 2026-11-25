@@ -12,6 +12,14 @@ action needed; `[additive]` only adds capability.
 
 ---
 
+## 1.3.1
+
+### Internal GQL Update
+
+- Internal update to Peek GraphQL requests. No impact to callers.
+
+---
+
 ## 1.3.0
 
 ### `BookingService.create` accepts a `promoCode` `[additive]`

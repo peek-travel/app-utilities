@@ -16,6 +16,7 @@ import { SeatmapService } from "../../src/internal/peek/seatmaps/seatmap-service
 import { ResourcePoolService } from "../../src/internal/peek/resource-pools/resource-pool-service.js";
 import { TimeslotService } from "../../src/internal/peek/timeslots/timeslot-service.js";
 import type { Logger } from "../../src/logger.js";
+import { SDK_QUERY_STRING } from "../../src/internal/sdk-headers.js";
 import { PiiAccessDisabledError } from "../../src/errors.js";
 import { PeekAccessService } from "../../src/peek-access-service.js";
 
@@ -305,7 +306,7 @@ describe("PeekAccessService.getProductService", () => {
     await service.getProductService().getAllProducts();
 
     expect(calls[0]!.url).toBe(
-      "https://apps.peekapis.com/backoffice-gql/app-1/sales",
+      `https://apps.peekapis.com/backoffice-gql/app-1/sales?${SDK_QUERY_STRING}`,
     );
     const headers = calls[0]!.init.headers as Record<string, string>;
     expect(headers["X-Peek-Auth"]).toMatch(/^Bearer .+/);
@@ -327,7 +328,7 @@ describe("PeekAccessService.getProductService", () => {
     });
     await service.getProductService().getAllProducts();
 
-    expect(calls[0]!.url).toBe("https://custom.test/gql/app-1/sales");
+    expect(calls[0]!.url).toBe(`https://custom.test/gql/app-1/sales?${SDK_QUERY_STRING}`);
     expect(logger.info).toHaveBeenCalled();
 
     const itemCall = calls.find((c) =>
@@ -538,7 +539,7 @@ describe("PeekAccessService v2 mode", () => {
     await service.getProductService().getAllProducts();
 
     expect(calls[0]!.url).toBe(
-      "https://apps.peek.com/installations-api/app-1/peek_backoffice_api-v1",
+      `https://apps.peek.com/installations-api/app-1/peek_backoffice_api-v1?${SDK_QUERY_STRING}`,
     );
   });
 
@@ -561,7 +562,7 @@ describe("PeekAccessService v2 mode", () => {
 describe("PeekAccessService apiUrl mode", () => {
   const API_URL =
     "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app";
-  const RESOLVED_URL = `${API_URL}/peek_backoffice_api-v1`;
+  const RESOLVED_URL = `${API_URL}/peek_backoffice_api-v1?${SDK_QUERY_STRING}`;
 
   it("POSTs every call to the base apiUrl with the Peek slug appended (no sales segment)", async () => {
     const { fetchFn, calls } = makeEmptyFetch();

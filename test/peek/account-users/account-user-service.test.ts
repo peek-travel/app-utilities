@@ -7,6 +7,7 @@ import {
 } from "../../../src/internal/peek/graphql-client.js";
 import { peekApiEndpoints } from "../../../src/internal/peek/gateway-endpoints.js";
 import { noopLogger } from "../../../src/logger.js";
+import { SDK_QUERY_STRING } from "../../../src/internal/sdk-headers.js";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return {
@@ -127,7 +128,7 @@ describe("AccountUserService.getById", () => {
 
     const user = await new AccountUserService(buildClient(fetchFn)).getById("u1");
     expect(user?.id).toBe("u1");
-    expect(calls[0]!.url).toBe("https://gw.test/gql/app-1/sales");
+    expect(calls[0]!.url).toBe(`https://gw.test/gql/app-1/sales?${SDK_QUERY_STRING}`);
   });
 
   it("returns null when there is no match", async () => {

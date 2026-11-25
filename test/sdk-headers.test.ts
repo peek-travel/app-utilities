@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   SDK_HEADER_NAME,
   SDK_HEADER_VALUE,
+  SDK_QUERY_STRING,
   SDK_VERSION,
 } from "../src/internal/sdk-headers.js";
 
@@ -28,5 +29,9 @@ describe("sdk headers", () => {
 
   it("formats the header value as js-<version>", () => {
     expect(SDK_HEADER_VALUE).toBe(`js-${packageVersion}`);
+  });
+
+  it("formats the query string as sdk=js&v=<version>", () => {
+    expect(SDK_QUERY_STRING).toBe(`sdk=js&v=${packageVersion}`);
   });
 });

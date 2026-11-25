@@ -144,10 +144,13 @@ own `url`/`init`, log their own "Making … request" line, and pass a per-respon
 callback that handles the transport-specific success/error parsing.
 Responsibilities:
 
-- Builds the endpoint URL as `joinUrl(baseApiUrl, endpoints.pathFor(endpointName))`.
-  Today every operation routes through the single `sales` endpoint
-  (`gateway-endpoints.ts`), whose slug is `peek_backoffice_api-v1` in registry
-  modes and empty (the `sales` segment itself) on the legacy v1 gateway.
+- Builds the endpoint URL as `joinUrl(baseApiUrl, endpoints.pathFor(endpointName))`,
+  then appends the SDK identification query string `?sdk=js&v=<package version>`
+  (`SDK_QUERY_STRING` from `sdk-headers.ts`) so the gateway can attribute traffic
+  from the URL as well as the `x-peek-sdk` header. Today every operation routes
+  through the single `sales` endpoint (`gateway-endpoints.ts`), whose slug is
+  `peek_backoffice_api-v1` in registry modes and empty (the `sales` segment
+  itself) on the legacy v1 gateway.
 - Sets headers: `X-Peek-Auth: Bearer <jwt>`, `pk-api-key: <gatewayKey>`,
   `Content-Type: application/json`, `x-peek-sdk: js-<package version>`.
 - Collapses query whitespace (`\s+` → single space) before sending.
@@ -172,6 +175,11 @@ send `x-peek-sdk: js-<version>` on every request so the downstream platforms can
 attribute traffic to this package and its version. The module exports
 `SDK_HEADER_NAME`, `SDK_VERSION`, and the precomputed `SDK_HEADER_VALUE`; it is
 internal and not re-exported from `src/index.ts`.
+
+The Peek `GraphQLClient` additionally appends the same identity to the request
+URL as a query string, `?sdk=js&v=<version>` (the exported `SDK_QUERY_STRING`),
+so attribution survives contexts that only see the URL and not the headers. The
+REST transports do not add it.
 
 The version is a **static literal**, not a runtime `package.json` read: the dual
 ESM+CJS build has no portable self-location (`import.meta.url` is ESM-only,

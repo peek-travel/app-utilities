@@ -17,7 +17,21 @@ export const SDK_HEADER_NAME = "x-peek-sdk";
 const SDK_PLATFORM = "js";
 
 /** Must equal the `version` field in `package.json`. */
-export const SDK_VERSION = "1.3.0";
+export const SDK_VERSION = "1.3.1";
 
 /** The `x-peek-sdk` header value, e.g. `js-0.9.0`. */
 export const SDK_HEADER_VALUE = `${SDK_PLATFORM}-${SDK_VERSION}`;
+
+/** Query-param name carrying the SDK platform identifier. */
+const SDK_QUERY_PARAM = "sdk";
+
+/** Query-param name carrying the SDK version. */
+const SDK_VERSION_QUERY_PARAM = "v";
+
+/**
+ * The SDK identification query string appended to every outbound Peek GraphQL
+ * request URL (e.g. `sdk=js&v=1.3.0`), so the downstream platform can attribute
+ * traffic to this package and its version from the URL as well as the
+ * {@link SDK_HEADER_NAME} header.
+ */
+export const SDK_QUERY_STRING = `${SDK_QUERY_PARAM}=${SDK_PLATFORM}&${SDK_VERSION_QUERY_PARAM}=${SDK_VERSION}`;
