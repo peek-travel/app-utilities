@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>@peektravel/app-utilities — Changelog</title>
+<script>(function(){try{var u=new URLSearchParams(location.search).get("theme");var s=u||localStorage.getItem("theme");var t=(s==="light"||s==="dark")?s:"light";document.documentElement.setAttribute("data-theme",t);if(u==="light"||u==="dark"){try{localStorage.setItem("theme",u);}catch(e){}}}catch(e){}})();</script>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2a3441;
+    --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --accent2:#3fb950;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --red:#f85149; --amber:#d29922;
+  }
+  html[data-theme="light"]{
+    --bg:#f6f8fa; --panel:#ffffff; --panel2:#eef1f5; --border:#d0d7de;
+    --text:#1f2328; --muted:#59636e; --accent:#0969da; --accent2:#1a7f37;
+    --red:#cf222e; --amber:#9a6700;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{background:var(--bg);color:var(--text);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:var(--mono);font-size:.88em;background:var(--panel2);border:1px solid var(--border);border-radius:5px;padding:1px 5px}
+  .themebtn{position:fixed;top:16px;right:18px;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 11px;cursor:pointer;font-size:15px;z-index:20}
+  .themebtn:hover{border-color:var(--accent);color:var(--accent)}
+  .layout{display:grid;grid-template-columns:260px minmax(0,860px);gap:40px;max-width:1180px;margin:0 auto;padding:0 20px 90px}
+  nav.side{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:30px 0 30px;display:flex;flex-direction:column}
+  nav.side .brand{font-weight:700;font-size:15px;margin:0 0 2px}
+  nav.side .brand .kind{display:block;font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400;margin-top:3px}
+  nav.side .filterwrap{margin:16px 0 10px}
+  nav.side input#filter{width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit}
+  nav.side input#filter:focus{outline:none;border-color:var(--accent)}
+  nav.side .navlabel{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:10px 0 6px}
+  nav.side a.navlink{display:block;color:var(--muted);font-size:13.5px;padding:4px 10px;border-radius:6px;border-left:2px solid transparent}
+  nav.side a.navlink:hover{color:var(--text);background:var(--panel);text-decoration:none}
+  nav.side a.navlink.active{color:var(--accent);border-left-color:var(--accent);background:var(--panel)}
+  main{min-width:0;padding-top:30px}
+  main h1{font-size:30px;letter-spacing:.2px;margin:0 0 6px}
+  main h2{font-size:21px;margin:0 0 4px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  main h3{font-size:16px;margin:22px 0 2px;line-height:1.45}
+  main p{color:var(--text)}
+  main section.ver{scroll-margin-top:20px;margin-bottom:40px}
+  main section#overview{margin-bottom:30px}
+  main section#overview p{color:var(--muted)}
+  main ul{margin:8px 0 14px;padding-left:22px}
+  main li{margin:4px 0}
+  main li ul{margin:5px 0 6px}
+  .tag{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;vertical-align:middle;border:1px solid transparent}
+  .tag--additive{color:var(--accent2);border-color:var(--accent2);background:color-mix(in srgb,var(--accent2) 12%,transparent)}
+  .tag--fix{color:var(--accent);border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .tag--breaking{color:var(--red);border-color:var(--red);background:color-mix(in srgb,var(--red) 12%,transparent)}
+  .tag--deprecated{color:var(--amber);border-color:var(--amber);background:color-mix(in srgb,var(--amber) 12%,transparent)}
+  @media (max-width:840px){
+    .layout{grid-template-columns:1fr;gap:0}
+    nav.side{position:static;height:auto;overflow:visible;padding:24px 0 0}
+    nav.side a.navlink{display:inline-block}
+  }
+</style>
+</head>
+<body>
+<button id="themeBtn" class="themebtn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
+<div class="layout">
+<nav class="side">
+  <div class="brand">Changelog<span class="kind">@peektravel/app-utilities</span></div>
+  <div class="filterwrap"><input id="filter" type="search" placeholder="Filter versions…" aria-label="Filter changelog" /></div>
+  <div class="navlabel">Versions</div>
+<a class="navlink" href="#overview" data-target="overview">Overview</a>
+<a class="navlink" href="#v-1-0-1" data-target="v-1-0-1">1.0.1</a>
+<a class="navlink" href="#v-1-0-0" data-target="v-1-0-0">1.0.0</a>
+  <div class="navlabel" style="margin-top:auto">Reference</div>
+<a class="navlink" href="../changelog.html">← Current changelog</a>
+<a class="navlink" href="../../index.html">← All docs</a>
+</nav>
+<main>
+<section class="ver" id="overview" data-search="changelog — 1.0.x archived changelog for the **1.0.x** series of `@peektravel/app-utilities`. for the current version see the [main changelog](../../changelog.md).">
+<h1>Changelog — 1.0.x</h1>
+<p>Archived changelog for the <strong>1.0.x</strong> series of <code>@peektravel/app-utilities</code>. For the current version see the <a href="../changelog.html" target="_blank" rel="noopener">main changelog</a>.</p>
+</section>
+<section class="ver" id="v-1-0-1" data-search="1.0.1 shared `money` model; `bookingaddonmoney` deprecated `[additive]` - **what:** the money shape `{ amount, currency, formatted }` is now exported as   a single shared `money` type. `bookingaddon.total` is typed as `money | null`,   and the previously-exported `bookingaddonmoney` is retained as a `@deprecated`   alias of `money`. - **why:** the same money shape is now returned by more than one resource (booking   add-ons and availability prices), so it lives in one place instead of a   resource-specific type. - **caller action:** none — `bookingaddonmoney` still resolves (to `money`).   migrate references to `money` at your convenience. `availabilitytime` gains `minimumticketsrequired` and `price` `[additive]` - **what:** each `availabilitytime` returned by   `getavailabilityservice().getavailabilitytimes(...)` now carries   `minimumticketsrequired` (a `number`) and `price` (`money | null`, the   per-ticket price). `minimumticketsrequired` is normalized: when peek reports   `0` (no minimum) it is surfaced as `1`, so it is always the smallest bookable   party size. - **why:** callers choosing a slot need the minimum party size and per-ticket   price alongside the remaining availability. - **caller action:** none — additive.">
+<h2>1.0.1</h2>
+<h3>Shared <code>Money</code> model; <code>BookingAddonMoney</code> deprecated <span class="tag tag--additive">additive</span></h3>
+<ul><li><strong>What:</strong> The money shape <code>{ amount, currency, formatted }</code> is now exported as a single shared <code>Money</code> type. <code>BookingAddon.total</code> is typed as <code>Money | null</code>, and the previously-exported <code>BookingAddonMoney</code> is retained as a <code>@deprecated</code> alias of <code>Money</code>.</li><li><strong>Why:</strong> the same money shape is now returned by more than one resource (booking add-ons and availability prices), so it lives in one place instead of a resource-specific type.</li><li><strong>Caller action:</strong> none — <code>BookingAddonMoney</code> still resolves (to <code>Money</code>). Migrate references to <code>Money</code> at your convenience.</li></ul>
+<h3><code>AvailabilityTime</code> gains <code>minimumTicketsRequired</code> and <code>price</code> <span class="tag tag--additive">additive</span></h3>
+<ul><li><strong>What:</strong> Each <code>AvailabilityTime</code> returned by <code>getAvailabilityService().getAvailabilityTimes(...)</code> now carries <code>minimumTicketsRequired</code> (a <code>number</code>) and <code>price</code> (<code>Money | null</code>, the per-ticket price). <code>minimumTicketsRequired</code> is normalized: when Peek reports <code>0</code> (no minimum) it is surfaced as <code>1</code>, so it is always the smallest bookable party size.</li><li><strong>Why:</strong> callers choosing a slot need the minimum party size and per-ticket price alongside the remaining availability.</li><li><strong>Caller action:</strong> none — additive.</li></ul>
+</section>
+<section class="ver" id="v-1-0-0" data-search="1.0.0 `peekaccessservice` `mode` is now a required `&quot;v1&quot; | &quot;v2&quot;` field `[breaking]` - **what:** `mode` on `peekaccessserviceconfig` was an optional `&quot;v2&quot;` flag   (omitting it meant `&quot;v1&quot;`). it is now a **required** `&quot;v1&quot; | &quot;v2&quot;` field, and   the constructor throws (`&quot;mode&quot; is required …`) when it is missing or invalid —   so an untyped js caller gets a loud error instead of silently running on v1.   `&quot;v2&quot;` is the app-registry connection to use going forward and now **requires**   the install webhook's `apiurl` — the constructor throws if `&quot;v2&quot;` is selected   without one (there is no silent default base url). `&quot;v1&quot;` is the legacy gateway   and is now **`@deprecated`** and will be removed. if you don't yet have a webhook   `apiurl`, build one by appending your app slug to the registry prefix and pass   that as the `apiurl` yourself —   `https://apps.peek.com/installations-api/<app-slug>` (the trailing app-slug   segment is required; the old `app-registry.peeklabs.com` sandbox host is gone). - **why:** v2 (the per-install `apiurl` from the install webhook) is the   forward-looking connection, and we want every consumer to move to it. making   `mode` mandatory turns a silent default into a deliberate, visible choice at   update time rather than a behaviour that can drift unnoticed. - **caller action:** pass `mode` explicitly.   - if you relied on the previous default, the fastest no-behaviour-change update     is to add `mode: &quot;v1&quot;` (keep your existing `appid` + `gatewaykey`). then plan     the migration to v2.   - for v2, pass `mode: &quot;v2&quot;` and the install's `apiurl` (persisted from the     install webhook; see `docs/webhooks.md`). `createaccessserviceforinstall`     already sets `mode: &quot;v2&quot;` for you, so callers using the install factory need     no change. cng/acme configs are unaffected (they have no `mode`).">
+<h2>1.0.0</h2>
+<h3><code>PeekAccessService</code> <code>mode</code> is now a required <code>"v1" | "v2"</code> field <span class="tag tag--breaking">breaking</span></h3>
+<ul><li><strong>What:</strong> <code>mode</code> on <code>PeekAccessServiceConfig</code> was an optional <code>"v2"</code> flag (omitting it meant <code>"v1"</code>). It is now a <strong>required</strong> <code>"v1" | "v2"</code> field, and the constructor throws (<code>"mode" is required …</code>) when it is missing or invalid — so an untyped JS caller gets a loud error instead of silently running on v1. <code>"v2"</code> is the app-registry connection to use going forward and now <strong>requires</strong> the install webhook's <code>apiUrl</code> — the constructor throws if <code>"v2"</code> is selected without one (there is no silent default base URL). <code>"v1"</code> is the legacy gateway and is now <strong><code>@deprecated</code></strong> and will be removed. If you don't yet have a webhook <code>apiUrl</code>, build one by appending your app slug to the registry prefix and pass that as the <code>apiUrl</code> yourself — <code>https://apps.peek.com/installations-api/&lt;app-slug&gt;</code> (the trailing app-slug segment is required; the old <code>app-registry.peeklabs.com</code> sandbox host is gone).</li><li><strong>Why:</strong> v2 (the per-install <code>apiUrl</code> from the install webhook) is the forward-looking connection, and we want every consumer to move to it. Making <code>mode</code> mandatory turns a silent default into a deliberate, visible choice at update time rather than a behaviour that can drift unnoticed.</li><li><strong>Caller action:</strong> pass <code>mode</code> explicitly.<ul><li>If you relied on the previous default, the fastest no-behaviour-change update is to add <code>mode: "v1"</code> (keep your existing <code>appId</code> + <code>gatewayKey</code>). Then plan the migration to v2.</li><li>For v2, pass <code>mode: "v2"</code> and the install's <code>apiUrl</code> (persisted from the install webhook; see <code>docs/webhooks.md</code>). <code>createAccessServiceForInstall</code> already sets <code>mode: "v2"</code> for you, so callers using the install factory need no change. CNG/ACME configs are unaffected (they have no <code>mode</code>).</li></ul></li></ul>
+</section>
+</main>
+</div>
+<script>
+var tb=document.getElementById('themeBtn');
+if(tb)tb.addEventListener('click',function(){
+  var cur=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';
+  document.documentElement.setAttribute('data-theme',cur);
+  try{localStorage.setItem('theme',cur);}catch(e){}
+});
+var filter=document.getElementById('filter');
+var sections=Array.prototype.slice.call(document.querySelectorAll('section.ver'));
+var navlinks=Array.prototype.slice.call(document.querySelectorAll('a.navlink'));
+if(filter)filter.addEventListener('input',function(){
+  var q=filter.value.trim().toLowerCase();
+  sections.forEach(function(sec){
+    var hit=!q||(sec.getAttribute('data-search')||'').indexOf(q)!==-1;
+    sec.style.display=hit?'':'none';
+  });
+  navlinks.forEach(function(a){
+    var id=a.getAttribute('data-target');
+    var sec=document.getElementById(id);
+    a.style.display=(sec&&sec.style.display!=='none')?'':'none';
+  });
+});
+</script>
+</body>
+</html>

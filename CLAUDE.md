@@ -106,17 +106,29 @@ out, and the clean data models — never raw GraphQL.
   (each component: tag, `use`, `demo` markup rendered live, attribute/property/
   event tables; a few need an `init` hook run after `whenOdysseyReady`). Add new
   platform/UI pages to `docs/index.html` too.
-- **`docs/html/changelog.html` is a generated mirror of `changelog.md` — never
-  hand-edit it.** It is the interactive HTML changelog (same shell as the platform
-  pages: left-nav of versions, filter, light/dark toggle) and is linked from
-  `docs/index.html` under the UI Components card. `scripts/build-changelog-html.mjs`
-  renders `changelog.md` → `docs/html/changelog.html`; `changelog.md` is the single
-  source of truth. **Whenever you touch `changelog.md`, regenerate the HTML in the
-  same change** by running `node scripts/build-changelog-html.mjs`, and commit both
-  files together. A Vitest drift guard (`test/changelog-html.test.ts`) re-renders
-  from `changelog.md` and fails if the committed HTML differs, so `npm test` catches
-  a stale file — **before any commit, verify it is not drifted** by running the test
-  suite (or `node scripts/build-changelog-html.mjs --check`, which exits non-zero on
+- **The changelog is split: a current `changelog.md` plus per-minor archives
+  under `docs/changelogs/`.** `changelog.md` holds only the **most recent minor
+  series** (every patch of it, plus any `## Unreleased`) and ends with an
+  **"Older versions"** bullet list linking to the archives. Each earlier minor
+  series lives in `docs/changelogs/<major>-<minor>-x.md` (e.g. `1-2-x.md`),
+  newest-first, with a one-line header linking back to the main changelog. This
+  keeps the main file small — day-to-day edits only ever touch it. Archiving an
+  outgoing minor happens at a **minor version bump** (see **Versioning**).
+- **The HTML changelog is a generated mirror — never hand-edit it.**
+  `scripts/build-changelog-html.mjs` renders `changelog.md` →
+  `docs/html/changelog.html` **and** every `docs/changelogs/*.md` →
+  `docs/html/changelogs/*.html` (same shell: left-nav of versions, filter,
+  light/dark toggle). The main page's "Older versions" links and each archive's
+  back-link are rewritten from their `.md` targets to the generated `.html` ones.
+  `docs/html/changelog.html` is linked from `docs/index.html` under the UI
+  Components card; the Markdown files are the single source of truth. **Whenever
+  you touch `changelog.md` or any file in `docs/changelogs/`, regenerate the HTML
+  in the same change** by running `node scripts/build-changelog-html.mjs`, and
+  commit the Markdown and HTML together. A Vitest drift guard
+  (`test/changelog-html.test.ts`) re-renders every page from its Markdown and
+  fails if any committed HTML differs, so `npm test` catches a stale file —
+  **before any commit, verify it is not drifted** by running the test suite (or
+  `node scripts/build-changelog-html.mjs --check`, which exits non-zero on
   drift). If you change the page's styling or the Markdown renderer, do it in
   `scripts/build-changelog-html.mjs` and regenerate — not in the HTML. This is an
   internal doc build, so do not log it in `changelog.md`.
@@ -147,9 +159,13 @@ out, and the clean data models — never raw GraphQL.
   take. Caller-visible fixes and new capabilities may be logged too, marked with
   their tag. **Do not** log internal-only work (refactors, test changes, invisible
   cleanups). Add the entry in the same change that makes the code change; never let
-  `changelog.md` drift behind the code. **Whenever you edit `changelog.md`, also
-  regenerate `docs/html/changelog.html`** (`node scripts/build-changelog-html.mjs`)
-  and commit both — see the generated-HTML-changelog bullet above.
+  `changelog.md` drift behind the code. Day-to-day entries always go in
+  `changelog.md` (the current minor); the per-minor files in `docs/changelogs/`
+  are only touched at a minor bump (see the split-changelog and Versioning
+  sections). **Whenever you edit `changelog.md` or a `docs/changelogs/` file, also
+  regenerate the HTML** (`node scripts/build-changelog-html.mjs`, which rewrites
+  `docs/html/changelog.html` and `docs/html/changelogs/*.html`) and commit all of
+  it — see the generated-HTML-changelog bullet above.
 
 # Architecture conventions
 
@@ -330,6 +346,20 @@ everything that names the version together in that same commit:
 - `changelog.md` — rename the `## Unreleased` heading to the new version, so the
   entries ship under the version that actually contains them, and fix any
   version literal quoted in those entries.
+- **Archive the outgoing minor on a minor (or major) bump.** When the new
+  version starts a **new `major.minor`** (e.g. `1.3.x` → `1.4.0`, or `1.x` →
+  `2.0.0`), move the *entire previous* minor series out of `changelog.md` into a
+  new `docs/changelogs/<major>-<minor>-x.md` (e.g. `1-3-x.md`). The archive file
+  gets a `# Changelog — <major>.<minor>.x` title and a one-line note linking back
+  to `../../changelog.md`, followed by that minor's version blocks newest-first
+  (each separated by `---`). Then `changelog.md` keeps only the new version (its
+  `## Unreleased`/first release) and gains a new bullet at the **top** of the
+  "Older versions" list linking the just-archived minor
+  (`- [<major>.<minor>.x](docs/changelogs/<major>-<minor>-x.md)`). A **patch**
+  bump archives nothing — the new patch just joins its minor in `changelog.md`.
+  Either way, **regenerate the HTML** (`node scripts/build-changelog-html.mjs`,
+  which now also emits `docs/html/changelogs/*.html`) and commit all of it
+  together.
 
 # Build / test commands
 

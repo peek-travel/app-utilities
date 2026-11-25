@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>@peektravel/app-utilities — Changelog</title>
+<script>(function(){try{var u=new URLSearchParams(location.search).get("theme");var s=u||localStorage.getItem("theme");var t=(s==="light"||s==="dark")?s:"light";document.documentElement.setAttribute("data-theme",t);if(u==="light"||u==="dark"){try{localStorage.setItem("theme",u);}catch(e){}}}catch(e){}})();</script>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2a3441;
+    --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --accent2:#3fb950;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --red:#f85149; --amber:#d29922;
+  }
+  html[data-theme="light"]{
+    --bg:#f6f8fa; --panel:#ffffff; --panel2:#eef1f5; --border:#d0d7de;
+    --text:#1f2328; --muted:#59636e; --accent:#0969da; --accent2:#1a7f37;
+    --red:#cf222e; --amber:#9a6700;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{background:var(--bg);color:var(--text);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:var(--mono);font-size:.88em;background:var(--panel2);border:1px solid var(--border);border-radius:5px;padding:1px 5px}
+  .themebtn{position:fixed;top:16px;right:18px;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 11px;cursor:pointer;font-size:15px;z-index:20}
+  .themebtn:hover{border-color:var(--accent);color:var(--accent)}
+  .layout{display:grid;grid-template-columns:260px minmax(0,860px);gap:40px;max-width:1180px;margin:0 auto;padding:0 20px 90px}
+  nav.side{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:30px 0 30px;display:flex;flex-direction:column}
+  nav.side .brand{font-weight:700;font-size:15px;margin:0 0 2px}
+  nav.side .brand .kind{display:block;font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400;margin-top:3px}
+  nav.side .filterwrap{margin:16px 0 10px}
+  nav.side input#filter{width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit}
+  nav.side input#filter:focus{outline:none;border-color:var(--accent)}
+  nav.side .navlabel{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:10px 0 6px}
+  nav.side a.navlink{display:block;color:var(--muted);font-size:13.5px;padding:4px 10px;border-radius:6px;border-left:2px solid transparent}
+  nav.side a.navlink:hover{color:var(--text);background:var(--panel);text-decoration:none}
+  nav.side a.navlink.active{color:var(--accent);border-left-color:var(--accent);background:var(--panel)}
+  main{min-width:0;padding-top:30px}
+  main h1{font-size:30px;letter-spacing:.2px;margin:0 0 6px}
+  main h2{font-size:21px;margin:0 0 4px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  main h3{font-size:16px;margin:22px 0 2px;line-height:1.45}
+  main p{color:var(--text)}
+  main section.ver{scroll-margin-top:20px;margin-bottom:40px}
+  main section#overview{margin-bottom:30px}
+  main section#overview p{color:var(--muted)}
+  main ul{margin:8px 0 14px;padding-left:22px}
+  main li{margin:4px 0}
+  main li ul{margin:5px 0 6px}
+  .tag{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;vertical-align:middle;border:1px solid transparent}
+  .tag--additive{color:var(--accent2);border-color:var(--accent2);background:color-mix(in srgb,var(--accent2) 12%,transparent)}
+  .tag--fix{color:var(--accent);border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .tag--breaking{color:var(--red);border-color:var(--red);background:color-mix(in srgb,var(--red) 12%,transparent)}
+  .tag--deprecated{color:var(--amber);border-color:var(--amber);background:color-mix(in srgb,var(--amber) 12%,transparent)}
+  @media (max-width:840px){
+    .layout{grid-template-columns:1fr;gap:0}
+    nav.side{position:static;height:auto;overflow:visible;padding:24px 0 0}
+    nav.side a.navlink{display:inline-block}
+  }
+</style>
+</head>
+<body>
+<button id="themeBtn" class="themebtn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
+<div class="layout">
+<nav class="side">
+  <div class="brand">Changelog<span class="kind">@peektravel/app-utilities</span></div>
+  <div class="filterwrap"><input id="filter" type="search" placeholder="Filter versions…" aria-label="Filter changelog" /></div>
+  <div class="navlabel">Versions</div>
+<a class="navlink" href="#overview" data-target="overview">Overview</a>
+<a class="navlink" href="#v-0-8-1" data-target="v-0-8-1">0.8.1</a>
+<a class="navlink" href="#v-0-8-0" data-target="v-0-8-0">0.8.0</a>
+  <div class="navlabel" style="margin-top:auto">Reference</div>
+<a class="navlink" href="../changelog.html">← Current changelog</a>
+<a class="navlink" href="../../index.html">← All docs</a>
+</nav>
+<main>
+<section class="ver" id="overview" data-search="changelog — 0.8.x archived changelog for the **0.8.x** series of `@peektravel/app-utilities`. for the current version see the [main changelog](../../changelog.md).">
+<h1>Changelog — 0.8.x</h1>
+<p>Archived changelog for the <strong>0.8.x</strong> series of <code>@peektravel/app-utilities</code>. For the current version see the <a href="../changelog.html" target="_blank" rel="noopener">main changelog</a>.</p>
+</section>
+<section class="ver" id="v-0-8-1" data-search="0.8.1 `[additive]` cng missing-permission 403s throw a typed `cngpermissionerror` - **what:** when the cng gateway rejects a request with http 403 because the app   lacks a permission (body `{ errors: { permission: [&quot;the app does not have the   required permission: products:read&quot;] }, message: &quot;forbidden&quot; }`), the package   now throws the exported `cngpermissionerror` instead of a generic   `cngapierror`. it carries `.permissions` (the parsed permission names, e.g.   `[&quot;products:read&quot;]`), `.statuscode` (`403`), and the raw `.body`, and its   message names the missing permissions. the transport also logs it at `warn`   rather than `error`, so a misconfigured install no longer produces a   console-level error entry. - **why:** a missing permission is an expected configuration state for an   install, not a transport fault. callers can branch on the type and surface   `.permissions` however their ui prefers, instead of pattern-matching a 403   body. the package only classifies and reports the error — presentation stays   entirely with the caller. - **caller action:** code that catches `cngapierror` to handle 403s must also   catch `cngpermissionerror` — it is a separate class and is **not** a subclass   of `cngapierror`. every other non-2xx status is unchanged. `[fix]` cng `getallactivities` parses the real products payload - **what:** cng product parsing was written against a guessed response shape and   did not match what the gateway actually returns, so `getallactivities()`   produced empty/garbage activities. it now reads the real   `api/v2/app-registry/products` payload: the `{ data: [...] }` resource   collection, `productid` from the numeric `id` (stringified), `name` from   `name`, and `color` from `access_control_color_hex`. the earlier `{ products:   [...] }`/bare-array envelopes and the `product_type`/`color_hex`/`tickets`   fields do not exist and are no longer read. the request also now sends   `active=1`, so only active products are returned — inactive/archived ones are   filtered out by the gateway. - **why:** the confirmed payload has no type discriminator and no sub-options, so   `activity.type` is now always `&quot;activity&quot;` and `activity.tickets` is always   `[]` — both fields are kept for parity with the peek `product` and the acme   `acmeactivity`. - **caller action:** none for `productid`/`name`/`color` — the `activity` shape is   unchanged. do not branch on `activity.type` or read `activity.tickets` for cng   activities; treat them as constant. note `productid` is now a stringified   numeric id (e.g. `&quot;1000171&quot;`). `[additive]` `createbooking` can enforce required custom questions - **what:** `createbookinginput` gains an optional   `requirerequiredquestions?: boolean` (default `false`). when `true`, `create`   fetches the activity's custom questions and fails if any question the activity   marks required (per-guest questions excluded) is left unanswered — the error   names the offending question and is thrown **before any quote is created**.   because it enforces coverage, custom-question validation now runs even when   `customquestionanswers` is empty or omitted. - **why:** callers that must not create a booking with unanswered required   questions can now delegate that check instead of re-implementing it against   `getcustomquestions`. - **caller action:** none to keep current behavior — the flag defaults to   `false`, and omitting it leaves creation exactly as before. opt in with   `requirerequiredquestions: true`, and be sure to supply   `customquestionanswers` for every required (non-per-guest) question or creation   will throw.">
+<h2>0.8.1</h2>
+<h3><span class="tag tag--additive">additive</span> CNG missing-permission 403s throw a typed <code>CngPermissionError</code></h3>
+<ul><li><strong>What:</strong> When the CNG gateway rejects a request with HTTP 403 because the app lacks a permission (body <code>{ errors: { permission: ["The app does not have the required permission: products:read"] }, message: "Forbidden" }</code>), the package now throws the exported <code>CngPermissionError</code> instead of a generic <code>CngApiError</code>. It carries <code>.permissions</code> (the parsed permission names, e.g. <code>["products:read"]</code>), <code>.statusCode</code> (<code>403</code>), and the raw <code>.body</code>, and its message names the missing permissions. The transport also logs it at <code>warn</code> rather than <code>error</code>, so a misconfigured install no longer produces a console-level error entry.</li><li><strong>Why:</strong> A missing permission is an expected configuration state for an install, not a transport fault. Callers can branch on the type and surface <code>.permissions</code> however their UI prefers, instead of pattern-matching a 403 body. The package only classifies and reports the error — presentation stays entirely with the caller.</li><li><strong>Caller action:</strong> Code that catches <code>CngApiError</code> to handle 403s must also catch <code>CngPermissionError</code> — it is a separate class and is <strong>not</strong> a subclass of <code>CngApiError</code>. Every other non-2xx status is unchanged.</li></ul>
+<h3><span class="tag tag--fix">fix</span> CNG <code>getAllActivities</code> parses the real products payload</h3>
+<ul><li><strong>What:</strong> CNG product parsing was written against a guessed response shape and did not match what the gateway actually returns, so <code>getAllActivities()</code> produced empty/garbage activities. It now reads the real <code>api/v2/app-registry/products</code> payload: the <code>{ data: [...] }</code> resource collection, <code>productId</code> from the numeric <code>id</code> (stringified), <code>name</code> from <code>name</code>, and <code>color</code> from <code>access_control_color_hex</code>. The earlier <code>{ products: [...] }</code>/bare-array envelopes and the <code>product_type</code>/<code>color_hex</code>/<code>tickets</code> fields do not exist and are no longer read. The request also now sends <code>active=1</code>, so only active products are returned — inactive/archived ones are filtered out by the gateway.</li><li><strong>Why:</strong> The confirmed payload has no type discriminator and no sub-options, so <code>Activity.type</code> is now always <code>"ACTIVITY"</code> and <code>Activity.tickets</code> is always <code>[]</code> — both fields are kept for parity with the Peek <code>Product</code> and the ACME <code>AcmeActivity</code>.</li><li><strong>Caller action:</strong> None for <code>productId</code>/<code>name</code>/<code>color</code> — the <code>Activity</code> shape is unchanged. Do not branch on <code>Activity.type</code> or read <code>Activity.tickets</code> for CNG activities; treat them as constant. Note <code>productId</code> is now a stringified numeric id (e.g. <code>"1000171"</code>).</li></ul>
+<h3><span class="tag tag--additive">additive</span> <code>createBooking</code> can enforce required custom questions</h3>
+<ul><li><strong>What:</strong> <code>CreateBookingInput</code> gains an optional <code>requireRequiredQuestions?: boolean</code> (default <code>false</code>). When <code>true</code>, <code>create</code> fetches the activity's custom questions and fails if any question the activity marks required (per-guest questions excluded) is left unanswered — the error names the offending question and is thrown <strong>before any quote is created</strong>. Because it enforces coverage, custom-question validation now runs even when <code>customQuestionAnswers</code> is empty or omitted.</li><li><strong>Why:</strong> Callers that must not create a booking with unanswered required questions can now delegate that check instead of re-implementing it against <code>getCustomQuestions</code>.</li><li><strong>Caller action:</strong> None to keep current behavior — the flag defaults to <code>false</code>, and omitting it leaves creation exactly as before. Opt in with <code>requireRequiredQuestions: true</code>, and be sure to supply <code>customQuestionAnswers</code> for every required (non-per-guest) question or creation will throw.</li></ul>
+</section>
+<section class="ver" id="v-0-8-0" data-search="0.8.0 `[additive]` `createbooking` accepts custom-question answers - **what:** `createbookinginput` gains an optional   `customquestionanswers?: customquestionanswerinput[]` (exported), where each   entry is `{ questionidortext, value }`. when supplied, `create` fetches the   activity's custom questions and resolves every answer **before** the booking is   made: the question is matched by id (`cq_…`) or lenient text (lowercased,   non-alphanumerics stripped; must match exactly one), and the value is validated   by question type — checkbox (`yes/no/true/false`), text (verbatim), or   select-one/location (option matched by id `cqao_…` or lenient label). the   resolved answers are attached to the booking quote. per-guest questions are   **not yet supported** — answering one fails creation. - **why:** callers can now capture custom-question responses at booking time   without hand-building the quote payload or pre-resolving option ids. - **caller action:** none to keep current behavior — the field is optional and   omitting it is unchanged. if you do pass answers, note that an unmatched or   ambiguous question/option, or an invalid checkbox value, now **throws before   any quote is created** (no partial booking). resolve ids with   `getcustomquestions(productid)` if you prefer exact matching over text. `[additive]` `productservice.getcustomquestions(productid)` — read an activity's custom questions - **what:** new read on `productservice` (with the `peekaccessservice.getcustomquestions(productid)`   short-form) that returns an activity's operator-configured custom questions as   a `customquestion[]`. each `customquestion` carries `id`, `order`, `isrequired`,   `questiontext`, `hinttext`, `questiontype` (`check_box`/`text`/`location`/   `select_one`/…), `internallabel`, `perguest`, `defaultvalue`, and   `options: customquestionoption[]` (`{ id, order, value }`, empty for   free-text/checkbox questions). both types are exported from the package root. - **why:** consumers need the question definitions attached to an activity (e.g.   to render or validate booking-time inputs) without touching raw graphql. - **caller action:** none — additive. note these are question **definitions**,   not customer answers, so the call carries no pii and is unaffected by   `fullcustomeraccess`. a blank `productid` throws before any network call; an   unknown activity returns `[]`.">
+<h2>0.8.0</h2>
+<h3><span class="tag tag--additive">additive</span> <code>createBooking</code> accepts custom-question answers</h3>
+<ul><li><strong>What:</strong> <code>CreateBookingInput</code> gains an optional <code>customQuestionAnswers?: CustomQuestionAnswerInput[]</code> (exported), where each entry is <code>{ questionIdOrText, value }</code>. When supplied, <code>create</code> fetches the activity's custom questions and resolves every answer <strong>before</strong> the booking is made: the question is matched by id (<code>cq_…</code>) or lenient text (lowercased, non-alphanumerics stripped; must match exactly one), and the value is validated by question type — checkbox (<code>yes/no/true/false</code>), text (verbatim), or select-one/location (option matched by id <code>cqao_…</code> or lenient label). The resolved answers are attached to the booking quote. Per-guest questions are <strong>not yet supported</strong> — answering one fails creation.</li><li><strong>Why:</strong> Callers can now capture custom-question responses at booking time without hand-building the quote payload or pre-resolving option ids.</li><li><strong>Caller action:</strong> None to keep current behavior — the field is optional and omitting it is unchanged. If you do pass answers, note that an unmatched or ambiguous question/option, or an invalid checkbox value, now <strong>throws before any quote is created</strong> (no partial booking). Resolve ids with <code>getCustomQuestions(productId)</code> if you prefer exact matching over text.</li></ul>
+<h3><span class="tag tag--additive">additive</span> <code>ProductService.getCustomQuestions(productId)</code> — read an activity's custom questions</h3>
+<ul><li><strong>What:</strong> New read on <code>ProductService</code> (with the <code>PeekAccessService.getCustomQuestions(productId)</code> short-form) that returns an activity's operator-configured custom questions as a <code>CustomQuestion[]</code>. Each <code>CustomQuestion</code> carries <code>id</code>, <code>order</code>, <code>isRequired</code>, <code>questionText</code>, <code>hintText</code>, <code>questionType</code> (<code>CHECK_BOX</code>/<code>TEXT</code>/<code>LOCATION</code>/ <code>SELECT_ONE</code>/…), <code>internalLabel</code>, <code>perGuest</code>, <code>defaultValue</code>, and <code>options: CustomQuestionOption[]</code> (<code>{ id, order, value }</code>, empty for free-text/checkbox questions). Both types are exported from the package root.</li><li><strong>Why:</strong> Consumers need the question definitions attached to an activity (e.g. to render or validate booking-time inputs) without touching raw GraphQL.</li><li><strong>Caller action:</strong> None — additive. Note these are question <strong>definitions</strong>, not customer answers, so the call carries no PII and is unaffected by <code>fullCustomerAccess</code>. A blank <code>productId</code> throws before any network call; an unknown activity returns <code>[]</code>.</li></ul>
+</section>
+</main>
+</div>
+<script>
+var tb=document.getElementById('themeBtn');
+if(tb)tb.addEventListener('click',function(){
+  var cur=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';
+  document.documentElement.setAttribute('data-theme',cur);
+  try{localStorage.setItem('theme',cur);}catch(e){}
+});
+var filter=document.getElementById('filter');
+var sections=Array.prototype.slice.call(document.querySelectorAll('section.ver'));
+var navlinks=Array.prototype.slice.call(document.querySelectorAll('a.navlink'));
+if(filter)filter.addEventListener('input',function(){
+  var q=filter.value.trim().toLowerCase();
+  sections.forEach(function(sec){
+    var hit=!q||(sec.getAttribute('data-search')||'').indexOf(q)!==-1;
+    sec.style.display=hit?'':'none';
+  });
+  navlinks.forEach(function(a){
+    var id=a.getAttribute('data-target');
+    var sec=document.getElementById(id);
+    a.style.display=(sec&&sec.style.display!=='none')?'':'none';
+  });
+});
+</script>
+</body>
+</html>

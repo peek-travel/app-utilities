@@ -17,15 +17,38 @@
  * and fails if the committed HTML differs from a fresh render, so `npm test`
  * catches a stale file before a commit.
  */
-import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readFileSync, writeFileSync, readdirSync, mkdirSync } from 'node:fs';
+import { dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CHANGELOG_MD = join(HERE, '..', 'changelog.md');
 const CHANGELOG_HTML = join(HERE, '..', 'docs', 'html', 'changelog.html');
+// Archived per-minor changelogs (source) and their generated HTML mirrors.
+const CHANGELOGS_MD_DIR = join(HERE, '..', 'docs', 'changelogs');
+const CHANGELOGS_HTML_DIR = join(HERE, '..', 'docs', 'html', 'changelogs');
 
 const TAG_KINDS = ['breaking', 'fix', 'additive', 'deprecated'];
+
+// "Reference" nav links, which differ by page depth: the main changelog sits in
+// docs/html/, each archive in docs/html/changelogs/.
+const MAIN_REFERENCE_LINKS = [{ href: '../index.html', label: '← All docs' }];
+const ARCHIVE_REFERENCE_LINKS = [
+  { href: '../changelog.html', label: '← Current changelog' },
+  { href: '../../index.html', label: '← All docs' },
+];
+
+/**
+ * Rewrite cross-document changelog links from their Markdown targets to the
+ * generated HTML ones: the main page's `docs/changelogs/<x>.md` archive links →
+ * `changelogs/<x>.html`, and an archive page's `../../changelog.md` back-link →
+ * `../changelog.html`.
+ */
+function rewriteDocLinks(html) {
+  return html
+    .replace(/href="(?:\.\/)?docs\/changelogs\/([^"/]+)\.md"/g, 'href="changelogs/$1.html"')
+    .replace(/href="\.\.\/\.\.\/changelog\.md"/g, 'href="../changelog.html"');
+}
 
 function escapeHtml(s) {
   return s
@@ -250,11 +273,15 @@ const PAGE_SCRIPT = [
   '});',
 ].join('\n');
 
-export function buildChangelogHtml(markdown) {
+export function buildChangelogHtml(markdown, opts = {}) {
+  const referenceLinks = opts.referenceLinks || MAIN_REFERENCE_LINKS;
   const blocks = parseBlocks(markdown);
   const sections = buildSections(blocks);
   const navHtml = renderNavHtml(sections);
-  const bodyHtml = renderSectionsHtml(sections);
+  const bodyHtml = rewriteDocLinks(renderSectionsHtml(sections));
+  const refHtml = referenceLinks
+    .map((l) => '<a class="navlink" href="' + l.href + '">' + l.label + '</a>')
+    .join('\n');
 
   return `<!doctype html>
 <html lang="en">
@@ -326,7 +353,7 @@ export function buildChangelogHtml(markdown) {
   <div class="navlabel">Versions</div>
 ${navHtml}
   <div class="navlabel" style="margin-top:auto">Reference</div>
-  <a class="navlink" href="../index.html">← All docs</a>
+${refHtml}
 </nav>
 <main>
 ${bodyHtml}
@@ -340,30 +367,65 @@ ${PAGE_SCRIPT}
 `;
 }
 
+/**
+ * The full set of changelog pages to (re)generate: the main changelog plus one
+ * HTML mirror per archived per-minor file in `docs/changelogs/`. Each entry
+ * carries the source `.md`, the target `.html`, and the builder `opts` (nav
+ * reference links) for that page. The drift test iterates this same list.
+ */
+export function changelogHtmlTargets() {
+  const targets = [
+    { md: CHANGELOG_MD, html: CHANGELOG_HTML, opts: { referenceLinks: MAIN_REFERENCE_LINKS } },
+  ];
+  let archives = [];
+  try {
+    archives = readdirSync(CHANGELOGS_MD_DIR).filter((f) => f.endsWith('.md')).sort();
+  } catch {
+    archives = [];
+  }
+  for (const f of archives) {
+    targets.push({
+      md: join(CHANGELOGS_MD_DIR, f),
+      html: join(CHANGELOGS_HTML_DIR, basename(f, '.md') + '.html'),
+      opts: { referenceLinks: ARCHIVE_REFERENCE_LINKS },
+    });
+  }
+  return targets;
+}
+
 function main() {
-  const md = readFileSync(CHANGELOG_MD, 'utf8');
-  const html = buildChangelogHtml(md);
   const check = process.argv.includes('--check');
-  if (check) {
-    let current = '';
-    try {
-      current = readFileSync(CHANGELOG_HTML, 'utf8');
-    } catch {
-      current = '';
+  const targets = changelogHtmlTargets();
+  if (!check) mkdirSync(CHANGELOGS_HTML_DIR, { recursive: true });
+  const stale = [];
+  for (const t of targets) {
+    const html = buildChangelogHtml(readFileSync(t.md, 'utf8'), t.opts);
+    if (check) {
+      let current = '';
+      try {
+        current = readFileSync(t.html, 'utf8');
+      } catch {
+        current = '';
+      }
+      if (current !== html) stale.push(t.html);
+    } else {
+      writeFileSync(t.html, html);
     }
-    if (current !== html) {
+  }
+  if (check) {
+    if (stale.length) {
       console.error(
-        'docs/html/changelog.html is out of date with changelog.md.\n' +
-          'Run: node scripts/build-changelog-html.mjs',
+        'Changelog HTML is out of date with the Markdown sources:\n  ' +
+          stale.join('\n  ') +
+          '\nRun: node scripts/build-changelog-html.mjs',
       );
       process.exitCode = 1;
       return;
     }
-    console.log('docs/html/changelog.html is up to date.');
+    console.log('Changelog HTML is up to date (' + targets.length + ' files).');
     return;
   }
-  writeFileSync(CHANGELOG_HTML, html);
-  console.log('Wrote docs/html/changelog.html (' + TAG_KINDS.length + ' tag kinds supported).');
+  console.log('Wrote ' + targets.length + ' changelog HTML files (' + TAG_KINDS.length + ' tag kinds supported).');
 }
 
 // Run the CLI only when invoked directly, not when imported by the drift test.
