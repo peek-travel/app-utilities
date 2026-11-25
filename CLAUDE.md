@@ -321,9 +321,12 @@ everything that names the version together in that same commit:
 
 - `package.json` `version`
 - `package-lock.json` — the two root `version` fields (lines ~3 and ~9)
-- `SDK_VERSION` in `src/internal/sdk-headers.ts`, which feeds the outbound
-  `x-peek-sdk: js-<version>` header. `test/sdk-headers.test.ts` is a drift guard
-  that fails if it does not equal `package.json#version`.
+- `VERSION` in `src/version.ts` — the single, front-and-center source of truth
+  for the running version. It feeds the outbound `x-peek-sdk: js-<version>`
+  header and the Peek GraphQL `?sdk=js&v=<version>` query param (both derive
+  from it via `SDK_VERSION` in `src/internal/sdk-headers.ts`, which just
+  re-exports it). `test/version.test.ts` is a drift guard that fails if it does
+  not equal `package.json#version`.
 - `changelog.md` — rename the `## Unreleased` heading to the new version, so the
   entries ship under the version that actually contains them, and fix any
   version literal quoted in those entries.

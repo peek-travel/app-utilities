@@ -181,11 +181,13 @@ URL as a query string, `?sdk=js&v=<version>` (the exported `SDK_QUERY_STRING`),
 so attribution survives contexts that only see the URL and not the headers. The
 REST transports do not add it.
 
-The version is a **static literal**, not a runtime `package.json` read: the dual
-ESM+CJS build has no portable self-location (`import.meta.url` is ESM-only,
-`__dirname` CJS-only), and a const keeps the package dependency-light and
-tree-shakeable. `test/sdk-headers.test.ts` is a drift guard that asserts
-`SDK_VERSION === package.json#version` — **bump both together**.
+The version itself is the **front-and-center `VERSION` const in `src/version.ts`**
+— the single source of truth that `SDK_VERSION` re-exports. It is a **static
+literal**, not a runtime `package.json` read: the dual ESM+CJS build has no
+portable self-location (`import.meta.url` is ESM-only, `__dirname` CJS-only), and
+a const keeps the package dependency-light and tree-shakeable.
+`test/version.test.ts` is a drift guard that asserts `VERSION ===
+package.json#version` — **bump both together**.
 
 ### 4. Per-resource services
 `src/internal/peek/<resource>/`

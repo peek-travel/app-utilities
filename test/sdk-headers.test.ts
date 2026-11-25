@@ -20,9 +20,9 @@ describe("sdk headers", () => {
     expect(SDK_HEADER_NAME).toBe("x-peek-sdk");
   });
 
-  // Drift guard: the version literal cannot be read from package.json at
-  // runtime in the dual ESM+CJS build, so this pins the two together. If this
-  // fails after a version bump, update SDK_VERSION in src/internal/sdk-headers.ts.
+  // Drift guard: SDK_VERSION re-exports the canonical VERSION in
+  // src/version.ts; this confirms the header path carries it. The primary
+  // package.json pin lives in test/version.test.ts.
   it("pins SDK_VERSION to the package.json version", () => {
     expect(SDK_VERSION).toBe(packageVersion);
   });
