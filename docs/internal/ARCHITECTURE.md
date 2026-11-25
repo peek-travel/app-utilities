@@ -145,7 +145,7 @@ callback that handles the transport-specific success/error parsing.
 Responsibilities:
 
 - Builds the endpoint URL as `joinUrl(baseApiUrl, endpoints.pathFor(endpointName))`,
-  then appends the SDK identification query string `?sdk=js&v=<package version>`
+  then appends the SDK identification query string `?sdk=js-<package version>`
   (`SDK_QUERY_STRING` from `sdk-headers.ts`) so the gateway can attribute traffic
   from the URL as well as the `x-peek-sdk` header. Today every operation routes
   through the single `sales` endpoint (`gateway-endpoints.ts`), whose slug is
@@ -177,7 +177,8 @@ attribute traffic to this package and its version. The module exports
 internal and not re-exported from `src/index.ts`.
 
 The Peek `GraphQLClient` additionally appends the same identity to the request
-URL as a query string, `?sdk=js&v=<version>` (the exported `SDK_QUERY_STRING`),
+URL as a query string, `?sdk=js-<version>` (the exported `SDK_QUERY_STRING`, the
+same `js-<version>` value as the header in a single param),
 so attribution survives contexts that only see the URL and not the headers. The
 REST transports do not add it.
 

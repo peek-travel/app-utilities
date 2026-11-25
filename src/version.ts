@@ -14,7 +14,7 @@
  * static const keeps the package dependency-light and tree-shakeable.
  *
  * It feeds the outbound `x-peek-sdk: js-<version>` header and the Peek GraphQL
- * `?sdk=js&v=<version>` query param (both in `src/internal/sdk-headers.ts`).
+ * `?sdk=js-<version>` query param (both in `src/internal/sdk-headers.ts`).
  *
  * See **Versioning** in `CLAUDE.md` for everything that moves together on a bump.
  */

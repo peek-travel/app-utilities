@@ -31,7 +31,7 @@ describe("sdk headers", () => {
     expect(SDK_HEADER_VALUE).toBe(`js-${packageVersion}`);
   });
 
-  it("formats the query string as sdk=js&v=<version>", () => {
-    expect(SDK_QUERY_STRING).toBe(`sdk=js&v=${packageVersion}`);
+  it("formats the query string as sdk=js-<version>", () => {
+    expect(SDK_QUERY_STRING).toBe(`sdk=js-${packageVersion}`);
   });
 });
