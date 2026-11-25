@@ -7,6 +7,7 @@ import {
 import { peekApiEndpoints } from "../../../src/internal/peek/gateway-endpoints.js";
 import { ResellerService } from "../../../src/internal/peek/resellers/reseller-service.js";
 import { noopLogger } from "../../../src/logger.js";
+import { SDK_QUERY_STRING } from "../../../src/internal/sdk-headers.js";
 
 interface RecordedCall {
   url: string;
@@ -59,7 +60,7 @@ describe("ResellerService.getAllChannels", () => {
 
     expect(channels.map((c) => c.id)).toEqual(["ch-1"]);
     expect(JSON.parse(calls[0]!.init.body as string).variables.first).toBe(10);
-    expect(calls[0]!.url).toBe("https://gw.test/gql/app-1/sales");
+    expect(calls[0]!.url).toBe(`https://gw.test/gql/app-1/sales?${SDK_QUERY_STRING}`);
   });
 
   it("passes through a custom agents-per-channel limit", async () => {

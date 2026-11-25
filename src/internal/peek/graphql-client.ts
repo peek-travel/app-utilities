@@ -7,7 +7,7 @@
 import { PeekGraphQLError, PeekHttpError } from "../../errors.js";
 import { ApiEndpoints, joinUrl } from "../api-endpoints.js";
 import { parseBody, requestWithRetry } from "../http-transport.js";
-import { SDK_HEADER_NAME, SDK_HEADER_VALUE } from "../sdk-headers.js";
+import { SDK_HEADER_NAME, SDK_HEADER_VALUE, SDK_QUERY_STRING } from "../sdk-headers.js";
 import type { Logger } from "../../logger.js";
 
 /** The raw body of a GraphQL HTTP response. */
@@ -96,7 +96,11 @@ export class GraphQLClient {
 
   private endpoint(endpointName: string): string {
     const { baseApiUrl, endpoints } = this.options;
-    return joinUrl(baseApiUrl, endpoints.pathFor(endpointName));
+    const url = joinUrl(baseApiUrl, endpoints.pathFor(endpointName));
+    // Tag every GraphQL request with the SDK platform + version so the gateway
+    // can attribute traffic from the URL (defensively honour an existing query).
+    const separator = url.includes("?") ? "&" : "?";
+    return `${url}${separator}${SDK_QUERY_STRING}`;
   }
 
   private buildHeaders(): Record<string, string> {

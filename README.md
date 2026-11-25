@@ -560,6 +560,6 @@ test/                      vitest unit tests (test/ui/* run under happy-dom)
 examples/ui-gallery.html   component gallery (npm run sample)
 dist/                      build output (generated, git-ignored)
 docs/webhooks.md           booking-webhook consumer guide (shipped)
-docs/internal/             maintainer docs (ARCHITECTURE.md — not shipped)
+docs/internal/             maintainer docs (ARCHITECTURE.md index + topic docs — not shipped)
 llms.txt                   AI-agent quickstart (shipped in the package)
 ```

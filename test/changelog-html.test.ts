@@ -1,24 +1,26 @@
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
 // The generator is a plain Node ESM script outside src/ (not bundled); import
-// the pure builder from it so this test renders the HTML exactly as the CLI does.
-import { buildChangelogHtml } from "../scripts/build-changelog-html.mjs";
-
-const changelogMdPath = fileURLToPath(new URL("../changelog.md", import.meta.url));
-const changelogHtmlPath = fileURLToPath(
-  new URL("../docs/html/changelog.html", import.meta.url),
-);
+// the pure builder + target list from it so this test renders the HTML exactly
+// as the CLI does.
+import {
+  buildChangelogHtml,
+  changelogHtmlTargets,
+} from "../scripts/build-changelog-html.mjs";
 
 describe("changelog HTML", () => {
-  // Drift guard: docs/html/changelog.html is generated from changelog.md by
-  // scripts/build-changelog-html.mjs. If this fails after editing the changelog,
-  // regenerate it: `node scripts/build-changelog-html.mjs`.
-  it("matches a fresh render of changelog.md", () => {
-    const md = readFileSync(changelogMdPath, "utf8");
-    const committed = readFileSync(changelogHtmlPath, "utf8");
-    expect(committed).toBe(buildChangelogHtml(md));
-  });
+  // Drift guard: the main changelog HTML and every archived per-minor HTML in
+  // docs/html/changelogs/ are generated from their Markdown sources by
+  // scripts/build-changelog-html.mjs. If a case fails after editing a changelog,
+  // regenerate them: `node scripts/build-changelog-html.mjs`.
+  it.each(changelogHtmlTargets())(
+    "mirrors $md",
+    ({ md, html, opts }) => {
+      const source = readFileSync(md, "utf8");
+      const committed = readFileSync(html, "utf8");
+      expect(committed).toBe(buildChangelogHtml(source, opts));
+    },
+  );
 });

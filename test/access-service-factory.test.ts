@@ -4,6 +4,7 @@ import { createAccessServiceForInstall } from "../src/access-service-factory.js"
 import { PeekAccessService } from "../src/peek-access-service.js";
 import { CngAccessService } from "../src/cng-access-service.js";
 import { AcmeAccessService } from "../src/acme-access-service.js";
+import { SDK_QUERY_STRING } from "../src/internal/sdk-headers.js";
 
 const CREDS = { jwtSecret: "secret", issuer: "app-name" };
 const API_URL = "https://app-registry.sandbox.peeklabs.com/installations-api/demo-app";
@@ -43,7 +44,7 @@ describe("createAccessServiceForInstall", () => {
     await (service as PeekAccessService).getProductService().getAllProducts();
 
     // Peek POSTs to the apiUrl with the platform extendable slug appended.
-    expect(calls[0]).toBe(`${API_URL}/peek_backoffice_api-v1`);
+    expect(calls[0]).toBe(`${API_URL}/peek_backoffice_api-v1?${SDK_QUERY_STRING}`);
   });
 
   it.each([null, "newbrand"] as const)(
