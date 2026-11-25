@@ -268,7 +268,7 @@ gates every operation that touches customer financial data —
   keep new PII groups positioned so the maximal selection's order stays stable.
 - Any change here must be reflected in **all four** docs: `README.md`
   ("Access options / PII"), `llms.txt`, `docs/webhooks.md`, and
-  `docs/internal/ARCHITECTURE.md` §4b.
+  `docs/internal/pii.md`.
 
 # Coding Standards
 
